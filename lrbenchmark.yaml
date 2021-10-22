@@ -6,8 +6,8 @@ experiment:
   calibrator:
     - 'logit'
   dataset:
-    drugs_xtc:
-      n_splits: 2
+#    drugs_xtc:
+#      n_splits: 2
     glass:
       n_splits: 2
   preprocessor:
