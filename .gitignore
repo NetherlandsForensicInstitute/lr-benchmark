@@ -150,4 +150,5 @@ plots/
 results/
 logs/
 /fbda.yaml
-
+resources/glass/
+resources/drugs_xtc
