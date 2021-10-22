@@ -73,6 +73,6 @@ will be stored in separate folders within the `output` folder.
 
 Datasets
 ----------
-There are currently two datasets available for this project:
-- drugs_xtc: available as a csv file in the resources folder
+There are currently two datasets implemented for this project:
+- drugs_xtc: will be published on our github soon
 - glass: LA-ICPMS measurements of elemental concentration from floatglass. The data will be downloaded automatically from https://github.com/NetherlandsForensicInstitute/elemental_composition_glass when used in the pipeline for the first time. 
