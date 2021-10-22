@@ -1,0 +1,15 @@
+experiment:
+  repeats: 10
+  scorer:
+    - 'LR'
+    - 'XGB'
+  calibrator:
+    - 'logit'
+  dataset:
+    drugs_xtc:
+      n_splits: 2
+    glass:
+      n_splits: 2
+  preprocessor:
+    - 'dummy'
+    - 'rank_transformer'
