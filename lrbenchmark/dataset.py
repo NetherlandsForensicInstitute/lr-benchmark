@@ -13,11 +13,82 @@ from lrbenchmark.typing import TrainTestPair, XYType
 class Dataset(ABC):
     @abstractmethod
     def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
+        """
+        Retrieve data from this dataset.
+
+        This function is responsible for splitting the data in subset for
+        training and testing in a way that is appropriate for the data set.
+        Depending on the implementation, the data set may be returned at once,
+        as a K-fold series, or otherwise.
+
+        Parameters
+        ----------
+        seed : int, optional
+            Optional random seed to be used for splitting. The default is None.
+
+        Returns
+        -------
+        Iterable[TrainTestPair]
+            one or more subsets as an iterable, each element being a tuple
+            `((X_train, y_train), (X_test, y_test))`, where:
+                - `X_train` is a `numpy.ndarray` of features for records in the training set
+                - `y_train` is a `numpy.ndarray` of labels for records in the training set
+                - `X_test` is a `numpy.ndarray` of features for records in the test set
+                - `y_test` is a `numpy.ndarray` of labels for records in the test set
+
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def is_commonsource(self) -> bool:
+        """
+        Binary flag to indicate whether this data set is designed to develop
+        common-source models.
+
+        A data set is designed to either develop specific-source models or
+        common-source models. A specific-source data set typically has two
+        class labels: `0` indicates the defense's hypothesis and `1` for the
+        prosecutor's hypothesis. Both the training set and the test set sample
+        from both classes. A common-source data set has multiple class labels,
+        and if the data set is split, a class label should not appear in more
+        than one split.
+
+        Returns
+        -------
+        bool
+            `True` if the data set is designed to develop common-source models;
+            `False` if the data set is designed to develop specific-source models.
+
+        """
+        raise NotImplementedError
+
+    def pop(self, fraction: float, seed: int = None) -> XYType:
+        """
+        Draws a random sample from the data set.
+
+        The returned data will be removed.
+
+        Parameters
+        ----------
+        fraction : float
+            The size of the sample as a fraction of the _original_ data set
+            size, i.e. subsequent calls will return arrays of (approximately)
+            the same size.
+        seed : int, optional
+            Optional random seed. The default is None.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented by this data set.
+
+        Returns
+        -------
+        XYType
+            A tuple of `(X, y)`, with `X` being numpy arrays of features and
+            `y` the corresponding labels.
+        """
         raise NotImplementedError
 
 
