@@ -33,14 +33,14 @@ class RankTransformer(sklearn.base.TransformerMixin):
         return rankdata(X, axis=0)
 
 
-def pair_absdiff_transform(X: np.ndarray, y: np.ndarray) -> XYType:
+def pair_absdiff_transform(X: np.ndarray, y: np.ndarray, seed:None) -> XYType:
     """
     Transforms a basic X y dataset into same source and different source pairs and returns
     an X y dataset where the X is the absolute difference between the two pairs.
 
     Note that this method is different from sklearn TransformerMixin because it also transforms y.
     """
-    pairing = InstancePairing(different_source_limit='balanced')
+    pairing = InstancePairing(different_source_limit='balanced', seed=seed)
     transformer = AbsDiffTransformer()
     X_pairs, y_pairs = pairing.transform(X, y)
     return transformer.transform(X_pairs), y_pairs

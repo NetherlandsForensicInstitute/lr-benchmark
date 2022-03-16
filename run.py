@@ -42,8 +42,8 @@ def evaluate(dataset: Dataset,
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values()))):
         for (X_train, y_train), (X_test, y_test) in dataset.get_splits(seed=idx):
             if dataset.is_commonsource:
-                X_train, y_train = pair_absdiff_transform(X_train, y_train)
-                X_test, y_test = pair_absdiff_transform(X_test, y_test)
+                X_train, y_train = pair_absdiff_transform(X_train, y_train, seed=idx)
+                X_test, y_test = pair_absdiff_transform(X_test, y_test, seed=idx)
 
             calibrated_scorer.fit(X_train, y_train)
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
