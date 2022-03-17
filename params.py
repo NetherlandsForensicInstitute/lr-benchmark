@@ -1,15 +1,16 @@
 from collections.abc import Sequence, Mapping
-from typing import List, Any
+from typing import List
 
 from lir.calibration import *
+from lir.transformers import PercentileRankTransformer
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA, LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 from xgboost import XGBClassifier
 
-from lrbenchmark.evaluation import DescribedValue
 from lrbenchmark.dataset import XTCDataset, GlassDataset
-from lrbenchmark.transformers import RankTransformer, DummyTransformer
+from lrbenchmark.evaluation import DescribedValue
+from lrbenchmark.transformers import DummyTransformer
 
 
 def get_parameters(param: Union[str, Sequence, Mapping], possible_params: Mapping) -> List[DescribedValue]:
@@ -59,5 +60,5 @@ DATASETS = {
 
 PREPROCESSORS = {
     'dummy': DummyTransformer(),
-    'rank_transformer': RankTransformer()
+    'rank_transformer': PercentileRankTransformer()
 }

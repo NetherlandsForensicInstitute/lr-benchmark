@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from lrbenchmark.transformers import DummyTransformer, RankTransformer, pair_absdiff_transform
+from lrbenchmark.transformers import DummyTransformer, pair_absdiff_transform
+from lir.transformers import PercentileRankTransformer
 
 
 @pytest.fixture
@@ -26,18 +27,6 @@ def test_dummy_transformer(X, y):
     assert np.all(X_expected == X_actual)
 
 
-def test_rank_transformer(X, y):
-    X_expected = np.array([
-        [3., 1.0, 2.],
-        [3., 2.5, 3.],
-        [3., 2.5, 4.],
-        [3., 4.0, 5.],
-        [3., 5.0, 1.]
-    ])
-    X_actual = RankTransformer().fit_transform(X, y)
-    assert np.all(X_expected == X_actual)
-
-
 def test_pair_absdiff_transform(X, y):
     X_transformed, y_transformed = pair_absdiff_transform(X, y)
 
@@ -50,5 +39,5 @@ def test_pair_absdiff_transform(X, y):
 
 
 def test_pair_absdiff_transform_after_rank_transform(X, y):
-    X = RankTransformer().fit_transform(X, y)
+    X = PercentileRankTransformer().fit_transform(X, y)
     test_pair_absdiff_transform(X, y)
