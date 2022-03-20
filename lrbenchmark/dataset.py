@@ -98,6 +98,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         self.n_splits = n_splits
         self.preprocessor = None
         self._data = None
+        self._preprocessed_data = None
 
     @abstractmethod
     def load(self) -> XYType:
@@ -106,10 +107,13 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y(self) -> XYType:
         if self._data is None:
             X, y = self.load()
-            if self.preprocessor:
-                X = self.preprocessor.fit_transform(X)
             self._data = (X, y)
-        return self._data
+        else:
+            (X, y) = self._data
+        if self.preprocessor:
+            X = self.preprocessor.fit_transform(X)
+            self._preprocessed_data = (X, y)
+        return self._preprocessed_data
 
     def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
         X, y = self.get_x_y()
