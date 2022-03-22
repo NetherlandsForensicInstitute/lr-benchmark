@@ -110,9 +110,10 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             self._data = (X, y)
         else:
             (X, y) = self._data
+
         if self.preprocessor:
             X = self.preprocessor.fit_transform(X)
-            self._preprocessed_data = (X, y)
+        self._preprocessed_data = (X, y)
         return self._preprocessed_data
 
     def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
