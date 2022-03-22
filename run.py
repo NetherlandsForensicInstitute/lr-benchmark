@@ -86,6 +86,10 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
 
+    if [] in parameters.values():
+        raise ValueError('Every parameter should have at least one value, '
+                         'see README.')
+
     agg_result = []
     param_sets = []
     for param_set, param_values, result in exp.run_full_grid(parameters):
