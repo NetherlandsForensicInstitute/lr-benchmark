@@ -19,14 +19,17 @@ class DummyTransformer(sklearn.base.TransformerMixin):
         return X
 
 
-def pair_absdiff_transform(X: np.ndarray, y: np.ndarray, seed: Optional[int] = None) -> XYType:
+def pair_absdiff_transform(X: np.ndarray,
+                           y: np.ndarray,
+                           ratio_limit: Optional[int] = None,
+                           seed: Optional[int] = None) -> XYType:
     """
     Transforms a basic X y dataset into same source and different source pairs and returns
     an X y dataset where the X is the absolute difference between the two pairs.
 
     Note that this method is different from sklearn TransformerMixin because it also transforms y.
     """
-    pairing = InstancePairing(different_source_limit='balanced', seed=seed)
+    pairing = InstancePairing(ratio_limit=ratio_limit, seed=seed)
     transformer = AbsDiffTransformer()
     X_pairs, y_pairs = pairing.transform(X, y)
     return transformer.transform(X_pairs), y_pairs
