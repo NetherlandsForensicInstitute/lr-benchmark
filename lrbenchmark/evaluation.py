@@ -2,14 +2,14 @@
 Example of use:
 
 ```python
-def run_experiment(desc, data, clf):
+def run_experiment(selected_params, data, clf):
     clf.fit(data.X, data.y)
     ...
     return results
 
 
 # Parameter search
-exp = Evaluation(run_experiment)
+exp = Setup(run_experiment)
 exp.parameter('data', my_data)
 exp.parameter('clf', LogisticRegression())
 for selected_params, param_values, results in exp.run_parameter_search("clf", [LogisticRegression(), SVC()]):
@@ -18,7 +18,7 @@ for selected_params, param_values, results in exp.run_parameter_search("clf", [L
 
 
 # Grid search
-exp = Evaluation(run_experiment)
+exp = Setup(run_experiment)
 exp.parameter('data', my_data)  # Default value for parameter
 exp.parameter('clf', LogisticRegression())  # Default value for parameter
 for selected_params, param_values, results in exp.run_full_grid({'n_most_common_words': [5, 10, 20, 30],
@@ -26,11 +26,13 @@ for selected_params, param_values, results in exp.run_full_grid({'n_most_common_
     # do something sensible with the results
     ...
 """
+import collections
 import itertools
-from collections import Callable
+import logging
+from typing import Callable
 from typing import Optional, List, Any, Dict, Union
 
-import collections
+LOG = logging.getLogger(__name__)
 
 
 class DescribedValue:
@@ -130,4 +132,8 @@ class Setup:
         """
         # Run the experiments
         for param_set in experiments:
-            yield self.run_experiment(param_set, default_values)
+            try:
+                yield self.run_experiment(param_set, default_values)
+            except Exception as e:
+                LOG.fatal(f"experiment aborted: {e}; params: {param_set}")
+                raise

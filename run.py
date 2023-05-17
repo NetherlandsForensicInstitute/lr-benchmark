@@ -37,15 +37,16 @@ def evaluate(dataset: Dataset,
     test_probas = []
     test_predictions = []
 
-    dataset.preprocessor = preprocessor
-
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values()))):
         for (X_train, y_train), (X_test, y_test) in dataset.get_splits(seed=idx):
-            if dataset.is_commonsource:
+            X_train = preprocessor.fit_transform(X_train)
+
+            if not dataset.is_binary:
                 X_train, y_train = pair_absdiff_transform(X_train, y_train, seed=idx)
                 X_test, y_test = pair_absdiff_transform(X_test, y_test, seed=idx)
 
             calibrated_scorer.fit(X_train, y_train)
+            X_test = preprocessor.transform(X_test)
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
             test_labels.append(y_test)
 
@@ -110,7 +111,7 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
     # save figures and results per parameter set
     for result_row, param_set in zip(agg_result, param_sets):
         for fig_name, fig in result_row['figures'].items():
-            short_description = ' - '.join([str(val) for val in param_set.values()])
+            short_description = ' - '.join([str(val)[:5] for val in param_set.values()])
             path = f'{folder_name}/{short_description}/{fig_name}'
             prepare_output_file(path)
             fig.savefig(path)

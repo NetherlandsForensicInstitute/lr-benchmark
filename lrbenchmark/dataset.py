@@ -41,10 +41,11 @@ class Dataset(ABC):
 
     @property
     @abstractmethod
-    def is_commonsource(self) -> bool:
+    def is_binary(self) -> bool:
         """
-        Binary flag to indicate whether this data set is designed to develop
-        common-source models.
+        Binary flag to indicate whether this data set has two labels (i.e. is
+        binary) or more than two labels. Datasets with multple labels are
+        typically used to develop common-source models.
 
         A data set is designed to either develop specific-source models or
         common-source models. A specific-source data set typically has two
@@ -57,8 +58,8 @@ class Dataset(ABC):
         Returns
         -------
         bool
-            `True` if the data set is designed to develop common-source models;
-            `False` if the data set is designed to develop specific-source models.
+            `True` if the data set has two labels;
+            `False` if the data set has multiple labels.
 
         """
         raise NotImplementedError
@@ -96,9 +97,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def __init__(self, n_splits):
         super().__init__()
         self.n_splits = n_splits
-        self.preprocessor = None
         self._data = None
-        self._preprocessed_data = None
 
     @abstractmethod
     def load(self) -> XYType:
@@ -108,13 +107,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self._data is None:
             X, y = self.load()
             self._data = (X, y)
-        else:
-            (X, y) = self._data
 
-        if self.preprocessor:
-            X = self.preprocessor.fit_transform(X)
-        self._preprocessed_data = (X, y)
-        return self._preprocessed_data
+        return self._data
 
     def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
         X, y = self.get_x_y()
@@ -127,8 +121,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             yield (X[train_idxs], y[train_idxs]), (X[test_idxs], y[test_idxs])
 
     @property
-    def is_commonsource(self) -> bool:
-        return True
+    def is_binary(self) -> bool:
+        return False
 
 
 class InMemoryCommonSourceKFoldDataset(CommonSourceKFoldDataset):
