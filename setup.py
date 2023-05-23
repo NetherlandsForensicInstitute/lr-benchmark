@@ -14,7 +14,7 @@ dependencies = (
 
 
 setup(
-    name='LRbenchmark',
+    name='lrbenchmark',
     version='0.0',
     author='Netherlands Forensics Institute',
     packages=find_packages(),
