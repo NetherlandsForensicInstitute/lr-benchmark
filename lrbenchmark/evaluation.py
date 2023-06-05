@@ -118,7 +118,7 @@ class Setup:
         for name, value in param_set.items():
             param_values[name] = value.value
 
-        result = self._evaluate(**param_values, selected_params=param_set)
+        result = self._evaluate(**param_values)
         return param_set, param_values, result
 
     def run_experiments(self, experiments: Union[List[Dict[str, Any]], Dict[str, Any]], default_values=None):
