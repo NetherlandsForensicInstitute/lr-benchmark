@@ -10,7 +10,7 @@ dependencies = (
     'confidence',
     'pytest',
     'matplotlib',
-    'sklearn',
+    'scikit-learn',
     'lir',
     'pandas',
     'xgboost',
