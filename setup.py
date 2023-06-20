@@ -10,7 +10,7 @@ dependencies = (
     'confidence',
     'pytest',
     'matplotlib',
-    'sklearn',
+    'scikit-learn',
     'lir',
     'pandas',
     'xgboost',
@@ -20,7 +20,7 @@ dependencies = (
 
 setup(
     name='lrbenchmark',
-    version='0.1.1',
+    version='0.1.2',
     author='Netherlands Forensics Institute',
     description='Benchmarking Likelihood Ratio systems',
     long_description=long_description,
