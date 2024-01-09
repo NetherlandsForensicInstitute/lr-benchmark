@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Optional
+from typing import Mapping, Any, Union
 
 import numpy as np
 
@@ -10,7 +10,7 @@ class Source:
     A source that can generate a measurement
 
     :param id: the id of the source
-    :param extra: Additional metadata related to the source.
+    :param extra: additional metadata related to the source
     """
     id: int
     extra: Mapping[str, Any]
@@ -23,8 +23,8 @@ class Measurement:
     `extra` mapping
 
     :param source: the source of the measurement
-    :param extra: Additional metadata related to the measurement
-    :param value: The value of the measurement
+    :param extra: additional metadata related to the measurement
+    :param value: the value of the measurement
     """
     source: Source
     extra: Mapping[str, Any]
@@ -32,7 +32,7 @@ class Measurement:
 
     def get_x(self) -> np.ndarray:
         if not isinstance(self.value, np.ndarray):
-            raise TypeError('The returned value should be an numpy array')
+            raise TypeError('The returned value should be a numpy array.')
         return self.value
 
 
@@ -44,7 +44,7 @@ class MeasurementPair:
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    score: Optional[float, np.ndarray] = None
+    score: Union[None, float, np.ndarray] = None
 
     @property
     def is_same_source(self) -> bool:
