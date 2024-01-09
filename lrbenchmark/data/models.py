@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union
+from typing import Mapping, Any, Union, Optional
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class Source:
 @dataclass
 class Measurement:
     """
-    A single measurement that has a source, with optional measurement_value and additional meta information in the
+    A single measurement that has a source, with optional value and additional meta information in the
     `extra` mapping
 
     :param source: the source of the measurement
@@ -28,7 +28,7 @@ class Measurement:
     """
     source: Source
     extra: Mapping[str, Any]
-    value: Any = None
+    value: Optional[Any] = None
 
     def get_x(self) -> np.ndarray:
         if not isinstance(self.value, np.ndarray):
