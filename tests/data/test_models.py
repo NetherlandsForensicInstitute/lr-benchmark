@@ -12,11 +12,9 @@ def test_measurement() -> Measurement:
 
 
 @pytest.fixture
-def test_measurement_pair() -> MeasurementPair:
+def test_measurement_pair(test_measurement) -> MeasurementPair:
     return MeasurementPair(
-        measurement_a=Measurement(source=Source(id=1, extra={}),
-                                  extra={},
-                                  value=np.array([1, 1, 1, 1])),
+        measurement_a=test_measurement,
         measurement_b=Measurement(source=Source(id=2, extra={}),
                                   extra={},
                                   value=np.array([0, 0, 0, 0])),
