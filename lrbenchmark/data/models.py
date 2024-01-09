@@ -35,6 +35,9 @@ class Measurement:
             raise TypeError('The returned value should be a numpy array.')
         return self.value
 
+    def get_y(self) -> int:
+        return self.source.id
+
 
 @dataclass
 class MeasurementPair:

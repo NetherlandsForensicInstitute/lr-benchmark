@@ -1,12 +1,15 @@
+import csv
 import os
 import urllib.request
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Optional, Callable
 
 import numpy as np
 import pandas as pd
+from lir.transformers import InstancePairing, AbsDiffTransformer
 from sklearn.model_selection import StratifiedGroupKFold
 
+from lrbenchmark.data.models import Measurement, Source
 from lrbenchmark.typing import TrainTestPair, XYType
 
 
@@ -35,31 +38,6 @@ class Dataset(ABC):
                 - `y_train` is a `numpy.ndarray` of labels for records in the training set
                 - `X_test` is a `numpy.ndarray` of features for records in the test set
                 - `y_test` is a `numpy.ndarray` of labels for records in the test set
-
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def is_binary(self) -> bool:
-        """
-        Binary flag to indicate whether this data set has two labels (i.e. is
-        binary) or more than two labels. Datasets with multple labels are
-        typically used to develop common-source models.
-
-        A data set is designed to either develop specific-source models or
-        common-source models. A specific-source data set typically has two
-        class labels: `0` indicates the defense's hypothesis and `1` for the
-        prosecutor's hypothesis. Both the training set and the test set sample
-        from both classes. A common-source data set has multiple class labels,
-        and if the data set is split, a class label should not appear in more
-        than one split.
-
-        Returns
-        -------
-        bool
-            `True` if the data set has two labels;
-            `False` if the data set has multiple labels.
 
         """
         raise NotImplementedError
@@ -97,20 +75,25 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def __init__(self, n_splits):
         super().__init__()
         self.n_splits = n_splits
-        self._data = None
+        self._data = self.load()
+        self.sources = None
+        self.measurements = None
+        self.measurement_pairs = None
 
     @abstractmethod
-    def load(self) -> XYType:
+    def load(self) -> Iterable[Measurement]: #XYType:
         raise NotImplementedError
 
+    def get_x(self) -> np.ndarray:
+        return np.array([m.get_x() for m in self._data])
+
+    def get_y(self) -> np.ndarray:
+        return np.array([m.get_y() for m in self._data])
+
     def get_x_y(self) -> XYType:
-        if self._data is None:
-            X, y = self.load()
-            self._data = (X, y)
+        return self.get_x(), self.get_y()
 
-        return self._data
-
-    def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
+    def get_splits(self, seed: int = None) -> Iterable[Dataset]:
         X, y = self.get_x_y()
 
         cv = StratifiedGroupKFold(n_splits=self.n_splits, shuffle=True,
@@ -120,9 +103,20 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                               groups=y):
             yield (X[train_idxs], y[train_idxs]), (X[test_idxs], y[test_idxs])
 
-    @property
-    def is_binary(self) -> bool:
-        return False
+    def get_x_y_pairs(self, pairing_function: Optional[Callable]=InstancePairing(different_source_limit='balanced', seed=42), transformer: Optional[Callable]=AbsDiffTransformer):
+        """
+        Transforms a basic X y dataset into same source and different source pairs and returns
+        an X y dataset where the X is the absolute difference between the two pairs.
+
+        Note that this method is different from sklearn TransformerMixin because it also transforms y.
+        """
+        if self.measurement_pairs:
+            return self.measurement_pairs.get_x(), self.measurement_pairs.get_y()
+        else:
+            X, y = self.get_x_y()
+            X_pairs, y_pairs = pairing_function.transform(X, y)
+            X_pairs = transformer.transform(X_pairs)
+            return X_pairs, y_pairs
 
 
 class InMemoryCommonSourceKFoldDataset(CommonSourceKFoldDataset):
@@ -169,7 +163,7 @@ class GlassDataset(CommonSourceKFoldDataset):
     def __init__(self, n_splits):
         super().__init__(n_splits)
 
-    def load(self) -> XYType:
+    def load(self):
         datasets = {
             'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/duplo.csv',
             'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/training.csv',
@@ -177,25 +171,38 @@ class GlassDataset(CommonSourceKFoldDataset):
         }
         glass_folder = os.path.join('resources', 'glass')
 
-        features = ["K39", "Ti49", "Mn55", "Rb85", "Sr88", "Zr90", "Ba137",
-                    "La139", "Ce140", "Pb208"]
-        df = None
-
+        # features = ["K39", "Ti49", "Mn55", "Rb85", "Sr88", "Zr90", "Ba137",
+        #             "La139", "Ce140", "Pb208"]
+        # df = None
+        measurements = []
+        max_item = 0
         for file, url in datasets.items():
             download_dataset_file(glass_folder, file, url)
-            df_temp = pd.read_csv(os.path.join(glass_folder, file),
-                                  delimiter=',')
-            # The Item column starts with 1 in each file,
-            # this is making it ascending across different files
-            df_temp['Item'] = df_temp['Item'] + max(
-                df['Item']) if df is not None else df_temp['Item']
-            # the data from all 3 files is added together to make one dataset
-            df = pd.concat([df, df_temp]) if df is not None else df_temp
+            path = os.path.join(glass_folder, file)
+            with open(path, "r") as f:
+                reader = csv.DictReader(f)
+                measurements_tmp = [
+                    Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
+                                extra={'Piece': int(row['Piece'])},
+                                value=np.array(
+                                    list(map(float, row.values()))[3:])) for
+                    row in reader]
+                max_item = measurements_tmp[-1].source.id
+                measurements.extend(measurements_tmp)
+        #     df_temp = pd.read_csv(path,
+        #                           delimiter=',')
+        #     # The Item column starts with 1 in each file,
+        #     # this is making it ascending across different files
+        #     df_temp['Item'] = df_temp['Item'] + max(
+        #         df['Item']) if df is not None else df_temp['Item']
+        #     # the data from all 3 files is added together to make one dataset
+        #     df = pd.concat([df, df_temp]) if df is not None else df_temp
+        #
+        # X = df[features].to_numpy()
+        # y = df['Item'].to_numpy()
 
-        X = df[features].to_numpy()
-        y = df['Item'].to_numpy()
-
-        return X, y
+        self.measurements = measurements  # X, y
+        self.sources = set(m.source for m in self.measurements)
 
     def __repr__(self):
         return "Glass dataset"

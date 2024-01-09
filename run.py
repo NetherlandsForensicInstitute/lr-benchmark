@@ -38,15 +38,13 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values()))):
-        for (X_train, y_train), (X_test, y_test) in dataset.get_splits(seed=idx):
+        for dataset_train, dataset_test in dataset.get_splits(seed=idx):
+            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_train = preprocessor.fit_transform(X_train)
-
-            if not dataset.is_binary:
-                X_train, y_train = pair_absdiff_transform(X_train, y_train, seed=idx)
-                X_test, y_test = pair_absdiff_transform(X_test, y_test, seed=idx)
+            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+            X_test = preprocessor.transform(X_test)
 
             calibrated_scorer.fit(X_train, y_train)
-            X_test = preprocessor.transform(X_test)
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
             test_labels.append(y_test)
 
