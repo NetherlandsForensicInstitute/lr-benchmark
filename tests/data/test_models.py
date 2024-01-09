@@ -22,7 +22,7 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
 
 
 def test_get_x_measurement(test_measurement):
-    assert np.all(test_measurement.get_x() == np.array([1, 1, 1, 1]))
+    assert np.array_equal(test_measurement.get_x(), np.array([1, 1, 1, 1]))
 
 
 def test_is_same_source(test_measurement_pair):
@@ -30,7 +30,7 @@ def test_is_same_source(test_measurement_pair):
 
 
 def test_get_x_measurement_pair(test_measurement_pair):
-    assert np.all(test_measurement_pair.get_x() == np.array([0.8]))
+    assert np.array_equal(test_measurement_pair.get_x(), np.array([0.8]))
 
 
 def test_get_y_measurement_pair(test_measurement_pair):
