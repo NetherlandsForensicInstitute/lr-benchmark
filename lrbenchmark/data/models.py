@@ -56,7 +56,9 @@ class MeasurementPair:
 
     @property
     def score(self) -> Union[None, float, np.ndarray]:
-        return self.extra.get('score')
+        if 'score' in self.extra.keys():
+            return self.extra['score']
+        raise ValueError("No score found in the extra mapping.")
 
     def get_x(self) -> np.ndarray:
         return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
