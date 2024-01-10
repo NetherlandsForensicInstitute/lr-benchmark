@@ -21,7 +21,7 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
         measurement_b=Measurement(source=Source(id=2, extra={}),
                                   extra={},
                                   value=np.array([0, 0, 0, 0])),
-        score=0.8)
+        extra={'score': 0.8})
 
 
 def test_source_equal(test_source):

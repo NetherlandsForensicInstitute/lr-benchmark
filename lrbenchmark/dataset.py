@@ -199,10 +199,13 @@ class GlassDataset(CommonSourceKFoldDataset):
                 measurements_tmp = [
                     Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
                                 extra={'Piece': int(row['Piece'])},
+                                # the values consists of measurements of ten elemental
+                                # compositions, which start at the fourth position of
+                                # each row
                                 value=np.array(
                                     list(map(float, row.values()))[3:])) for
                     row in reader]
-                # The Item column starts with 1 in each file,
+                # The item values start with 1 in each file,
                 # this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
