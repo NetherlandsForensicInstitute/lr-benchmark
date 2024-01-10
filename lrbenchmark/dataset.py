@@ -71,9 +71,7 @@ class Dataset(ABC):
 
 
 class CommonSourceKFoldDataset(Dataset, ABC):
-    def __init__(self,
-                 n_splits: Optional[int],
-                 measurements: Optional[List[Measurement]] = None,
+    def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None,
                  measurement_pairs: Optional[List[MeasurementPair]] = None):
         super().__init__()
         self.n_splits = n_splits
@@ -94,8 +92,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self.measurements:
             return set([m.source.id for m in self.measurements])
         else:
-            return set(chain.from_iterable([[mp.measurement_a.source.id,
-                                             mp.measurement_b.source.id] for mp in self.measurement_pairs]))
+            return set(chain.from_iterable(
+                [[mp.measurement_a.source.id, mp.measurement_b.source.id] for mp in self.measurement_pairs]))
 
     def get_x_measurement(self) -> np.ndarray:
         return np.array([m.get_x() for m in self.measurements])
@@ -119,21 +117,20 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self.measurements:  # split the measurements if available
             cv = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed)
             for splits in cv.split(self.measurements, groups=[m.source.id for m in self.measurements]):
-                yield [CommonSourceKFoldDataset(n_splits=None,
-                                                measurements=[self.measurements[i] for i in split]) for split in splits]
+                yield [CommonSourceKFoldDataset(n_splits=None, measurements=[self.measurements[i] for i in split]) for
+                       split in splits]
         else:  # split the measurement pairs
             kf = KFold(n_splits=self.n_splits)
             source_ids = list(self.source_ids)
             for splits in kf.split(source_ids):
-                yield [CommonSourceKFoldDataset(
-                    n_splits=None,
-                    measurement_pairs=list(filter(lambda mp: mp.measurement_a.source in source_ids[split] and
-                                                             mp.measurement_b.source in source_ids[split],
-                                                  self.measurement_pairs))) for split in splits]
+                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
+                    lambda mp: mp.measurement_a.source in source_ids[split] and mp.measurement_b.source in source_ids[
+                        split], self.measurement_pairs))) for split in splits]
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
-                      pairing_function: Optional[Callable] = partial(InstancePairing, different_source_limit='balanced'),
+                      pairing_function: Optional[Callable] = partial(InstancePairing,
+                                                                     different_source_limit='balanced'),
                       transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
@@ -163,7 +160,7 @@ class XTCDataset(CommonSourceKFoldDataset):
         Loads XTC dataset
         """
         data_file = 'Champ_data.csv'
-        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # @todo publish dataset to github
+        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
         print(f"{self.__repr__()} is not yet available for download")
         xtc_folder = os.path.join('resources', 'drugs_xtc')
         download_dataset_file(xtc_folder, data_file, url)
@@ -186,9 +183,12 @@ class GlassDataset(CommonSourceKFoldDataset):
 
     def load(self):
         datasets = {
-            'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/duplo.csv',
-            'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/training.csv',
-            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/triplo.csv'
+            'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                         'elemental_composition_glass/main/duplo.csv',
+            'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                            'elemental_composition_glass/main/training.csv',
+            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                          'elemental_composition_glass/main/triplo.csv'
         }
         glass_folder = os.path.join('resources', 'glass')
 
@@ -199,15 +199,12 @@ class GlassDataset(CommonSourceKFoldDataset):
             path = os.path.join(glass_folder, file)
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
-                measurements_tmp = [
-                    Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
-                                extra={'Piece': int(row['Piece'])},
-                                # the values consists of measurements of ten elemental
-                                # compositions, which start at the fourth position of
-                                # each row
-                                value=np.array(
-                                    list(map(float, row.values()))[3:])) for
-                    row in reader]
+                measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
+                                                extra={'Piece': int(row['Piece'])},
+                                                # the values consists of measurements of ten elemental
+                                                # compositions, which start at the fourth position of
+                                                # each row
+                                                value=np.array(list(map(float, row.values()))[3:])) for row in reader]
                 # The item values start with 1 in each file,
                 # this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id
