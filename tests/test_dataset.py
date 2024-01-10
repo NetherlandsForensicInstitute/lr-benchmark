@@ -9,7 +9,7 @@ from lrbenchmark.dataset import CommonSourceKFoldDataset
 @pytest.fixture
 def measurements() -> List[Measurement]:
     values = np.reshape(np.array(list(range(25))), (5, 5))
-    items = np.array(['a', 'b', 'c', 'd', 'e'])
+    items = np.array([10, 11, 12, 13, 14])
     return [Measurement(source=Source(id=item, extra={}),
                         extra={},
                         value=value) for value, item in zip(values, items)]

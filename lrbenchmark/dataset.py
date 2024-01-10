@@ -80,6 +80,9 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         self.measurements = measurements
         self.measurement_pairs = measurement_pairs
 
+        if self.measurements and self.measurement_pairs:
+            raise ValueError("Dataset cannot have both measurements and"
+                             "measurement pairs.")
         if self.measurements is None and self.measurement_pairs is None:
             self.load()
 

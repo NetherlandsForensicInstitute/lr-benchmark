@@ -16,7 +16,6 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.dataset import Dataset
-from lrbenchmark.transformers import pair_absdiff_transform
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
@@ -41,6 +40,10 @@ def evaluate(dataset: Dataset,
         for dataset_train, dataset_test in dataset.get_splits(seed=idx):
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+
+            if preprocessor:
+                X_train = preprocessor.fit_transform(X_train)
+                X_test = preprocessor.fit_transform(X_test)
 
             calibrated_scorer.fit(X_train, y_train)
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
