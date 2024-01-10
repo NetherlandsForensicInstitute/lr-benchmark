@@ -72,7 +72,7 @@ class Dataset(ABC):
 
 class CommonSourceKFoldDataset(Dataset, ABC):
     def __init__(self,
-                 n_splits,
+                 n_splits: Optional[int],
                  measurements: Optional[List[Measurement]] = None,
                  measurement_pairs: Optional[List[MeasurementPair]] = None):
         super().__init__()
@@ -129,20 +129,23 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                                   self.measurement_pairs))) for split in splits]
 
     def get_x_y_pairs(self,
-                      pairing_function: Optional[Callable] = partial(InstancePairing, different_source_limit='balanced', seed=42),
+                      seed: Optional[int] = None,
+                      pairing_function: Optional[Callable] = partial(InstancePairing, different_source_limit='balanced'),
                       transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
-        Transforms a dataset into same source and different source pairs and returns
-        two arrays of X_pairs and y_pairs where the X_pairs are by default transformed
-        to the absolute difference between two pairs.
+        Transforms a dataset into same source and different source pairs and
+        returns two arrays of X_pairs and y_pairs where the X_pairs are by
+        default transformed to the absolute difference between two pairs. If
+        pairs are already available, we return those.
 
-        Note that this method is different from sklearn TransformerMixin because it also transforms y.
+        Note that this method is different from sklearn TransformerMixin
+        because it also transforms y.
         """
         if self.measurement_pairs:
             return self.get_x_y_measurement_pair()
         else:
             X, y = self.get_x_y_measurement()
-            X_pairs, y_pairs = pairing_function().transform(X, y)
+            X_pairs, y_pairs = pairing_function(seed=seed).transform(X, y)
             X_pairs = transformer().transform(X_pairs)
             return X_pairs, y_pairs
 
@@ -199,6 +202,8 @@ class GlassDataset(CommonSourceKFoldDataset):
                                 value=np.array(
                                     list(map(float, row.values()))[3:])) for
                     row in reader]
+                # The Item column starts with 1 in each file,
+                # this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
         self.measurements = measurements

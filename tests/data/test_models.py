@@ -3,6 +3,9 @@ import pytest
 
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
+@pytest.fixture
+def test_source() -> Source:
+    return Source(id=10, extra={})
 
 @pytest.fixture
 def test_measurement() -> Measurement:
@@ -21,8 +24,17 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
         score=0.8)
 
 
+def test_source_equal(test_source):
+    assert test_source == Source(id=10, extra={})
+    assert not test_source == Source(id=20, extra={})
+
+
 def test_get_x_measurement(test_measurement):
     assert np.array_equal(test_measurement.get_x(), np.array([1, 1, 1, 1]))
+
+
+def test_get_y_measurement(test_measurement):
+    assert test_measurement.get_y() == 1
 
 
 def test_is_same_source(test_measurement_pair):

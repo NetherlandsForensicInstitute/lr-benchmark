@@ -57,7 +57,7 @@ class MeasurementPair:
         return self.measurement_a.source.id == self.measurement_b.source.id
 
     def get_x(self) -> np.ndarray:
-        return np.ndarray(self.score) if not isinstance(self.score, np.ndarray) else self.score
+        return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
 
     def get_y(self) -> bool:
         return self.is_same_source
