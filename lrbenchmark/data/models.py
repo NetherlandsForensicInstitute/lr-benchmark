@@ -19,8 +19,8 @@ class Source:
 @dataclass
 class Measurement:
     """
-    A single measurement that has a source, with optional value and additional meta information in the
-    `extra` mapping
+    A single measurement that has a source, with optional value and additional
+    meta information in the `extra` mapping
 
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
@@ -35,23 +35,33 @@ class Measurement:
             raise TypeError('The returned value should be a numpy array.')
         return self.value
 
+    def get_y(self) -> int:
+        return self.source.id
+
 
 @dataclass
 class MeasurementPair:
     """
-    A pair of two measurements. It always contains the information from the two measurements it was created from. An
-    optional score can be included if already available
+    A pair of two measurements. It always contains the information from the two
+    measurements it was created from and additional meta-information in the
+    extra mapping.
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    score: Union[None, float, np.ndarray] = None
+    extra: Mapping[str, Any]
 
     @property
     def is_same_source(self) -> bool:
         return self.measurement_a.source.id == self.measurement_b.source.id
 
+    @property
+    def score(self) -> Union[None, float, np.ndarray]:
+        if 'score' in self.extra.keys():
+            return self.extra['score']
+        raise ValueError("No score found in the extra mapping.")
+
     def get_x(self) -> np.ndarray:
-        return np.ndarray(self.score) if not isinstance(self.score, np.ndarray) else self.score
+        return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
 
     def get_y(self) -> bool:
         return self.is_same_source
