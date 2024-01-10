@@ -147,19 +147,6 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             return X_pairs, y_pairs
 
 
-class InMemoryCommonSourceKFoldDataset(CommonSourceKFoldDataset):
-    def __init__(self, X, y, n_splits):
-        self._X = X
-        self._y = y
-        super().__init__(n_splits=n_splits)
-
-    def load(self) -> XYType:
-        return self._X, self._y
-
-    def __repr__(self):
-        return "InMemoryDataset"
-
-
 class XTCDataset(CommonSourceKFoldDataset):
 
     def __init__(self, n_splits):
