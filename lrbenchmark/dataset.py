@@ -4,15 +4,15 @@ import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
 from itertools import chain
-from typing import Iterable, Optional, Callable, List
+from typing import Iterable, Optional, Callable, List, Set
 
 import numpy as np
 import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
-from sklearn.model_selection import StratifiedGroupKFold, KFold, GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import KFold, GroupShuffleSplit
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.typing import TrainTestPair, XYType
+from lrbenchmark.typing import XYType
 
 
 class Dataset(ABC):
@@ -33,18 +33,15 @@ class Dataset(ABC):
 
         Returns
         -------
-        Iterable[TrainTestPair]
-            one or more subsets as an iterable, each element being a tuple
-            `((X_train, y_train), (X_test, y_test))`, where:
-                - `X_train` is a `numpy.ndarray` of features for records in the training set
-                - `y_train` is a `numpy.ndarray` of labels for records in the training set
-                - `X_test` is a `numpy.ndarray` of features for records in the test set
-                - `y_test` is a `numpy.ndarray` of labels for records in the test set
+        Iterable['Dataset']
+            one or more Datasets as an iterable, each element being a subset
+            of the original Dataset consisting of measurements and/or measurement
+            pairs.
 
         """
         raise NotImplementedError
 
-    def pop(self, fraction: float, seed: int = None) -> XYType:
+    def pop(self, fraction: float, seed: int = None) -> 'Dataset':
         """
         Draws a random sample from the data set.
 
@@ -66,9 +63,9 @@ class Dataset(ABC):
 
         Returns
         -------
-        XYType
-            A tuple of `(X, y)`, with `X` being numpy arrays of features and
-            `y` the corresponding labels.
+        Dataset
+            A 'Dataset' consisting of a subset of the instances of the original
+            Dataset.
         """
         raise NotImplementedError
 
@@ -86,16 +83,16 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self.measurements is None and self.measurement_pairs is None:
             self.load()
 
-    def load(self) -> Iterable[Measurement]:
+    def load(self):
         raise NotImplementedError
 
     @property
-    def source_ids(self):
+    def source_ids(self) -> Set[int]:
         if self.measurements:
             return set([m.source.id for m in self.measurements])
         else:
-            return set(chain.from_iterable([[m.measurement_a.source.id,
-                                             m.measurement_b.source.id] for m in self.measurement_pairs]))
+            return set(chain.from_iterable([[mp.measurement_a.source.id,
+                                             mp.measurement_b.source.id] for mp in self.measurement_pairs]))
 
     def get_x_measurement(self) -> np.ndarray:
         return np.array([m.get_x() for m in self.measurements])
@@ -106,22 +103,22 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement(self) -> XYType:
         return self.get_x_measurement(), self.get_y_measurement()
 
-    def get_splits(self, seed: int = None) -> Iterable[Dataset]:
-        # X, y = self.get_x_y()
-        # sources = self.sources
-        # cv = StratifiedGroupKFold(n_splits=self.n_splits, shuffle=True,
-        #                           random_state=seed)
-        # # cv.split requires an x, y and groups. We don't have y yet, therefore we set it to -1.
-        # for train_idxs, test_idxs in cv.split(X, y=np.array([-1] * len(X)),
-        #                                       groups=y):
-        #     yield (X[train_idxs], y[train_idxs]), (X[test_idxs], y[test_idxs])
+    def get_x_measurement_pair(self) -> np.ndarray:
+        return np.array([mp.get_x() for mp in self.measurement_pairs])
 
-        if self.measurements:
+    def get_y_measurement_pair(self) -> np.ndarray:
+        return np.array([mp.get_y() for mp in self.measurement_pairs])
+
+    def get_x_y_measurement_pair(self) -> XYType:
+        return self.get_x_measurement_pair(), self.get_y_measurement_pair()
+
+    def get_splits(self, seed: int = None) -> Iterable[Dataset]:
+        if self.measurements:  # split the measurements if available
             cv = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed)
             for splits in cv.split(self.measurements, groups=[m.source.id for m in self.measurements]):
                 yield [CommonSourceKFoldDataset(n_splits=None,
                                                 measurements=[self.measurements[i] for i in split]) for split in splits]
-        else:
+        else:  # split the measurement pairs
             kf = KFold(n_splits=self.n_splits)
             source_ids = list(self.source_ids)
             for splits in kf.split(source_ids):
@@ -132,20 +129,21 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                                   self.measurement_pairs))) for split in splits]
 
     def get_x_y_pairs(self,
-                      pairing_function: Optional[Callable]=partial(InstancePairing, different_source_limit='balanced', seed=42),
-                      transformer: Optional[Callable]=AbsDiffTransformer):
+                      pairing_function: Optional[Callable] = partial(InstancePairing, different_source_limit='balanced', seed=42),
+                      transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
-        Transforms a basic X y dataset into same source and different source pairs and returns
-        an X y dataset where the X is the absolute difference between the two pairs.
+        Transforms a dataset into same source and different source pairs and returns
+        two arrays of X_pairs and y_pairs where the X_pairs are by default transformed
+        to the absolute difference between two pairs.
 
         Note that this method is different from sklearn TransformerMixin because it also transforms y.
         """
         if self.measurement_pairs:
-            return self.measurement_pairs.get_x(), self.measurement_pairs.get_y()
+            return self.get_x_y_measurement_pair()
         else:
             X, y = self.get_x_y_measurement()
             X_pairs, y_pairs = pairing_function().transform(X, y)
-            # X_pairs = transformer().transform(X_pairs)
+            X_pairs = transformer().transform(X_pairs)
             return X_pairs, y_pairs
 
 
@@ -216,7 +214,7 @@ class GlassDataset(CommonSourceKFoldDataset):
                     row in reader]
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
-        self.measurements = measurements  # X, y
+        self.measurements = measurements
 
     def __repr__(self):
         return "Glass dataset"

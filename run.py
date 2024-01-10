@@ -40,9 +40,7 @@ def evaluate(dataset: Dataset,
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         for dataset_train, dataset_test in dataset.get_splits(seed=idx):
             X_train, y_train = dataset_train.get_x_y_pairs()
-            X_train = preprocessor.fit_transform(X_train)
             X_test, y_test = dataset_test.get_x_y_pairs()
-            X_test = preprocessor.transform(X_test)
 
             calibrated_scorer.fit(X_train, y_train)
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
