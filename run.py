@@ -22,10 +22,10 @@ from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
 
 def evaluate(dataset: Dataset,
-             selected_params: Dict[str, Any],
              preprocessor: TransformerMixin,
              calibrator: TransformerMixin,
              scorer: BaseEstimator,
+             selected_params: Dict[str, Any] = None,
              repeats: int = 1) -> Dict:
     """
     Measures performance for an LR system with given parameters
@@ -37,11 +37,11 @@ def evaluate(dataset: Dataset,
     test_probas = []
     test_predictions = []
 
-    for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values()))):
+    for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         for dataset_train, dataset_test in dataset.get_splits(seed=idx):
-            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
+            X_train, y_train = dataset_train.get_x_y_pairs()
             X_train = preprocessor.fit_transform(X_train)
-            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+            X_test, y_test = dataset_test.get_x_y_pairs()
             X_test = preprocessor.transform(X_test)
 
             calibrated_scorer.fit(X_train, y_train)

@@ -15,6 +15,9 @@ class Source:
     id: int
     extra: Mapping[str, Any]
 
+    def __eq__(self, other):
+        return isinstance(other, Source) and self.id == other.id
+
 
 @dataclass
 class Measurement:

@@ -2,20 +2,22 @@ import csv
 import os
 import urllib.request
 from abc import ABC, abstractmethod
-from typing import Iterable, Optional, Callable
+from functools import partial
+from itertools import chain
+from typing import Iterable, Optional, Callable, List
 
 import numpy as np
 import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import StratifiedGroupKFold, KFold, GroupKFold, GroupShuffleSplit
 
-from lrbenchmark.data.models import Measurement, Source
+from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.typing import TrainTestPair, XYType
 
 
 class Dataset(ABC):
     @abstractmethod
-    def get_splits(self, seed: int = None) -> Iterable[TrainTestPair]:
+    def get_splits(self, seed: int = None) -> Iterable['Dataset']:
         """
         Retrieve data from this dataset.
 
@@ -72,38 +74,66 @@ class Dataset(ABC):
 
 
 class CommonSourceKFoldDataset(Dataset, ABC):
-    def __init__(self, n_splits):
+    def __init__(self,
+                 n_splits,
+                 measurements: Optional[List[Measurement]] = None,
+                 measurement_pairs: Optional[List[MeasurementPair]] = None):
         super().__init__()
         self.n_splits = n_splits
-        self._data = self.load()
-        self.sources = None
-        self.measurements = None
-        self.measurement_pairs = None
+        self.measurements = measurements
+        self.measurement_pairs = measurement_pairs
 
-    @abstractmethod
-    def load(self) -> Iterable[Measurement]: #XYType:
+        if self.measurements is None and self.measurement_pairs is None:
+            self.load()
+
+    def load(self) -> Iterable[Measurement]:
         raise NotImplementedError
 
-    def get_x(self) -> np.ndarray:
-        return np.array([m.get_x() for m in self._data])
+    @property
+    def source_ids(self):
+        if self.measurements:
+            return set([m.source.id for m in self.measurements])
+        else:
+            return set(chain.from_iterable([[m.measurement_a.source.id,
+                                             m.measurement_b.source.id] for m in self.measurement_pairs]))
 
-    def get_y(self) -> np.ndarray:
-        return np.array([m.get_y() for m in self._data])
+    def get_x_measurement(self) -> np.ndarray:
+        return np.array([m.get_x() for m in self.measurements])
 
-    def get_x_y(self) -> XYType:
-        return self.get_x(), self.get_y()
+    def get_y_measurement(self) -> np.ndarray:
+        return np.array([m.get_y() for m in self.measurements])
+
+    def get_x_y_measurement(self) -> XYType:
+        return self.get_x_measurement(), self.get_y_measurement()
 
     def get_splits(self, seed: int = None) -> Iterable[Dataset]:
-        X, y = self.get_x_y()
+        # X, y = self.get_x_y()
+        # sources = self.sources
+        # cv = StratifiedGroupKFold(n_splits=self.n_splits, shuffle=True,
+        #                           random_state=seed)
+        # # cv.split requires an x, y and groups. We don't have y yet, therefore we set it to -1.
+        # for train_idxs, test_idxs in cv.split(X, y=np.array([-1] * len(X)),
+        #                                       groups=y):
+        #     yield (X[train_idxs], y[train_idxs]), (X[test_idxs], y[test_idxs])
 
-        cv = StratifiedGroupKFold(n_splits=self.n_splits, shuffle=True,
-                                  random_state=seed)
-        # cv.split requires an x, y and groups. We don't have y yet, therefore we set it to -1.
-        for train_idxs, test_idxs in cv.split(X, y=np.array([-1] * len(X)),
-                                              groups=y):
-            yield (X[train_idxs], y[train_idxs]), (X[test_idxs], y[test_idxs])
+        if self.measurements:
+            cv = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed)
+            for splits in cv.split(self.measurements, groups=[m.source.id for m in self.measurements]):
+                yield [CommonSourceKFoldDataset(n_splits=None,
+                                                measurements=[self.measurements[i] for i in split]) for split in splits]
+        else:
+            kf = KFold(n_splits=self.n_splits)
+            source_ids = list(self.source_ids)
+            for splits in kf.split(source_ids):
+                yield [CommonSourceKFoldDataset(
+                    n_splits=None,
+                    measurement_pairs=list(filter(lambda mp: mp.measurement_a.source in source_ids[split] and
+                                                             mp.measurement_b.source in source_ids[split],
+                                                  self.measurement_pairs))) for split in splits]
 
-    def get_x_y_pairs(self, pairing_function: Optional[Callable]=InstancePairing(different_source_limit='balanced', seed=42), transformer: Optional[Callable]=AbsDiffTransformer):
+    def get_x_y_pairs(self,
+                      pairing_function: Optional[Callable]=partial(InstancePairing, different_source_limit='balanced', seed=42),
+                      transformer: Optional[Callable]=AbsDiffTransformer):
         """
         Transforms a basic X y dataset into same source and different source pairs and returns
         an X y dataset where the X is the absolute difference between the two pairs.
@@ -113,9 +143,9 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self.measurement_pairs:
             return self.measurement_pairs.get_x(), self.measurement_pairs.get_y()
         else:
-            X, y = self.get_x_y()
-            X_pairs, y_pairs = pairing_function.transform(X, y)
-            X_pairs = transformer.transform(X_pairs)
+            X, y = self.get_x_y_measurement()
+            X_pairs, y_pairs = pairing_function().transform(X, y)
+            # X_pairs = transformer().transform(X_pairs)
             return X_pairs, y_pairs
 
 
@@ -171,9 +201,6 @@ class GlassDataset(CommonSourceKFoldDataset):
         }
         glass_folder = os.path.join('resources', 'glass')
 
-        # features = ["K39", "Ti49", "Mn55", "Rb85", "Sr88", "Zr90", "Ba137",
-        #             "La139", "Ce140", "Pb208"]
-        # df = None
         measurements = []
         max_item = 0
         for file, url in datasets.items():
@@ -189,20 +216,7 @@ class GlassDataset(CommonSourceKFoldDataset):
                     row in reader]
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
-        #     df_temp = pd.read_csv(path,
-        #                           delimiter=',')
-        #     # The Item column starts with 1 in each file,
-        #     # this is making it ascending across different files
-        #     df_temp['Item'] = df_temp['Item'] + max(
-        #         df['Item']) if df is not None else df_temp['Item']
-        #     # the data from all 3 files is added together to make one dataset
-        #     df = pd.concat([df, df_temp]) if df is not None else df_temp
-        #
-        # X = df[features].to_numpy()
-        # y = df['Item'].to_numpy()
-
         self.measurements = measurements  # X, y
-        self.sources = set(m.source for m in self.measurements)
 
     def __repr__(self):
         return "Glass dataset"
