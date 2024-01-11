@@ -16,6 +16,5 @@ experiment:
 #    glass:
 #      n_splits: 2
   preprocessor:
-    abs_diff:
     pipeline:
       rank_transformer: rank_transformer

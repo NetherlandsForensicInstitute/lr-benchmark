@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from tqdm import tqdm
 
 from lrbenchmark import evaluation
-from lrbenchmark.dataset import Dataset
+from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
