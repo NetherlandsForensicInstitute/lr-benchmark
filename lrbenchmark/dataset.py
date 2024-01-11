@@ -153,7 +153,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             return X_pairs, y_pairs
 
 
-class XTCDataset(CommonSourceKFoldDataset):
+class XTCDataset(CommonSourceKFoldDataset, ABC):
 
     def __init__(self, n_splits):
         super().__init__(n_splits)
@@ -179,7 +179,7 @@ class XTCDataset(CommonSourceKFoldDataset):
         return "XTC dataset"
 
 
-class GlassDataset(CommonSourceKFoldDataset):
+class GlassDataset(CommonSourceKFoldDataset, ABC):
 
     def __init__(self, n_splits):
         super().__init__(n_splits)
@@ -202,7 +202,7 @@ class GlassDataset(CommonSourceKFoldDataset):
                 measurements_tmp = [
                     Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
                                 extra={'Piece': int(row['Piece'])},
-                                # the values consists of measurements of ten elemental
+                                # the values consist of measurements of ten elemental
                                 # compositions, which start at the fourth position of
                                 # each row
                                 value=np.array(
@@ -216,6 +216,31 @@ class GlassDataset(CommonSourceKFoldDataset):
 
     def __repr__(self):
         return "Glass dataset"
+
+
+class ASRDataset(CommonSourceKFoldDataset, ABC):
+
+    def __init__(self, n_splits, path):
+        super().__init__(n_splits)
+        self.path = path
+
+    def load(self):
+        with open(path, "r") as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            measurement_data = [row for row in reader]
+
+        measurement_pairs = []
+        for row in measurement_data:
+            mps_tmp = [MeasurementPair(Measurement(Source(id=row[0], extra={}), extra={}),
+                                       Measurement(Source(id=id_b, extra={}), extra={}),
+                                       extra={'score': float(row[i])})
+                       for i, id_b in enumerate(header[1:], start=1)]
+            measurement_pairs.extend(mps_tmp)
+        self.measurement_pairs = measurement_pairs
+
+    def __repr__(self):
+        return "ASR dataset"
 
 
 def download_dataset_file(folder: str, file: str, url: str):
