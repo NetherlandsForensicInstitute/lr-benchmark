@@ -216,9 +216,12 @@ class GlassDataset(CommonSourceKFoldDataset):
 
 
 class ASRDataset(CommonSourceKFoldDataset):
+    """
+    A dataset containing paired measurements for the purpose of automatic speaker recognition.
+    """
 
     def __init__(self, n_splits, measurements_path, recordings_path):
-        self.measurements_path = measurements_path
+        self.measurements_path = measurements_path  # TODO: besluiten wat met de data te doen, nu (nog) niet inchecken
         self.recordings_path = recordings_path
         super().__init__(n_splits)
 
@@ -229,27 +232,40 @@ class ASRDataset(CommonSourceKFoldDataset):
         header_measurement_data = np.array(data[0])
         measurement_data = np.array(data)[1:, 1:]
 
+        recording_data = self.load_recording_annotations()
+
+        measurement_pairs = []
+        for i in range(measurement_data.shape[0]):
+            for j in range(i, measurement_data.shape[1]):
+                filename_a, filename_b = header_measurement_data[i + 1], header_measurement_data[j + 1]
+                info_a, info_b = recording_data[filename_a.split('_30s')[0] + '.wav'], recording_data[
+                    filename_b.split('_30s')[0] + '.wav']
+                if not info_a or not info_b:
+                    raise ValueError(f"No recording information available for file {filename_a} or {filename_b}.")
+
+                measurement_pairs.append(MeasurementPair(Measurement(Source(id=filename_a.split('_')[0],
+                                                                            extra={'sex': info_a['sex'],
+                                                                                   'age': info_a['beller_leeftijd']}),
+                                                                     extra={'filename': filename_a,
+                                                                            'net_duration': float(
+                                                                                info_a['net duration'])}),
+                                                         Measurement(Source(id=filename_b.split('_')[0],
+                                                                            extra={'sex': info_b['sex'],
+                                                                                   'age': info_a['beller_leeftijd']}),
+                                                                     extra={'filename': filename_b,
+                                                                            'net_duration': float(
+                                                                                info_b['net duration'])}),
+                                                         extra={'score': float(measurement_data[i, j])}))
+        self.measurement_pairs = measurement_pairs
+
+    def load_recording_annotations(self):
         with open(self.recordings_path, 'r') as f:
             recording_file = f.readlines()
         header_recording_data = recording_file[0].split('\t')
         recording_data = []
         for line in recording_file[1:]:
             recording_data.append(dict(zip(header_recording_data, line.split('\t'))))
-        recording_data = {elt['filename']: elt for elt in recording_data}
-
-        measurement_pairs = []
-        for i in range(measurement_data.shape[0]):
-            for j in range(i, measurement_data.shape[1]):
-                filename_a, filename_b = header_measurement_data[i+1], header_measurement_data[j+1]
-                info_a, info_b = recording_data[filename_a.split('_30s')[0]+'.wav'], recording_data[filename_b.split('_30s')[0]+'.wav']
-                if not info_a or not info_b:
-                    raise ValueError(f"No recording information available for file {filename_a} or {filename_b}.")
-
-                mps_tmp = [MeasurementPair(Measurement(Source(id=filename_a.split('_')[0], extra={'sex': info_a['sex'], 'language_id': info_a['languageID'], 'age': info_a['beller_leeftijd']}), extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}),
-                                           Measurement(Source(id=filename_b.split('_')[0], extra={'sex': info_b['sex'], 'language_id': info_a['languageID'], 'age': info_a['beller_leeftijd']}), extra={'filename': filename_b, 'net_duration': float(info_b['net duration'])}),
-                                           extra={'score': float(measurement_data[i, j])})]
-                measurement_pairs.extend(mps_tmp)
-        self.measurement_pairs = measurement_pairs
+        return {elt['filename']: elt for elt in recording_data}
 
     def __repr__(self):
         return "ASR dataset"
