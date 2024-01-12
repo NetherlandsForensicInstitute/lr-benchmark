@@ -221,7 +221,7 @@ class ASRDataset(CommonSourceKFoldDataset):
     """
 
     def __init__(self, n_splits, measurements_path, recordings_path):
-        self.measurements_path = measurements_path  # TODO: besluiten wat met de data te doen, nu (nog) niet inchecken
+        self.measurements_path = measurements_path  # TODO: besluiten waar data te laten, nu nog inlezen vanaf schijf
         self.recordings_path = recordings_path
         super().__init__(n_splits)
 
@@ -233,15 +233,25 @@ class ASRDataset(CommonSourceKFoldDataset):
         measurement_data = np.array(data)[1:, 1:]
 
         recording_data = self.load_recording_annotations()
+        max_record_id = max(list(map(lambda x: int(x.split('_')[1][:4]), list(recording_data.keys()))))
 
         measurement_pairs = []
         for i in range(measurement_data.shape[0]):
             for j in range(i, measurement_data.shape[1]):
                 filename_a, filename_b = header_measurement_data[i + 1], header_measurement_data[j + 1]
-                info_a, info_b = recording_data[filename_a.split('_30s')[0] + '.wav'], recording_data[
-                    filename_b.split('_30s')[0] + '.wav']
-                if not info_a or not info_b:
-                    raise ValueError(f"No recording information available for file {filename_a} or {filename_b}.")
+                info_a, info_b = recording_data.get(filename_a.split('_30s')[0] + '.wav'), recording_data.get(
+                    filename_b.split('_30s')[0] + '.wav')
+                if int(filename_a.split("_")[1][:4]) > max_record_id:
+                    print(f"No recording info available after record id {max_record_id}. file_a has record id "
+                          f"{filename_a.split('_')[1][:4]}.")
+                    break
+                elif int(filename_b.split("_")[1][:4]) > max_record_id:
+                    print(f"No recording info available after record id {max_record_id}. file_b has record id "
+                          f"{filename_b.split('_')[1][:4]}.")
+                    continue
+                elif not info_a or not info_b:
+                    print(f"No recording info available for file {filename_a} or {filename_b}.")
+                    continue
 
                 measurement_pairs.append(MeasurementPair(Measurement(Source(id=filename_a.split('_')[0],
                                                                             extra={'sex': info_a['sex'],
