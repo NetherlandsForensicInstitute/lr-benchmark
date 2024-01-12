@@ -124,8 +124,10 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             source_ids = list(self.source_ids)
             for splits in kf.split(source_ids):
                 yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
-                    lambda mp: mp.measurement_a.source in source_ids[split] and mp.measurement_b.source in source_ids[
-                        split], self.measurement_pairs))) for split in splits]
+                    lambda mp: mp.measurement_a.source.id in [source_ids[i] for i in
+                                                              split] and mp.measurement_b.source.id in [source_ids[i]
+                                                                                                        for i in split],
+                    self.measurement_pairs))) for split in splits]
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
@@ -201,12 +203,10 @@ class GlassDataset(CommonSourceKFoldDataset):
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
                                                 extra={'Piece': int(row['Piece'])},
-                                                # the values consist of measurements of ten elemental
-                                                # compositions, which start at the fourth position of
-                                                # each row
+                                                # the values consist of measurements of ten elemental compositions,
+                                                # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
-                # The item values start with 1 in each file,
-                # this is making it ascending across different files
+                # The item values start with 1 in each file, this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
         self.measurements = measurements

@@ -85,7 +85,7 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
     :param exp_params: Experiment parameters.
     :return:
     """
-    path_prefix = f"output"
+    path_prefix = "output"
     exp.parameter('repeats', exp_params.repeats)
     parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
