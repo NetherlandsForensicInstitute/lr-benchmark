@@ -4,12 +4,12 @@ import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
 from itertools import chain
-from typing import Iterable, Optional, Callable, List, Set
+from typing import Iterable, Optional, Callable, List, Set, Union
 
 import numpy as np
 import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
-from sklearn.model_selection import KFold, GroupShuffleSplit
+from sklearn.model_selection import ShuffleSplit, GroupShuffleSplit, StratifiedShuffleSplit
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.typing import XYType
@@ -17,7 +17,9 @@ from lrbenchmark.typing import XYType
 
 class Dataset(ABC):
     @abstractmethod
-    def get_splits(self, seed: int = None) -> Iterable['Dataset']:
+    def get_splits(self, stratified: bool = False, group_by_source: bool = False,
+                   train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
+                   seed: int = None) -> Iterable['Dataset']:
         """
         Retrieve data from this dataset.
 
@@ -29,7 +31,17 @@ class Dataset(ABC):
         Parameters
         ----------
         seed : int, optional
-            Optional random seed to be used for splitting. The default is None.
+            Random seed to be used for splitting. The default is None.
+        group_by_source: bool, optional
+            Whether to split the dataset while keeping groups intact
+        train_size: int, float, optional
+            Fraction or number of data points to use for the training set. The default is 0.8, and if not specified,
+            the complement of the test size will be used
+        test_size: int, float, optional
+            Fraction or number of data points to use for the test set. The default is 0.2, and if not specified,
+            the complement of the train size will be used
+        stratified: bool, optional
+            Whether to split the dataset while keeping the ratio of classes
 
         Returns
         -------
@@ -94,8 +106,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         if self.measurements:
             return set([m.source.id for m in self.measurements])
         else:
-            return set(chain.from_iterable([[mp.measurement_a.source.id,
-                                             mp.measurement_b.source.id] for mp in self.measurement_pairs]))
+            return set(chain.from_iterable(
+                [[mp.measurement_a.source.id, mp.measurement_b.source.id] for mp in self.measurement_pairs]))
 
     def get_x_measurement(self) -> np.ndarray:
         return np.array([m.get_x() for m in self.measurements])
@@ -115,25 +127,84 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement_pair(self) -> XYType:
         return self.get_x_measurement_pair(), self.get_y_measurement_pair()
 
-    def get_splits(self, seed: int = None) -> Iterable[Dataset]:
-        if self.measurements:  # split the measurements if available
-            cv = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed)
-            for splits in cv.split(self.measurements, groups=[m.source.id for m in self.measurements]):
-                yield [CommonSourceKFoldDataset(n_splits=None,
-                                                measurements=[self.measurements[i] for i in split]) for split in splits]
-        else:  # split the measurement pairs
-            kf = KFold(n_splits=self.n_splits)
-            source_ids = list(self.source_ids)
-            for splits in kf.split(source_ids):
-                yield [CommonSourceKFoldDataset(
-                    n_splits=None,
-                    measurement_pairs=list(filter(lambda mp: mp.measurement_a.source in source_ids[split] and
-                                                             mp.measurement_b.source in source_ids[split],
-                                                  self.measurement_pairs))) for split in splits]
+    def get_splits(self, stratified: bool = False, group_by_source: bool = False, train_size: Optional[Union[float, int]] = 0.8,
+                   test_size: Optional[Union[float, int]] = 0.2, seed: int = None) -> Iterable[Dataset]:
+        """
+        This function splits the measurements or measurement pairs in a dataset into two splits, as specified by the
+        provided parameters.
+
+        When splitting measurements, a regular split is performed when both group and stratified are False. If group is
+        True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
+        as these do not have a y.
+
+        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
+        split based on y or the source is made when respectively stratified or group are True. It is not possible to
+        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
+        number of instances for each class.
+
+        :param group_by_source: boolean that indicates whether the dataset should be split along group lines, ensuring each group
+                      to be in only a single split.
+        :param stratified: boolean that indicates whether the dataset should be split while preserving the ratio of
+                      classes in y in both splits.
+        :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
+                           absolute amount of measurements, measurement pairs or groups in each split.  If not
+                           specified, is the complement of the test_size.
+        :param test_size: size of the test set. Can be a float, to indicate a fraction, or an integer to indicate an
+                          absolute amount of measurements, measurement pairs or groups in each split. If not specified,
+                          is the complement of the train_size.
+        :param seed: seed to ensure repeatability of the split
+        """
+        if self.measurements:
+            if stratified:
+                raise ValueError('It is not possible to split the dataset stratified, when using measurements')
+
+            if group_by_source:
+                s = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                      test_size=test_size)
+                source_ids = [m.source.id for m in self.measurements]
+            else:
+                s = ShuffleSplit(n_splits=self.n_splits,
+                             random_state=seed,
+                             train_size=train_size,
+                             test_size=test_size)
+                source_ids = None
+
+            for split in s.split(self.measurements, groups=source_ids):
+                yield [CommonSourceKFoldDataset(n_splits = None, measurements=list(map(lambda i: self.measurements[i], split_idx))) for
+                       split_idx in split]
+
+        else:  # split the measurement_pairs:
+            if not group_by_source:
+                if stratified:
+                    s = StratifiedShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                               test_size=test_size)
+                    y = [mp.is_same_source for mp in self.measurement_pairs]
+                else:
+                    s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                     test_size=test_size)
+                    y = None
+
+                for split in s.split(self.measurement_pairs, y):
+                    yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
+
+            if group_by_source and not stratified:
+                s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                      test_size=test_size)
+                source_ids = list(self.source_ids)
+                for split in s.split(source_ids):
+                    yield [CommonSourceKFoldDataset( n_splits=None,
+                        measurement_pairs=list(filter(
+                        lambda mp: mp.measurement_a.source in np.array(source_ids)[split_idx] and mp.measurement_b.source in np.array(source_ids)[
+                            split_idx], self.measurement_pairs))) for split_idx in
+                           split]
+
+            if group_by_source and stratified:
+                raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
-                      pairing_function: Optional[Callable] = partial(InstancePairing, different_source_limit='balanced'),
+                      pairing_function: Optional[Callable] = partial(InstancePairing,
+                                                                     different_source_limit='balanced'),
                       transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
@@ -188,8 +259,7 @@ class GlassDataset(CommonSourceKFoldDataset):
         datasets = {
             'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/duplo.csv',
             'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/training.csv',
-            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/triplo.csv'
-        }
+            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/triplo.csv'}
         glass_folder = os.path.join('resources', 'glass')
 
         measurements = []
@@ -199,15 +269,12 @@ class GlassDataset(CommonSourceKFoldDataset):
             path = os.path.join(glass_folder, file)
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
-                measurements_tmp = [
-                    Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
-                                extra={'Piece': int(row['Piece'])},
-                                # the values consists of measurements of ten elemental
-                                # compositions, which start at the fourth position of
-                                # each row
-                                value=np.array(
-                                    list(map(float, row.values()))[3:])) for
-                    row in reader]
+                measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
+                                                extra={'Piece': int(row['Piece'])},
+                                                # the values consists of measurements of ten elemental
+                                                # compositions, which start at the fourth position of
+                                                # each row
+                                                value=np.array(list(map(float, row.values()))[3:])) for row in reader]
                 # The item values start with 1 in each file,
                 # this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id

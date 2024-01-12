@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import csv
+from collections import namedtuple
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 import confidence
 import lir.plotting
@@ -20,10 +21,15 @@ from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
 
+def extract_refnorm(dataset):
+    return dataset, dataset
+
+
 def evaluate(dataset: Dataset,
              preprocessor: TransformerMixin,
              calibrator: TransformerMixin,
              scorer: BaseEstimator,
+             splitting_strategy_config: Configuration,
              selected_params: Dict[str, Any] = None,
              repeats: int = 1) -> Dict:
     """
@@ -37,7 +43,9 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        for dataset_train, dataset_test in dataset.get_splits(seed=idx):
+        if False: #refnorm:
+            dataset, refnorm_set = extract_refnorm(dataset)
+        for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
 
@@ -82,6 +90,7 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
     path_prefix = f"output"
     exp.parameter('repeats', exp_params.repeats)
     parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
+                  'splitting_strategy_config': [exp_params.splitting_strategy],
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}

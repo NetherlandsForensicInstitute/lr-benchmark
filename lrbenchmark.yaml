@@ -5,16 +5,21 @@ experiment:
   calibrator:
     - logit
   dataset:
-    synthesized_normal:
-      mean: 180
-      sigma: 10
-      trace_measurement_stdev: 3
-      n_train_instances: 1000
-      n_test_instances: 1000
+#    synthesized_normal:
+#      mean: 180
+#      sigma: 10
+#      trace_measurement_stdev: 3
+#      n_train_instances: 1000
+#      n_test_instances: 1000
 #    drugs_xtc:
 #      n_splits: 2
-#    glass:
-#      n_splits: 2
+    glass:
+      n_splits: 2
+  splitting_strategy:
+    train_size: 0.8
+    test_size: 0.2
+    stratified: False
+    group_by_source: True
   preprocessor:
     abs_diff:
     pipeline:
