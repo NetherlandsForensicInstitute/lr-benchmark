@@ -4,7 +4,7 @@ import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
 from itertools import chain
-from typing import Iterable, Optional, Callable, List, Set
+from typing import Iterable, Optional, Callable, List, Set, Mapping
 
 import numpy as np
 import pandas as pd
@@ -220,62 +220,55 @@ class ASRDataset(CommonSourceKFoldDataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, n_splits, measurements_path, recordings_path):
+    def __init__(self, n_splits, measurements_path, sources_path):
         self.measurements_path = measurements_path  # TODO: besluiten waar data te laten, nu nog inlezen vanaf schijf
-        self.recordings_path = recordings_path
+        self.sources_path = sources_path
         super().__init__(n_splits)
 
     def load(self):
         with open(self.measurements_path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)
-        header_measurement_data = np.array(data[0])
+        header_measurement_data = np.array(data[0][1:])
         measurement_data = np.array(data)[1:, 1:]
 
         recording_data = self.load_recording_annotations()
-        max_record_id = max(list(map(lambda x: int(x.split('_')[1][:4]), list(recording_data.keys()))))
 
-        measurement_pairs = []
+        mps = []
         for i in range(measurement_data.shape[0]):
-            for j in range(i, measurement_data.shape[1]):
-                filename_a, filename_b = header_measurement_data[i + 1], header_measurement_data[j + 1]
-                info_a, info_b = recording_data.get(filename_a.split('_30s')[0] + '.wav'), recording_data.get(
-                    filename_b.split('_30s')[0] + '.wav')
-                if int(filename_a.split("_")[1][:4]) > max_record_id:
-                    print(f"No recording info available after record id {max_record_id}. file_a has record id "
-                          f"{filename_a.split('_')[1][:4]}.")
-                    break
-                elif int(filename_b.split("_")[1][:4]) > max_record_id:
-                    print(f"No recording info available after record id {max_record_id}. file_b has record id "
-                          f"{filename_b.split('_')[1][:4]}.")
-                    continue
-                elif not info_a or not info_b:
-                    print(f"No recording info available for file {filename_a} or {filename_b}.")
-                    continue
+            filename_a = header_measurement_data[i]
+            info_a = recording_data.get(filename_a.replace('_30s', ''))
+            source_id_a = filename_a.split("_")[0]
+            if info_a:  # check whether there is recording info present for the first file
+                for j in range(i, measurement_data.shape[1]):
+                    filename_b = header_measurement_data[j]
+                    info_b = recording_data.get(filename_b.replace('_30s', ''))
+                    source_id_b = filename_b.split("_")[0]
+                    if info_b:  # check whether there is recording info present for the other file
+                        mps.append(MeasurementPair(Measurement(Source(id=source_id_a,
+                                                                      extra={'sex': info_a['sex'],
+                                                                             'age': info_a['beller_leeftijd']}),
+                                                               extra={'filename': filename_a,
+                                                                      'net_duration': float(
+                                                                          info_a['net duration'])}),
+                                                   Measurement(Source(id=source_id_b,
+                                                                      extra={'sex': info_b['sex'],
+                                                                             'age': info_a['beller_leeftijd']}),
+                                                               extra={'filename': filename_b,
+                                                                      'net_duration': float(
+                                                                          info_b['net duration'])}),
+                                                   extra={'score': float(measurement_data[i, j])}))
+        self.measurement_pairs = mps
 
-                measurement_pairs.append(MeasurementPair(Measurement(Source(id=filename_a.split('_')[0],
-                                                                            extra={'sex': info_a['sex'],
-                                                                                   'age': info_a['beller_leeftijd']}),
-                                                                     extra={'filename': filename_a,
-                                                                            'net_duration': float(
-                                                                                info_a['net duration'])}),
-                                                         Measurement(Source(id=filename_b.split('_')[0],
-                                                                            extra={'sex': info_b['sex'],
-                                                                                   'age': info_a['beller_leeftijd']}),
-                                                                     extra={'filename': filename_b,
-                                                                            'net_duration': float(
-                                                                                info_b['net duration'])}),
-                                                         extra={'score': float(measurement_data[i, j])}))
-        self.measurement_pairs = measurement_pairs
+    def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
+        """
+        Read annotations containing information of the recording and speaker.
+        """
+        with open(self.sources_path, 'r') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            data = list(reader)
 
-    def load_recording_annotations(self):
-        with open(self.recordings_path, 'r') as f:
-            recording_file = f.readlines()
-        header_recording_data = recording_file[0].split('\t')
-        recording_data = []
-        for line in recording_file[1:]:
-            recording_data.append(dict(zip(header_recording_data, line.split('\t'))))
-        return {elt['filename']: elt for elt in recording_data}
+        return {elt['filename']: elt for elt in data}
 
     def __repr__(self):
         return "ASR dataset"

@@ -123,7 +123,7 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
 
 
 if __name__ == '__main__':
-    config = confidence.load_name('lrbenchmark', 'fbda')
+    config = confidence.load_name('lrbenchmark')
     exp_params = config.experiment
     exp = evaluation.Setup(evaluate)
 
