@@ -1,8 +1,6 @@
-from collections import namedtuple
 from typing import Iterable, Tuple, List
 
 import numpy as np
-import scipy
 
 from lrbenchmark.data.dataset import Dataset, CommonSourceKFoldDataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
@@ -18,9 +16,7 @@ class SynthesizedNormalDataset(Dataset):
         self.n_train_instances = n_train_instances
         self.n_test_instances = n_test_instances
 
-    def get_pairs(self,
-                  n_same_source: int,
-                  n_diff_source: int) -> Tuple[List[MeasurementPair], List[MeasurementPair]]:
+    def get_pairs(self, n_same_source: int, n_diff_source: int) -> Tuple[List[MeasurementPair], List[MeasurementPair]]:
         """
         Generates pairs of measurements with the values of the same source pairs differing by the measurement error, and
         the values of the different source pairs drawn randomly from the distribution. Returns a tuple of a list of same
@@ -34,15 +30,18 @@ class SynthesizedNormalDataset(Dataset):
         other_value = np.random.normal(self.mean, self.sigma, n_diff_source)
         measurement_error = np.random.normal(0, self.trace_measurement_stdev, n_same_source)
         measured_value = real_value + measurement_error
-        return ([MeasurementPair(
-            measurement_a=Measurement(source=Source(id=i, extra={}), value=real_value[i], extra={}),
-            measurement_b=Measurement(source=Source(id=i, extra={}), value=measured_value[i], extra={}), extra={}) for
-                    i in range(n_same_source)],
-                [MeasurementPair(
-                    measurement_a=Measurement(source=Source(id=n_same_source + i, extra={}), value=other_value[i],
-                                              extra={}),
-                    measurement_b=Measurement(source=Source(id=i, extra={}), value=real_value[i], extra={}),
-                    extra={}) for i in range(min(n_diff_source, n_same_source))])
+        return ([
+                    MeasurementPair(
+                        measurement_a=Measurement(source=Source(id=i, extra={}), value=real_value[i], extra={}),
+                        measurement_b=Measurement(source=Source(id=i, extra={}), value=measured_value[i], extra={}),
+                        extra={}) for i in range(n_same_source)],
+                [
+                    MeasurementPair(
+                        measurement_a=Measurement(source=Source(id=n_same_source + i, extra={}),
+                                                  value=other_value[i], extra={}),
+                        measurement_b=Measurement(source=Source(id=i, extra={}),
+                                                  value=real_value[i], extra={}),
+                        extra={}) for i in range(min(n_diff_source, n_same_source))])
 
     def generate_data(self, n: int) -> Dataset:
         ss_pairs, ds_pairs = self.get_pairs(n // 2, n // 2)
@@ -53,4 +52,5 @@ class SynthesizedNormalDataset(Dataset):
         yield [self.generate_data(self.n_train_instances), self.generate_data(self.n_test_instances)]
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, trace_measurement_stdev={self.trace_measurement_stdev})"
+        return (f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, "
+                f"trace_measurement_stdev={self.trace_measurement_stdev})")
