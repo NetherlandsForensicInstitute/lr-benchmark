@@ -63,15 +63,14 @@ class MeasurementPair:
     def get_x(self) -> np.ndarray:
         if 'score' in self.extra.keys():
             return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
-        else:
-            # if score is not available, return the values of the individual measurements
-            # the shape of the returned array should be (f,2), with f=number of features and 2 values (for the two
-            # measurements), to be compatible with the transformation function
-            measurement_a_value = np.array([self.measurement_a.value]) if not (
-                isinstance(self.measurement_a.value, np.ndarray)) else self.measurement_a.value
-            measurement_b_value = np.array([self.measurement_b.value]) if not (
-                isinstance(self.measurement_b.value, np.ndarray)) else self.measurement_b.value
-            return np.array(list(zip(measurement_a_value, measurement_b_value)))
+        raise ValueError("No score found in the extra mapping.")
+
+    def get_measurement_values(self) -> np.ndarray:
+        measurement_a_value = np.array([self.measurement_a.value]) if not (
+            isinstance(self.measurement_a.value, np.ndarray)) else self.measurement_a.value
+        measurement_b_value = np.array([self.measurement_b.value]) if not (
+            isinstance(self.measurement_b.value, np.ndarray)) else self.measurement_b.value
+        return np.array(list(zip(measurement_a_value, measurement_b_value)))
 
     def get_y(self) -> bool:
         return self.is_same_source
