@@ -12,7 +12,7 @@ from xgboost import XGBClassifier
 from lrbenchmark.data.generated import SynthesizedNormalDataset
 from lrbenchmark.dataset import XTCDataset, GlassDataset, ASRDataset
 from lrbenchmark.evaluation import DescribedValue
-from lrbenchmark.transformers import DummyTransformer
+from lrbenchmark.transformers import DummyTransformer, DummyClassifier
 
 
 def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]], possible_params: Mapping, desc: Optional[str] = None) -> Optional[Any]:
@@ -47,6 +47,7 @@ def get_parameters(param: Union[str, Sequence, Mapping], possible_params: Mappin
 
 
 SCORERS = {
+    'dummy': DummyClassifier,
     'lda': LDA,
     'qda': QDA,
     'gb': GradientBoostingClassifier,

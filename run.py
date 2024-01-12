@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.dataset import Dataset
+from lrbenchmark.transformers import DummyClassifier
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
@@ -49,13 +50,12 @@ def evaluate(dataset: Dataset,
             test_lrs.append(calibrated_scorer.predict_lr(X_test))
             test_labels.append(y_test)
 
-            test_probas.append(calibrated_scorer.scorer.predict_proba(X_test)[:, 1])
-            test_predictions.append(calibrated_scorer.scorer.predict(X_test))
+            if not isinstance(calibrated_scorer.scorer, DummyClassifier):
+                test_probas.append(calibrated_scorer.scorer.predict_proba(X_test)[:, 1])
+                test_predictions.append(calibrated_scorer.scorer.predict(X_test))
 
     test_lrs = np.concatenate(test_lrs)
     test_labels = np.concatenate(test_labels)
-    test_probas = np.concatenate(test_probas)
-    test_predictions = np.concatenate(test_predictions)
 
     # plotting results for a single experiment
     figs = {}
@@ -65,11 +65,17 @@ def evaluate(dataset: Dataset,
 
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(test_lrs, test_labels))
 
-    return {'desc': get_experiment_description(selected_params),
-            'auc': roc_auc_score(test_labels, test_probas),
-            'acc': accuracy_score(test_labels, test_predictions),
-            'figures': figs,
-            **lr_metrics._asdict()}
+    results = {'desc': get_experiment_description(selected_params),
+               'figures': figs,
+                **lr_metrics._asdict()}
+
+    if not isinstance(calibrated_scorer.scorer, DummyClassifier):
+        test_probas = np.concatenate(test_probas)
+        test_predictions = np.concatenate(test_predictions)
+        results['auc'] = roc_auc_score(test_labels, test_probas)
+        results['acc'] = accuracy_score(test_labels, test_predictions)
+
+    return results
 
 
 def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
