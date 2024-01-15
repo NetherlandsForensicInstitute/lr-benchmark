@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 
 from lrbenchmark.dataset import Dataset
-from lrbenchmark.typing import XYType, TrainTestPair
+from lrbenchmark.typing import TrainTestPair
 
 
 class XYWithTrueLRs(namedtuple("XY", ["X", "y"])):

@@ -258,9 +258,12 @@ class GlassDataset(CommonSourceKFoldDataset):
 
     def load(self):
         datasets = {
-            'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/duplo.csv',
-            'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/training.csv',
-            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/triplo.csv'}
+            'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                         'elemental_composition_glass/main/duplo.csv',
+            'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                            'elemental_composition_glass/main/training.csv',
+            'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                          'elemental_composition_glass/main/triplo.csv'}
         glass_folder = os.path.join('resources', 'glass')
 
         measurements = []

@@ -43,8 +43,6 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        if False: #refnorm:
-            dataset, refnorm_set = extract_refnorm(dataset)
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
