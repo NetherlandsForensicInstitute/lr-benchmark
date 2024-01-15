@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union, Optional
+from typing import Mapping, Any, Union, Optional, List
 
 import numpy as np
 
@@ -38,6 +38,10 @@ class Measurement:
     def get_y(self) -> int:
         return self.source.id
 
+    def __eq__(self, other):
+        return (isinstance(other, Measurement) and self.source == other.source and
+                (self.value == other.value or self.value is None))
+
 
 @dataclass
 class MeasurementPair:
@@ -59,6 +63,14 @@ class MeasurementPair:
         if 'score' in self.extra.keys():
             return self.extra['score']
         raise ValueError("No score found in the extra mapping.")
+
+    @property
+    def source_ids(self) -> List[int]:
+        return [self.measurement_a.source.id, self.measurement_b.source.id]
+
+    @property
+    def measurements(self) -> List[Measurement]:
+        return [self.measurement_a, self.measurement_b]
 
     def get_x(self) -> np.ndarray:
         if 'score' in self.extra.keys():

@@ -26,6 +26,7 @@ def evaluate(dataset: Dataset,
              preprocessor: TransformerMixin,
              calibrator: TransformerMixin,
              scorer: BaseEstimator,
+             splitting_strategy_config: Configuration,
              selected_params: Dict[str, Any] = None,
              repeats: int = 1) -> Dict:
     """
@@ -39,7 +40,7 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        for dataset_train, dataset_test in dataset.get_splits(seed=idx):
+        for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
 
@@ -89,6 +90,7 @@ def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configura
     exp_params = exp_config.experiment
     exp.parameter('repeats', exp_params.repeats)
     parameters = {'dataset': get_parameters(data_config.dataset, DATASETS),
+                  'splitting_strategy_config': [exp_params.splitting_strategy]
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
