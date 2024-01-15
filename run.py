@@ -67,7 +67,7 @@ def evaluate(dataset: Dataset,
 
     results = {'desc': get_experiment_description(selected_params),
                'figures': figs,
-                **lr_metrics._asdict()}
+               **lr_metrics._asdict()}
 
     if not isinstance(calibrated_scorer.scorer, DummyClassifier):
         test_probas = np.concatenate(test_probas)

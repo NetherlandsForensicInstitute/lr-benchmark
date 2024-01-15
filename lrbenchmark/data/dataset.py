@@ -43,7 +43,6 @@ class Dataset(ABC):
         raise NotImplementedError
 
 
-
 class CommonSourceKFoldDataset(Dataset, ABC):
     def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None,
                  measurement_pairs: Optional[List[MeasurementPair]] = None):
