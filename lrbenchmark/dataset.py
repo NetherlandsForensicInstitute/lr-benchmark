@@ -83,9 +83,7 @@ class Dataset(ABC):
 
 
 class CommonSourceKFoldDataset(Dataset, ABC):
-    def __init__(self,
-                 n_splits: Optional[int],
-                 measurements: Optional[List[Measurement]] = None,
+    def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None,
                  measurement_pairs: Optional[List[MeasurementPair]] = None):
         super().__init__()
         self.n_splits = n_splits
@@ -127,25 +125,17 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement_pair(self) -> XYType:
         return self.get_x_measurement_pair(), self.get_y_measurement_pair()
 
-    def get_splits(self, stratified: bool = False, group_by_source: bool = False, train_size: Optional[Union[float, int]] = 0.8,
-                   test_size: Optional[Union[float, int]] = 0.2, seed: int = None) -> Iterable[Dataset]:
+    def get_splits(self, stratified: bool = False, group_by_source: bool = False,
+                   train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
+                   seed: int = None) -> Iterable[Dataset]:
         """
         This function splits the measurements or measurement pairs in a dataset into two splits, as specified by the
         provided parameters.
 
-        When splitting measurements, a regular split is performed when both group and stratified are False. If group is
-        True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
-        as these do not have a y.
-
-        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
-        split based on y or the source is made when respectively stratified or group are True. It is not possible to
-        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
-        number of instances for each class.
-
-        :param group_by_source: boolean that indicates whether the dataset should be split along group lines, ensuring each group
-                      to be in only a single split.
         :param stratified: boolean that indicates whether the dataset should be split while preserving the ratio of
-                      classes in y in both splits.
+                           classes in y in both splits.
+        :param group_by_source: boolean that indicates whether the dataset should be split along group lines, ensuring
+                                each group to be in only a single split.
         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
                            absolute amount of measurements, measurement pairs or groups in each split.  If not
                            specified, is the complement of the test_size.
@@ -155,51 +145,62 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         :param seed: seed to ensure repeatability of the split
         """
         if self.measurements:
-            if stratified:
-                raise ValueError('It is not possible to split the dataset stratified, when using measurements')
-
-            if group_by_source:
-                s = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                      test_size=test_size)
-                source_ids = [m.source.id for m in self.measurements]
-            else:
-                s = ShuffleSplit(n_splits=self.n_splits,
-                             random_state=seed,
-                             train_size=train_size,
-                             test_size=test_size)
-                source_ids = None
-
-            for split in s.split(self.measurements, groups=source_ids):
-                yield [CommonSourceKFoldDataset(n_splits = None, measurements=list(map(lambda i: self.measurements[i], split_idx))) for
-                       split_idx in split]
+            yield from self.get_splits_measurements(group_by_source, seed, stratified, test_size, train_size)
 
         else:  # split the measurement_pairs:
-            if not group_by_source:
-                if stratified:
-                    s = StratifiedShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                               test_size=test_size)
-                    y = [mp.is_same_source for mp in self.measurement_pairs]
-                else:
-                    s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                     test_size=test_size)
-                    y = None
+            yield from self.get_splits_measurement_pairs(group_by_source, seed, stratified, test_size, train_size)
 
-                for split in s.split(self.measurement_pairs, y):
-                    yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
-
-            if group_by_source and not stratified:
+    def get_splits_measurement_pairs(self, group_by_source, seed, stratified, test_size, train_size):
+        """
+        When splitting measurements, a regular split is performed when both group and stratified are False. If group is
+        True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
+        as these do not have a y.
+        """
+        if not group_by_source:
+            if stratified:
+                s = StratifiedShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                           test_size=test_size)
+                y = [mp.is_same_source for mp in self.measurement_pairs]
+            else:
                 s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                      test_size=test_size)
-                source_ids = list(self.source_ids)
-                for split in s.split(source_ids):
-                    yield [CommonSourceKFoldDataset( n_splits=None,
-                        measurement_pairs=list(filter(
-                        lambda mp: mp.measurement_a.source in np.array(source_ids)[split_idx] and mp.measurement_b.source in np.array(source_ids)[
-                            split_idx], self.measurement_pairs))) for split_idx in
-                           split]
+                                 test_size=test_size)
+                y = None
 
-            if group_by_source and stratified:
-                raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
+            for split in s.split(self.measurement_pairs, y):
+                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(
+                    map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
+        if not stratified:
+            s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
+            source_ids = list(self.source_ids)
+            for split in s.split(source_ids):
+                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
+                    lambda mp: mp.measurement_a.source in np.array(source_ids)[
+                        split_idx] and mp.measurement_b.source in np.array(source_ids)[split_idx],
+                    self.measurement_pairs))) for split_idx in split]
+        if group_by_source and stratified:
+            raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
+
+    def get_splits_measurements(self, group_by_source, seed, stratified, test_size, train_size):
+        """
+        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
+        split based on y or the source is made when respectively stratified or group are True. It is not possible to
+        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
+        number of instances for each class.
+        """
+        if stratified:
+            raise ValueError('It is not possible to split the dataset stratified, when using measurements')
+
+        if not group_by_source:
+            s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
+            source_ids = None
+        else:
+            s = GroupShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
+            source_ids = [m.source.id for m in self.measurements]
+
+        for split in s.split(self.measurements, groups=source_ids):
+            yield [CommonSourceKFoldDataset(n_splits=None,
+                                            measurements=list(map(lambda i: self.measurements[i], split_idx))) for
+                   split_idx in split]
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,

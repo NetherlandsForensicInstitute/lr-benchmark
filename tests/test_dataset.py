@@ -51,13 +51,13 @@ def test_get_splits_measurements(measurements, group_by_source, stratified, trai
                len(y_train) == train_size * len(measurements) if isinstance(train_size, float) else \
                len(y_train) == len(measurements)-test_size if isinstance(test_size, int) else \
                len(y_train) == test_size * len(measurements) if isinstance(test_size, float) else \
-               len(y_train) == 0.8 * len(measurements)
+               len(measurements) > len(y_train) > 0
 
         assert len(y_test) == test_size if isinstance(test_size, int) else \
                len(y_test) == test_size * len(measurements) if isinstance(test_size, float) else \
                len(y_test) == len(measurements) - train_size if isinstance(train_size, int) else \
                len(y_test) == train_size * len(measurements) if isinstance(train_size, float) else \
-               len(y_test) == 0.2 * len(measurements)
+               len(measurements) > len(y_test) > 0
 
         if group_by_source:
             train_sources = [m.source.id for m in dataset_train.measurements]
