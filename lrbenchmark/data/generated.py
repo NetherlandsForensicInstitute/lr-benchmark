@@ -48,7 +48,7 @@ class SynthesizedNormalDataset(Dataset):
         pairs = ss_pairs + ds_pairs
         return CommonSourceKFoldDataset(n_splits=None, measurement_pairs=pairs)
 
-    def get_splits(self, seed: int = None) -> Iterable[Dataset]:
+    def get_splits(self, seed: int = None, **kwargs) -> Iterable[Dataset]:
         yield [self.generate_data(self.n_train_instances), self.generate_data(self.n_test_instances)]
 
     def __repr__(self):

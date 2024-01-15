@@ -15,7 +15,9 @@ from lrbenchmark.evaluation import DescribedValue
 from lrbenchmark.transformers import DummyTransformer, DummyClassifier
 
 
-def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]], possible_params: Mapping, desc: Optional[str] = None) -> Optional[Any]:
+def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]],
+                      possible_params: Mapping,
+                      desc: Optional[str] = None) -> Optional[Any]:
     if param is None:
         return None
     elif isinstance(param, Sequence) and not isinstance(param, str):
