@@ -235,7 +235,7 @@ class XTCDataset(CommonSourceKFoldDataset):
         Loads XTC dataset
         """
         data_file = 'Champ_data.csv'
-        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # @todo publish dataset to github
+        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
         print(f"{self.__repr__()} is not yet available for download")
         xtc_folder = os.path.join('resources', 'drugs_xtc')
         download_dataset_file(xtc_folder, data_file, url)

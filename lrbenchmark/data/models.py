@@ -39,7 +39,8 @@ class Measurement:
         return self.source.id
 
     def __eq__(self, other):
-        return isinstance(other, Measurement) and self.source == other.source and (self.value == other.value or self.value == None)
+        return (isinstance(other, Measurement) and self.source == other.source and
+                (self.value == other.value or self.value is None))
 
 
 @dataclass

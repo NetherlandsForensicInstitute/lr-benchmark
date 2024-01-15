@@ -104,7 +104,7 @@ class Setup:
     def run_experiment(self, param_set: Dict[str, Any], default_values: Optional[Dict[str, Any]] = None):
         """
         Runs a single experiment.
-        
+
         Parameters:
         -----------
             - param_set: a dictionary, with parameter names as keys

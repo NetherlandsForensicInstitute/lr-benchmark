@@ -9,14 +9,19 @@ from lrbenchmark.typing import TrainTestPair
 
 
 class XYWithTrueLRs(namedtuple("XY", ["X", "y"])):
-  def __new__(cls, X, y, true_lrs):
-    self = super(XYWithTrueLRs, cls).__new__(cls, X, y)
-    self.true_lrs = true_lrs
-    return self
+    def __new__(cls, X, y, true_lrs):
+        self = super(XYWithTrueLRs, cls).__new__(cls, X, y)
+        self.true_lrs = true_lrs
+        return self
 
 
 class SynthesizedNormalDataset(Dataset):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_train_instances: int, n_test_instances: int):
+    def __init__(self,
+                 mean: float,
+                 sigma: float,
+                 trace_measurement_stdev: float,
+                 n_train_instances: int,
+                 n_test_instances: int):
         super().__init__()
         self.mean = mean
         self.sigma = sigma
@@ -43,7 +48,8 @@ class SynthesizedNormalDataset(Dataset):
         diff = np.abs(real_height - measured_height)
 
         ss_prob = scipy.stats.norm(self.mean, self.trace_measurement_stdev).pdf(diff)
-        ds_prob = np.array([scipy.stats.norm(real_height[i], self.sigma).pdf(measured_height[i]) for i in range(len(real_height))])
+        ds_prob = np.array([scipy.stats.norm(real_height[i], self.sigma).pdf(measured_height[i]) for i in
+                            range(len(real_height))])
 
         return ss_prob / ds_prob
 
@@ -63,4 +69,5 @@ class SynthesizedNormalDataset(Dataset):
         return True
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, trace_measurement_stdev={self.trace_measurement_stdev})"
+        return (f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, "
+                f"trace_measurement_stdev={self.trace_measurement_stdev})")
