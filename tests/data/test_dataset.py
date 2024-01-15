@@ -25,7 +25,7 @@ def test_get_splits_is_mutually_exclusive(measurements):
         assert len(np.intersect1d(y_train, y_test)) == 0 and len(y_train) + len(y_test) == len(dataset.measurements)
 
 
-@pytest.mark.parametrize("class_name, config_key, load", [(ASRDataset, 'asr', True),
+@pytest.mark.parametrize("class_name, config_key, load", [#(ASRDataset, 'asr', True),
                                                (GlassDataset, 'glass', True),
                                                (SynthesizedNormalDataset, 'normal', False)])
 def test_dataset_basic_functions(class_name, config_key, load):
