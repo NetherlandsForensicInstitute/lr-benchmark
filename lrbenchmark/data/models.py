@@ -9,10 +9,10 @@ class Source:
     """
     A source that can generate a measurement
 
-    :param id: the id of the source
+    :param id: the identifier of the source
     :param extra: additional metadata related to the source
     """
-    id: int
+    id: Union[int, str]
     extra: Mapping[str, Any]
 
 
