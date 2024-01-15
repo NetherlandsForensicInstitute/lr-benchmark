@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.dataset import CommonSourceKFoldDataset
+from lrbenchmark.data.dataset import CommonSourceKFoldDataset
 
 
 @pytest.fixture

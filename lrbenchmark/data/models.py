@@ -9,10 +9,10 @@ class Source:
     """
     A source that can generate a measurement
 
-    :param id: the id of the source
+    :param id: the identifier of the source
     :param extra: additional metadata related to the source
     """
-    id: int
+    id: Union[int, str]
     extra: Mapping[str, Any]
 
 
@@ -73,7 +73,16 @@ class MeasurementPair:
         return [self.measurement_a, self.measurement_b]
 
     def get_x(self) -> np.ndarray:
-        return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
+        if 'score' in self.extra.keys():
+            return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
+        raise ValueError("No score found in the extra mapping.")
+
+    def get_measurement_values(self) -> np.ndarray:
+        measurement_a_value = np.array([self.measurement_a.value]) if not (
+            isinstance(self.measurement_a.value, np.ndarray)) else self.measurement_a.value
+        measurement_b_value = np.array([self.measurement_b.value]) if not (
+            isinstance(self.measurement_b.value, np.ndarray)) else self.measurement_b.value
+        return np.array(list(zip(measurement_a_value, measurement_b_value)))
 
     def get_y(self) -> bool:
         return self.is_same_source
