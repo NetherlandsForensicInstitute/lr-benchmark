@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.data.dataset import CommonSourceKFoldDataset
+from lrbenchmark.data.dataset import CommonSourceDatasetMeasurements, CommonSourceDatasetMeasurementPairs
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def measurement_pairs(measurements, measurements_set2) -> List[MeasurementPair]:
 @pytest.mark.parametrize('group_by_source', [True, False])
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
 def test_get_splits_measurements(measurements, group_by_source, stratified, train_size, test_size):
-    dataset = CommonSourceKFoldDataset(n_splits=3, measurements=measurements)
+    dataset = CommonSourceDatasetMeasurements(n_splits=3, measurements=measurements)
     if stratified:
         with pytest.raises(ValueError):
             list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified))
@@ -68,7 +68,7 @@ def test_get_splits_measurements(measurements, group_by_source, stratified, trai
 @pytest.mark.parametrize('group_by_source', [True, False])
 @pytest.mark.parametrize('stratified', [True, False])
 def test_get_splits_measurement_pairs(measurement_pairs, group_by_source, stratified):
-    dataset = CommonSourceKFoldDataset(n_splits=3, measurement_pairs=measurement_pairs)
+    dataset = CommonSourceDatasetMeasurementPairs(n_splits=3, measurement_pairs=measurement_pairs)
     if stratified and group_by_source:
         with pytest.raises(ValueError):
             list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified))

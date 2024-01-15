@@ -83,30 +83,26 @@ class Dataset(ABC):
         raise NotImplementedError
 
 
-class CommonSourceKFoldDataset(Dataset, ABC):
-    def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None,
-                 measurement_pairs: Optional[List[MeasurementPair]] = None):
+class CommonSourceDataset(Dataset, ABC):
+    def __init__(self, n_splits: Optional[int]):
         super().__init__()
         self.n_splits = n_splits
-        self.measurements = measurements
-        self.measurement_pairs = measurement_pairs
-
-        if self.measurements and self.measurement_pairs:
-            raise ValueError("Dataset cannot have both measurements and"
-                             "measurement pairs.")
-        if self.measurements is None and self.measurement_pairs is None:
-            self.load()
 
     def load(self):
         raise NotImplementedError
 
+
+class CommonSourceDatasetMeasurements(CommonSourceDataset):
+    def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None):
+        super().__init__(n_splits)
+        self.measurements = measurements
+
+        if self.measurements is None:
+            self.load()
+
     @property
     def source_ids(self) -> Set[int]:
-        if self.measurements:
-            return set([m.source.id for m in self.measurements])
-        else:
-            return set(chain.from_iterable(
-                [[mp.measurement_a.source.id, mp.measurement_b.source.id] for mp in self.measurement_pairs]))
+        return set([m.source.id for m in self.measurements])
 
     def get_x_measurement(self) -> np.ndarray:
         return np.array([m.get_x() for m in self.measurements])
@@ -117,20 +113,11 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement(self) -> XYType:
         return self.get_x_measurement(), self.get_y_measurement()
 
-    def get_x_measurement_pair(self) -> np.ndarray:
-        return np.array([mp.get_x() for mp in self.measurement_pairs])
-
-    def get_y_measurement_pair(self) -> np.ndarray:
-        return np.array([mp.get_y() for mp in self.measurement_pairs])
-
-    def get_x_y_measurement_pair(self) -> XYType:
-        return self.get_x_measurement_pair(), self.get_y_measurement_pair()
-
     def get_splits(self, stratified: bool = False, group_by_source: bool = False,
                    train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
                    seed: int = None) -> Iterable[Dataset]:
         """
-        This function splits the measurements or measurement pairs in a dataset into two splits, as specified by the
+        This function splits the measurements in a dataset into two splits, as specified by the
         provided parameters.
 
         :param stratified: boolean that indicates whether the dataset should be split while preserving the ratio of
@@ -145,45 +132,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                           is the complement of the train_size.
         :param seed: seed to ensure repeatability of the split
         """
-        if self.measurements:
-            yield from self.get_splits_measurements(group_by_source, stratified, train_size, test_size, seed)
-        else:  # split the measurement_pairs:
-            yield from self.get_splits_measurement_pairs(group_by_source, stratified, train_size, test_size, seed)
-
-    def get_splits_measurement_pairs(self,
-                                     group_by_source: bool,
-                                     stratified: bool,
-                                     train_size: Optional[Union[float, int]],
-                                     test_size: Optional[Union[float, int]],
-                                     seed: int) -> Iterable[Dataset]:
-        """
-        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
-        split based on y or the source is made when respectively stratified or group are True. It is not possible to
-        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
-        number of instances for each class.
-        """
-        if not group_by_source:
-            if stratified:
-                s = StratifiedShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                           test_size=test_size)
-                y = [mp.is_same_source for mp in self.measurement_pairs]
-            else:
-                s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
-                y = None
-
-            for split in s.split(self.measurement_pairs, y):
-                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(
-                    map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
-        if not stratified:
-            s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
-            source_ids = list(self.source_ids)
-            for split in s.split(source_ids):
-                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
-                    lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
-                        split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
-                    self.measurement_pairs))) for split_idx in split]
-        if group_by_source and stratified:
-            raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
+        yield from self.get_splits_measurements(group_by_source, stratified, train_size, test_size, seed)
 
     def get_splits_measurements(self,
                                 group_by_source: bool,
@@ -207,9 +156,9 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             source_ids = [m.source.id for m in self.measurements]
 
         for split in s.split(self.measurements, groups=source_ids):
-            yield [CommonSourceKFoldDataset(n_splits=None,
-                                            measurements=list(map(lambda i: self.measurements[i], split_idx))) for
-                   split_idx in split]
+            yield [CommonSourceDatasetMeasurements(n_splits=None,
+                                                   measurements=list(map(lambda i: self.measurements[i], split_idx)))
+                   for split_idx in split]
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
@@ -225,26 +174,114 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        if self.measurement_pairs:
-            if 'score' in self.measurement_pairs[0].extra.keys():
-                return self.get_x_y_measurement_pair()
-            # If the measurement pair has no score, the values of the individual measurements first need to be
-            # transformed to scores
+        X, y = self.get_x_y_measurement()
+        X_pairs, y_pairs = pairing_function(seed=seed).transform(X, y)
+        X_pairs = transformer().transform(X_pairs)
+        return X_pairs, y_pairs
+
+
+class CommonSourceDatasetMeasurementPairs(CommonSourceDataset):
+    def __init__(self, n_splits: Optional[int], measurement_pairs: Optional[List[MeasurementPair]] = None):
+        super().__init__(n_splits)
+        self.measurement_pairs = measurement_pairs
+
+        if self.measurement_pairs is None:
+            self.load()
+
+    @property
+    def source_ids(self) -> Set[int]:
+        return set(chain.from_iterable(
+                [[mp.measurement_a.source.id, mp.measurement_b.source.id] for mp in self.measurement_pairs]))
+
+    def get_x_mp(self) -> np.ndarray:
+        return np.array([mp.get_x() for mp in self.measurement_pairs])
+
+    def get_y_mp(self) -> np.ndarray:
+        return np.array([mp.get_y() for mp in self.measurement_pairs])
+
+    def get_x_y_mp(self) -> XYType:
+        return self.get_x_mp(), self.get_y_mp()
+
+    def get_splits(self, stratified: bool = False, group_by_source: bool = False,
+                   train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
+                   seed: int = None) -> Iterable[Dataset]:
+        """
+        This function splits the measurement pairs in a dataset into two splits, as specified by the
+        provided parameters.
+
+        :param stratified: boolean that indicates whether the dataset should be split while preserving the ratio of
+                           classes in y in both splits.
+        :param group_by_source: boolean that indicates whether the dataset should be split along group lines, ensuring
+                                each group to be in only a single split.
+        :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
+                           absolute amount of measurements, measurement pairs or groups in each split.  If not
+                           specified, is the complement of the test_size.
+        :param test_size: size of the test set. Can be a float, to indicate a fraction, or an integer to indicate an
+                          absolute amount of measurements, measurement pairs or groups in each split. If not specified,
+                          is the complement of the train_size.
+        :param seed: seed to ensure repeatability of the split
+        """
+        yield from self.get_splits_measurement_pairs(group_by_source, stratified, train_size, test_size, seed)
+
+    def get_splits_measurement_pairs(self,
+                                     group_by_source: bool,
+                                     stratified: bool,
+                                     train_size: Optional[Union[float, int]],
+                                     test_size: Optional[Union[float, int]],
+                                     seed: int) -> Iterable[Dataset]:
+        """
+        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
+        split based on y or the source is made when respectively stratified or group are True. It is not possible to
+        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
+        number of instances for each class.
+        """
+        if not group_by_source:
+            if stratified:
+                s = StratifiedShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
+                                           test_size=test_size)
+                y = [mp.is_same_source for mp in self.measurement_pairs]
             else:
-                # the shape of the measurement values should be (m, f,2), with m=number of pairs, f=number of features
-                # and 2 values (for the two measurements), to be compatible with the transformation function
-                X_pairs = np.array([mp.get_measurement_values() for mp in self.measurement_pairs])
-                y_pairs = np.array([mp.is_same_source for mp in self.measurement_pairs])
-                X_pairs = transformer().transform(X_pairs)
-                return X_pairs, y_pairs
+                s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
+                y = None
+
+            for split in s.split(self.measurement_pairs, y):
+                yield [CommonSourceDatasetMeasurementPairs(n_splits=None, measurement_pairs=list(
+                    map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
+        if not stratified:
+            s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
+            source_ids = list(self.source_ids)
+            for split in s.split(source_ids):
+                yield [CommonSourceDatasetMeasurementPairs(n_splits=None, measurement_pairs=list(filter(
+                    lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
+                        split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
+                    self.measurement_pairs))) for split_idx in split]
+        if group_by_source and stratified:
+            raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
+
+    def get_x_y_pairs(self, transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
+        """
+        Transforms a dataset into same source and different source pairs and
+        returns two arrays of X_pairs and y_pairs where the X_pairs are by
+        default transformed to the absolute difference between two pairs. If
+        pairs are already available, we return those.
+
+        Note that this method is different from sklearn TransformerMixin
+        because it also transforms y.
+        """
+        if 'score' in self.measurement_pairs[0].extra.keys():
+            return self.get_x_y_mp()
+        # If the measurement pair has no score, the values of the individual measurements first need to be
+        # transformed to scores
         else:
-            X, y = self.get_x_y_measurement()
-            X_pairs, y_pairs = pairing_function(seed=seed).transform(X, y)
+            # the shape of the measurement values should be (m, f,2), with m=number of pairs, f=number of features
+            # and 2 values (for the two measurements), to be compatible with the transformation function
+            X_pairs = np.array([mp.get_measurement_values() for mp in self.measurement_pairs])
+            y_pairs = np.array([mp.is_same_source for mp in self.measurement_pairs])
             X_pairs = transformer().transform(X_pairs)
             return X_pairs, y_pairs
 
 
-class XTCDataset(CommonSourceKFoldDataset):
+class XTCDataset(CommonSourceDataset):
 
     def __init__(self, n_splits):
         super().__init__(n_splits)
@@ -270,7 +307,7 @@ class XTCDataset(CommonSourceKFoldDataset):
         return "XTC dataset"
 
 
-class GlassDataset(CommonSourceKFoldDataset):
+class GlassDataset(CommonSourceDatasetMeasurements):
 
     def __init__(self, n_splits):
         super().__init__(n_splits)
@@ -305,7 +342,7 @@ class GlassDataset(CommonSourceKFoldDataset):
         return "Glass dataset"
 
 
-class ASRDataset(CommonSourceKFoldDataset):
+class ASRDataset(CommonSourceDatasetMeasurementPairs):
     """
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
