@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.models import Measurement, Source
-from lrbenchmark.dataset import CommonSourceKFoldDataset
+from lrbenchmark.data.dataset import CommonSourceKFoldDataset
 
 @pytest.fixture
 def measurements() -> List[Measurement]:

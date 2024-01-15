@@ -145,7 +145,17 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         because it also transforms y.
         """
         if self.measurement_pairs:
-            return self.get_x_y_measurement_pair()
+            if 'score' in self.measurement_pairs[0].extra.keys():
+                return self.get_x_y_measurement_pair()
+            # If the measurement pair has no score, the values of the individual measurements first need to be
+            # transformed to scores
+            else:
+                # the shape of the measurement values should be (m, f,2), with m=number of pairs, f=number of features
+                # and 2 values (for the two measurements), to be compatible with the transformation function
+                X_pairs = np.array([mp.get_measurement_values() for mp in self.measurement_pairs])
+                y_pairs = np.array([mp.is_same_source for mp in self.measurement_pairs])
+                X_pairs = transformer().transform(X_pairs)
+                return X_pairs, y_pairs
         else:
             X, y = self.get_x_y_measurement()
             X_pairs, y_pairs = pairing_function(seed=seed).transform(X, y)
