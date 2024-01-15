@@ -4,12 +4,13 @@ import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
 from itertools import chain
-from typing import Iterable, Optional, Callable, List, Set
+from typing import Iterable, Optional, Callable, List, Set, Mapping
 
 import numpy as np
 import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
 from sklearn.model_selection import KFold, GroupShuffleSplit
+from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.typing import XYType
@@ -124,8 +125,10 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             source_ids = list(self.source_ids)
             for splits in kf.split(source_ids):
                 yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
-                    lambda mp: mp.measurement_a.source in source_ids[split] and mp.measurement_b.source in source_ids[
-                        split], self.measurement_pairs))) for split in splits]
+                    lambda mp: mp.measurement_a.source.id in [source_ids[i] for i in
+                                                              split] and mp.measurement_b.source.id in [source_ids[i]
+                                                                                                        for i in split],
+                    self.measurement_pairs))) for split in splits]
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
@@ -201,18 +204,75 @@ class GlassDataset(CommonSourceKFoldDataset):
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
                                                 extra={'Piece': int(row['Piece'])},
-                                                # the values consists of measurements of ten elemental
-                                                # compositions, which start at the fourth position of
-                                                # each row
+                                                # the values consist of measurements of ten elemental compositions,
+                                                # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
-                # The item values start with 1 in each file,
-                # this is making it ascending across different files
+                # The item values start with 1 in each file, this is making it ascending across different files
                 max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
         self.measurements = measurements
 
     def __repr__(self):
         return "Glass dataset"
+
+
+class ASRDataset(CommonSourceKFoldDataset):
+    """
+    A dataset containing paired measurements for the purpose of automatic speaker recognition.
+    """
+
+    def __init__(self, n_splits, measurements_path, sources_path):
+        self.measurements_path = measurements_path  # TODO: besluiten waar data te laten, nu nog inlezen vanaf schijf
+        self.sources_path = sources_path
+        super().__init__(n_splits)
+
+    def load(self):
+        with open(self.measurements_path, "r") as f:
+            reader = csv.reader(f)
+            data = list(reader)
+        header_measurement_data = np.array(data[0][1:])
+        measurement_data = np.array(data)[1:, 1:]
+
+        recording_data = self.load_recording_annotations()
+
+        mps = []
+        for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
+            filename_a = header_measurement_data[i]
+            info_a = recording_data.get(filename_a.replace('_30s', ''))
+            source_id_a = filename_a.split("_")[0]
+            if info_a:  # check whether there is recording info present for the first file
+                for j in range(i, measurement_data.shape[1]):
+                    filename_b = header_measurement_data[j]
+                    info_b = recording_data.get(filename_b.replace('_30s', ''))
+                    source_id_b = filename_b.split("_")[0]
+                    if info_b:  # check whether there is recording info present for the other file
+                        mps.append(MeasurementPair(Measurement(Source(id=source_id_a,
+                                                                      extra={'sex': info_a['sex'],
+                                                                             'age': info_a['beller_leeftijd']}),
+                                                               extra={'filename': filename_a,
+                                                                      'net_duration': float(
+                                                                          info_a['net duration'])}),
+                                                   Measurement(Source(id=source_id_b,
+                                                                      extra={'sex': info_b['sex'],
+                                                                             'age': info_a['beller_leeftijd']}),
+                                                               extra={'filename': filename_b,
+                                                                      'net_duration': float(
+                                                                          info_b['net duration'])}),
+                                                   extra={'score': float(measurement_data[i, j])}))
+        self.measurement_pairs = mps
+
+    def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
+        """
+        Read annotations containing information of the recording and speaker.
+        """
+        with open(self.sources_path, 'r') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            data = list(reader)
+
+        return {elt['filename']: elt for elt in data}
+
+    def __repr__(self):
+        return "ASR dataset"
 
 
 def download_dataset_file(folder: str, file: str, url: str):
