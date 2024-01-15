@@ -90,7 +90,7 @@ def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configura
     exp_params = exp_config.experiment
     exp.parameter('repeats', exp_params.repeats)
     parameters = {'dataset': get_parameters(data_config.dataset, DATASETS),
-                  'splitting_strategy_config': [exp_params.splitting_strategy]
+                  'splitting_strategy_config': [exp_params.splitting_strategy],
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
