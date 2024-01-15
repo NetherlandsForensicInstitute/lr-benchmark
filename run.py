@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import csv
-from collections import namedtuple
 from datetime import datetime
-from typing import Dict, Any, Callable
+from typing import Dict, Any
 
 import confidence
 import lir.plotting
@@ -20,10 +19,6 @@ from lrbenchmark.dataset import Dataset
 from lrbenchmark.transformers import DummyClassifier
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
-
-
-def extract_refnorm(dataset):
-    return dataset, dataset
 
 
 def evaluate(dataset: Dataset,
@@ -91,7 +86,7 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
     :param exp_params: Experiment parameters.
     :return:
     """
-    path_prefix = f"output"
+    path_prefix = "output"
     exp.parameter('repeats', exp_params.repeats)
     parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
                   'splitting_strategy_config': [exp_params.splitting_strategy],

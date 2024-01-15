@@ -1,13 +1,11 @@
 from collections.abc import Sequence, Mapping
 from typing import List, Any
 
-from confidence import Configuration
 from lir.calibration import *
 from lir.transformers import PercentileRankTransformer, AbsDiffTransformer
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA, LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
-from sklearn.model_selection import RandomizedSearchCV, GroupShuffleSplit, ShuffleSplit, StratifiedKFold, \
-    StratifiedShuffleSplit, GroupKFold, StratifiedGroupKFold, KFold
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
@@ -17,7 +15,9 @@ from lrbenchmark.evaluation import DescribedValue
 from lrbenchmark.transformers import DummyTransformer, DummyClassifier
 
 
-def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]], possible_params: Mapping, desc: Optional[str] = None) -> Optional[Any]:
+def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]],
+                      possible_params: Mapping,
+                      desc: Optional[str] = None) -> Optional[Any]:
     if param is None:
         return None
     elif isinstance(param, Sequence) and not isinstance(param, str):

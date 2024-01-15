@@ -145,16 +145,21 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         :param seed: seed to ensure repeatability of the split
         """
         if self.measurements:
-            yield from self.get_splits_measurements(group_by_source, seed, stratified, test_size, train_size)
-
+            yield from self.get_splits_measurements(group_by_source, stratified, train_size, test_size, seed)
         else:  # split the measurement_pairs:
-            yield from self.get_splits_measurement_pairs(group_by_source, seed, stratified, test_size, train_size)
+            yield from self.get_splits_measurement_pairs(group_by_source, stratified, train_size, test_size, seed)
 
-    def get_splits_measurement_pairs(self, group_by_source, seed, stratified, test_size, train_size):
+    def get_splits_measurement_pairs(self,
+                                     group_by_source: bool,
+                                     stratified: bool,
+                                     train_size: Optional[Union[float, int]],
+                                     test_size: Optional[Union[float, int]],
+                                     seed: int) -> Iterable[Dataset]:
         """
-        When splitting measurements, a regular split is performed when both group and stratified are False. If group is
-        True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
-        as these do not have a y.
+        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
+        split based on y or the source is made when respectively stratified or group are True. It is not possible to
+        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
+        number of instances for each class.
         """
         if not group_by_source:
             if stratified:
@@ -162,8 +167,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                            test_size=test_size)
                 y = [mp.is_same_source for mp in self.measurement_pairs]
             else:
-                s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size,
-                                 test_size=test_size)
+                s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
                 y = None
 
             for split in s.split(self.measurement_pairs, y):
@@ -174,18 +178,22 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             source_ids = list(self.source_ids)
             for split in s.split(source_ids):
                 yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
-                    lambda mp: mp.measurement_a.source in np.array(source_ids)[
-                        split_idx] and mp.measurement_b.source in np.array(source_ids)[split_idx],
+                    lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
+                        split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
                     self.measurement_pairs))) for split_idx in split]
         if group_by_source and stratified:
             raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
 
-    def get_splits_measurements(self, group_by_source, seed, stratified, test_size, train_size):
+    def get_splits_measurements(self,
+                                group_by_source: bool,
+                                stratified: bool,
+                                train_size: Optional[Union[float, int]],
+                                test_size: Optional[Union[float, int]],
+                                seed: int) -> Iterable[Dataset]:
         """
-        When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
-        split based on y or the source is made when respectively stratified or group are True. It is not possible to
-        split with both group and stratified True, as it is not possible to guarantee grouped splits have a similar
-        number of instances for each class.
+        When splitting measurements, a regular split is performed when both group and stratified are False. If group is
+        True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
+        as these do not have a y.
         """
         if stratified:
             raise ValueError('It is not possible to split the dataset stratified, when using measurements')
@@ -202,10 +210,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                             measurements=list(map(lambda i: self.measurements[i], split_idx))) for
                    split_idx in split]
 
-    def get_x_y_pairs(self,
-                      seed: Optional[int] = None,
-                      pairing_function: Optional[Callable] = partial(InstancePairing,
-                                                                     different_source_limit='balanced'),
+    def get_x_y_pairs(self, seed: Optional[int] = None, pairing_function: Optional[Callable] = partial(InstancePairing,
+                                                                                                       different_source_limit='balanced'),
                       transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
@@ -257,9 +263,8 @@ class GlassDataset(CommonSourceKFoldDataset):
         super().__init__(n_splits)
 
     def load(self):
-        datasets = {
-            'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
-                         'elemental_composition_glass/main/duplo.csv',
+        datasets = {'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
+                                 'elemental_composition_glass/main/duplo.csv',
             'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
                             'elemental_composition_glass/main/training.csv',
             'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
