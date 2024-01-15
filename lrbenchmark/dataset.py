@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
 from sklearn.model_selection import KFold, GroupShuffleSplit
+from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.typing import XYType
@@ -235,7 +236,7 @@ class ASRDataset(CommonSourceKFoldDataset):
         recording_data = self.load_recording_annotations()
 
         mps = []
-        for i in range(measurement_data.shape[0]):
+        for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
             info_a = recording_data.get(filename_a.replace('_30s', ''))
             source_id_a = filename_a.split("_")[0]
