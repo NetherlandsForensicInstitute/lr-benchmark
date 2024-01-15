@@ -17,9 +17,9 @@ def get_parser() -> argparse.ArgumentParser:
 
 def load_data_config(config_name: str) -> Configuration:
     """Load the config file for the provided `config_name`. This can either be
-    the name of the yaml or the full path."""
-    if not config_name.endswith(".yaml"):
-        config_name += ".yaml"
+    the name of the yaml itself or the full path."""
+    if not config_name.endswith('.yaml'):
+        config_name += '.yaml'
     if not config_name.startswith('config'):
         if not config_name.startswith('data'):
             config_name = 'data/' + config_name
