@@ -1,10 +1,12 @@
 import csv
+import math
 import os
+import statistics
 import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
 from itertools import chain
-from typing import Iterable, Optional, Callable, List, Set, Union, Mapping
+from typing import Iterable, Optional, Callable, List, Set, Union, Mapping, Tuple
 
 import numpy as np
 import pandas as pd
@@ -172,13 +174,13 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                 y = None
 
             for split in s.split(self.measurement_pairs, y):
-                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(
+                yield [CommonSourceKFoldDataset(n_splits=self.n_splits, measurement_pairs=list(
                     map(lambda i: self.measurement_pairs[i], split_idx))) for split_idx in split]
         if not stratified:
             s = ShuffleSplit(n_splits=self.n_splits, random_state=seed, train_size=train_size, test_size=test_size)
             source_ids = list(self.source_ids)
             for split in s.split(source_ids):
-                yield [CommonSourceKFoldDataset(n_splits=None, measurement_pairs=list(filter(
+                yield [CommonSourceKFoldDataset(n_splits=self.n_splits, measurement_pairs=list(filter(
                     lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
                         split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
                     self.measurement_pairs))) for split_idx in split]
@@ -207,9 +209,44 @@ class CommonSourceKFoldDataset(Dataset, ABC):
             source_ids = [m.source.id for m in self.measurements]
 
         for split in s.split(self.measurements, groups=source_ids):
-            yield [CommonSourceKFoldDataset(n_splits=None,
+            yield [CommonSourceKFoldDataset(n_splits=self.n_splits,
                                             measurements=list(map(lambda i: self.measurements[i], split_idx))) for
                    split_idx in split]
+
+    def get_refnorm_split(self, refnorm_size, seed) -> Tuple[Dataset, Dataset]:
+        dataset, refnorm_dataset = list(self.get_splits(train_size=None, test_size=refnorm_size, group_by_source=True, stratified= False, seed=seed))[0]
+        refnorm_dataset = CommonSourceKFoldDataset(n_splits=self.n_splits, measurement_pairs=[mp for mp in self.measurement_pairs if (mp.measurement_a.source.id in refnorm_dataset.source_ids) ^ (mp.measurement_b.source.id in refnorm_dataset.source_ids)])
+        return dataset, refnorm_dataset
+
+    def perform_refnorm(self, refnorm_dataset, source_ids_exclude = None):
+        for mp in self.measurement_pairs:
+            refnorm_pairs_m1 = self.filter_refnorm(mp.measurement_a, mp.measurement_b, source_ids_exclude, refnorm_dataset)
+            scores_m1 = self.get_scores(refnorm_pairs_m1)
+            refnorm_pairs_m2 = self.filter_refnorm(mp.measurement_b, mp.measurement_a, source_ids_exclude, refnorm_dataset)
+            scores_m2 = self.get_scores(refnorm_pairs_m2)
+            new_score = self.refnorm(mp.score, scores_m1, scores_m2)
+            mp.extra['score'] = new_score
+
+    def filter_refnorm(self, measurement_to_find, measurement_to_exclude, source_ids_exclude, refnorm_dataset):
+        new_mp = []
+        source_ids_exclude = [s for s in source_ids_exclude if s != measurement_to_find.source.id] if source_ids_exclude else []
+        for r in refnorm_dataset.measurement_pairs:
+            if ((r.measurement_a.source.id == measurement_to_find.source.id and
+                r.measurement_a.extra['filename'] == measurement_to_find.extra['filename'] and
+                r.measurement_b.source.id not in source_ids_exclude + [measurement_to_exclude.source.id, measurement_to_find.source.id]) or
+                (r.measurement_b.source.id == measurement_to_find.source.id and
+                 r.measurement_b.extra['filename'] == measurement_to_find.extra['filename'] and
+                 r.measurement_a.source.id not in [measurement_to_exclude.source.id, measurement_to_find.source.id])):
+                new_mp.append(r)
+        return new_mp
+
+    def get_scores(self, refnorm_pairs):
+        return [mp.score for mp in refnorm_pairs]
+
+    def refnorm(self, score, scores_m1, scores_m2):
+        norm1 = (score - (sum(scores_m1) / len(scores_m1))) / np.std(scores_m1)
+        norm2 = (score - (sum(scores_m2) / len(scores_m2))) / np.std(scores_m2)
+        return round((norm1 + norm2) / 2, 6)
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
@@ -330,7 +367,7 @@ class ASRDataset(CommonSourceKFoldDataset):
             info_a = recording_data.get(filename_a.replace('_30s', ''))
             source_id_a = filename_a.split("_")[0]
             if info_a:  # check whether there is recording info present for the first file
-                for j in range(i, measurement_data.shape[1]):
+                for j in range(i+1, measurement_data.shape[1]):
                     filename_b = header_measurement_data[j]
                     info_b = recording_data.get(filename_b.replace('_30s', ''))
                     source_id_b = filename_b.split("_")[0]

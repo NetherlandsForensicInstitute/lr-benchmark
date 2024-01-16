@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import csv
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import confidence
 import lir.plotting
@@ -27,6 +27,7 @@ def evaluate(dataset: Dataset,
              scorer: BaseEstimator,
              splitting_strategy_config: Configuration,
              selected_params: Dict[str, Any] = None,
+             refnorm: Optional[Configuration] = None,
              repeats: int = 1) -> Dict:
     """
     Measures performance for an LR system with given parameters
@@ -39,7 +40,14 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+        refnorm_dataset = None
+        if refnorm and refnorm.refnorm_size:
+            dataset, refnorm_dataset = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
+            if refnorm:
+                dataset_train.perform_refnorm(refnorm_dataset or dataset_train)
+                dataset_test.perform_refnorm(refnorm_dataset or dataset, source_ids_exclude=dataset_test.source_ids)
+
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
 
@@ -88,8 +96,9 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
     """
     path_prefix = "output"
     exp.parameter('repeats', exp_params.repeats)
+    exp.parameter('refnorm', exp_params.refnorm)
+    exp.parameter('splitting_strategy_config', exp_params.splitting_strategy)
     parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
-                  'splitting_strategy_config': [exp_params.splitting_strategy],
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
