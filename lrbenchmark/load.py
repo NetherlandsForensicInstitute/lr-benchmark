@@ -1,7 +1,10 @@
 import argparse
 import os
+from pathlib import Path
 
 from confidence import Configuration, loadf
+from typing import Optional
+from lrbenchmark.typing import PathLike
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -16,24 +19,28 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def load_data_config(path: str) -> Configuration:
+def load_data_config(path: PathLike) -> Configuration:
     """
     Load the data config file for the provided `path`. This can either be
-    the name of the yaml itself or the full path.
+    the name of the yaml itself or the full path to a config file.
     """
+    # first check whether the path refers to an existing file. If not, we extract the
+    # full path and then load the file.
     if not os.path.isfile(path):
         path = get_data_config_path(path)
     return loadf(path)
 
 
-def get_data_config_path(path: str) -> str:
+def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> PathLike:
     """
     Extract the actual path to a yaml file located in the config folder.
     """
+    elements = [root]
     if not path.endswith('.yaml'):
         path += '.yaml'
     if not path.startswith('config'):
+        elements.append('config')
         if not path.startswith('data'):
-            path = 'data/' + path
-        path = 'config/' + path
-    return path
+            elements.append('data')
+    elements.append(path)
+    return Path(os.path.join(*elements))
