@@ -5,7 +5,7 @@ import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.dataset import CommonSourceKFoldDataset, GlassDataset
+from lrbenchmark.data.dataset import CommonSourceKFoldDataset, GlassDataset, Dataset
 from lrbenchmark.data.generated import SynthesizedNormalDataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 
@@ -105,4 +105,8 @@ def test_dataset_basic_functions(class_name, config_key, load):
     else:
         dataset = dataset.generate_data(1000)
 
-    dataset.get_splits()
+    sets = dataset.get_splits()
+
+    for set in sets:
+        for fold in set:
+            assert isinstance(fold, Dataset)

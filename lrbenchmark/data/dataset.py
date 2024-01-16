@@ -127,7 +127,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                      stratified: bool,
                                      train_size: Optional[Union[float, int]],
                                      test_size: Optional[Union[float, int]],
-                                     seed: int) -> Iterable[Dataset]:
+                                     seed: int) -> Iterable[Iterable[Dataset]]:
         """
         When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
         split based on y or the source is made when respectively stratified or group are True. It is not possible to
@@ -162,7 +162,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                 stratified: bool,
                                 train_size: Optional[Union[float, int]],
                                 test_size: Optional[Union[float, int]],
-                                seed: int) -> Iterable[Dataset]:
+                                seed: int) -> Iterable[Iterable[Dataset]]:
         """
         When splitting measurements, a regular split is performed when both group and stratified are False. If group is
         True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
