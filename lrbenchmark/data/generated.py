@@ -2,7 +2,7 @@ from typing import Iterable, Tuple, List
 
 import numpy as np
 
-from lrbenchmark.data.dataset import Dataset, CommonSourceDatasetMeasurementPairs
+from lrbenchmark.data.dataset import Dataset, CommonSourceMeasurementPairsDataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
 
@@ -46,7 +46,7 @@ class SynthesizedNormalDataset(Dataset):
     def generate_data(self, n: int) -> Dataset:
         ss_pairs, ds_pairs = self.get_pairs(n // 2, n // 2)
         pairs = ss_pairs + ds_pairs
-        return CommonSourceDatasetMeasurementPairs(n_splits=None, measurement_pairs=pairs)
+        return CommonSourceMeasurementPairsDataset(measurement_pairs=pairs)
 
     def get_splits(self, seed: int = None, **kwargs) -> Iterable[Dataset]:
         yield [self.generate_data(self.n_train_instances), self.generate_data(self.n_test_instances)]

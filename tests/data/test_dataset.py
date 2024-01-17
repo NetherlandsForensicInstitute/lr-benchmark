@@ -98,8 +98,11 @@ def test_get_splits_measurement_pairs(measurement_pairs, group_by_source, strati
     (SynthesizedNormalDataset, 'normal', False)])
 def test_dataset_basic_functions(class_name, config_key, load):
     config = confidence.load_name('tests/lrbenchmark_test')
+    if config_key in config.dataset_test:
+        dataset = class_name(**config.dataset_test[config_key])
+    else:
+        dataset = class_name()
 
-    dataset = class_name(**config.dataset_test[config_key])
     if load:
         dataset.load()
     else:
