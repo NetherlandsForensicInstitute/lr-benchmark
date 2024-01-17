@@ -54,34 +54,6 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def pop(self, fraction: float, seed: int = None) -> 'Dataset':
-        """
-        Draws a random sample from the data set.
-
-        The returned data will be removed.
-
-        Parameters
-        ----------
-        fraction : float
-            The size of the sample as a fraction of the _original_ data set
-            size, i.e. subsequent calls will return arrays of (approximately)
-            the same size.
-        seed : int, optional
-            Optional random seed. The default is None.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented by this data set.
-
-        Returns
-        -------
-        Dataset
-            A 'Dataset' consisting of a subset of the instances of the original
-            Dataset.
-        """
-        raise NotImplementedError
-
 
 class CommonSourceKFoldDataset(Dataset, ABC):
     def __init__(self, n_splits: Optional[int], measurements: Optional[List[Measurement]] = None,
@@ -155,7 +127,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                      stratified: bool,
                                      train_size: Optional[Union[float, int]],
                                      test_size: Optional[Union[float, int]],
-                                     seed: int) -> Iterable[Dataset]:
+                                     seed: int) -> Iterable[Iterable[Dataset]]:
         """
         When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
         split based on y or the source is made when respectively stratified or group are True. It is not possible to
@@ -190,7 +162,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                 stratified: bool,
                                 train_size: Optional[Union[float, int]],
                                 test_size: Optional[Union[float, int]],
-                                seed: int) -> Iterable[Dataset]:
+                                seed: int) -> Iterable[Iterable[Dataset]]:
         """
         When splitting measurements, a regular split is performed when both group and stratified are False. If group is
         True the split can be made based on the sources. Stratification is not applicable if splitting on measurements,
