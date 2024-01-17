@@ -253,8 +253,8 @@ class CommonSourceMeasurementPairsDataset(CommonSourceDataset):
         if group_by_source and stratified:
             raise ValueError("Cannot specify both group and stratified when measurement pairs are provided")
 
-    def get_x_y_pairs(self,
-                      transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
+    def get_x_y(self,
+                transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by

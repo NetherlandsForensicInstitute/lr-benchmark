@@ -40,8 +40,8 @@ def evaluate(dataset: Dataset,
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
-            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
-            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+            X_train, y_train = dataset_train.get_x_y(seed=idx)
+            X_test, y_test = dataset_test.get_x_y(seed=idx)
 
             if preprocessor:
                 X_train = preprocessor.fit_transform(X_train)
