@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Tuple, List
+from typing import Tuple, List
 
 import numpy as np
 
-from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset, MeasurementsDataset
+from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
 
@@ -54,7 +54,6 @@ class SynthesizedNormalDataset(DatasetSimulator):
         ss_pairs, ds_pairs = self.get_pairs(self.n_same_source, self.n_diff_source)
         pairs = ss_pairs + ds_pairs
         return MeasurementPairsDataset(measurement_pairs=pairs)
-
 
     def __repr__(self):
         return (f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, "
