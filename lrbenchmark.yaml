@@ -22,8 +22,6 @@ experiment:
   splitting_strategy:
     train_size: 0.8
     test_size: 0.2
-    stratified: False
-    group_by_source: True
   refnorm:
     refnorm_size: 10 # If empty, the trainset will be used as refnorm dataset, with the LOO method
   preprocessor:
