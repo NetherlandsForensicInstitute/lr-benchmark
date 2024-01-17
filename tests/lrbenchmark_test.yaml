@@ -1,11 +1,8 @@
 
 dataset_test:
   asr:
-    n_splits: 2
     measurements_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
     sources_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
-  glass:
-    n_splits: 3
   normal:
     mean: 1
     sigma: 0.5
