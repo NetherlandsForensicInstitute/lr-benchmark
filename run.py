@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from tqdm import tqdm
 
 from lrbenchmark import evaluation
-from lrbenchmark.data.dataset import Dataset
+from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset
 from lrbenchmark.transformers import DummyClassifier
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
@@ -40,10 +40,10 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        if refnorm:
+        if refnorm and isinstance(dataset, MeasurementPairsDataset):
             dataset, dataset_refnorm = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
-            if refnorm:
+            if refnorm and isinstance(dataset, MeasurementPairsDataset):
                 dataset_train.perform_refnorm(dataset_refnorm or dataset,
                                               source_ids_to_exclude=list(dataset_train.source_ids))
                 dataset_test.perform_refnorm(dataset_refnorm or dataset,
