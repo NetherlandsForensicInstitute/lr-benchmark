@@ -16,7 +16,7 @@ experiment:
 #    glass:
 #      n_splits: 2
     asr:
-        n_splits: 2
+        n_splits: 1
         measurements_path: /mnt/projects/fbda/Profi_ASR/data/scorematrix.csv # change this
         sources_path: /mnt/projects/fbda/Profi_ASR/data/recordings_anon.txt # change this
   splitting_strategy:
@@ -25,7 +25,7 @@ experiment:
     stratified: False
     group_by_source: True
   refnorm:
-    refnorm_size: 30 # If empty, the trainset will be used as refnorm dataset, with the LOO method
+    refnorm_size: 10 # If empty, the trainset will be used as refnorm dataset, with the LOO method
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer

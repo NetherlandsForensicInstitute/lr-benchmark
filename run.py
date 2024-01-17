@@ -40,13 +40,14 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        refnorm_dataset = None
-        if refnorm and refnorm.refnorm_size:
-            dataset, refnorm_dataset = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
+        if refnorm:
+            dataset, dataset_refnorm = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
             if refnorm:
-                dataset_train.perform_refnorm(refnorm_dataset or dataset_train)
-                dataset_test.perform_refnorm(refnorm_dataset or dataset, source_ids_exclude=dataset_test.source_ids)
+                dataset_train.perform_refnorm(dataset_refnorm or dataset,
+                                              source_ids_to_exclude=list(dataset_train.source_ids))
+                dataset_test.perform_refnorm(dataset_refnorm or dataset,
+                                             source_ids_to_exclude=list(dataset_test.source_ids))
 
             X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
             X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)

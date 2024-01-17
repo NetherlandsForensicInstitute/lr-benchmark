@@ -1,7 +1,5 @@
 import csv
-import math
 import os
-import statistics
 import urllib.request
 from abc import ABC, abstractmethod
 from functools import partial
@@ -15,6 +13,7 @@ from sklearn.model_selection import ShuffleSplit, GroupShuffleSplit, StratifiedS
 from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
+from lrbenchmark.refnorm import refnorm
 from lrbenchmark.typing import XYType
 
 
@@ -128,6 +127,9 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement_pair(self) -> XYType:
         return self.get_x_measurement_pair(), self.get_y_measurement_pair()
 
+    def get_scores(self, measurement_pairs):
+        return [mp.score for mp in measurement_pairs]
+
     def get_splits(self, stratified: bool = False, group_by_source: bool = False,
                    train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
                    seed: int = None) -> Iterable[Dataset]:
@@ -152,11 +154,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         else:  # split the measurement_pairs:
             yield from self.get_splits_measurement_pairs(group_by_source, stratified, train_size, test_size, seed)
 
-    def get_splits_measurement_pairs(self,
-                                     group_by_source: bool,
-                                     stratified: bool,
-                                     train_size: Optional[Union[float, int]],
-                                     test_size: Optional[Union[float, int]],
+    def get_splits_measurement_pairs(self, group_by_source: bool, stratified: bool,
+                                     train_size: Optional[Union[float, int]], test_size: Optional[Union[float, int]],
                                      seed: int) -> Iterable[Dataset]:
         """
         When splitting measurement pairs, a regular split is performed when both group and stratified are False. A
@@ -213,40 +212,83 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                                             measurements=list(map(lambda i: self.measurements[i], split_idx))) for
                    split_idx in split]
 
-    def get_refnorm_split(self, refnorm_size, seed) -> Tuple[Dataset, Dataset]:
-        dataset, refnorm_dataset = list(self.get_splits(train_size=None, test_size=refnorm_size, group_by_source=True, stratified= False, seed=seed))[0]
-        refnorm_dataset = CommonSourceKFoldDataset(n_splits=self.n_splits, measurement_pairs=[mp for mp in self.measurement_pairs if (mp.measurement_a.source.id in refnorm_dataset.source_ids) ^ (mp.measurement_b.source.id in refnorm_dataset.source_ids)])
+    def get_refnorm_split(self,
+                          refnorm_size: Optional[Union[float, int]],
+                          seed: int) -> Tuple[Dataset, Optional[Dataset]]:
+        """
+        Splits the measurement pairs in a dataset (used for training and validation) and a refnorm dataset. The
+        split is done based on the source ids. The refnorm dataset is then further processed to contain only those
+        measurement pairs for which only one of the source ids of the measurements is in the `refnorm dataset`, and the
+        other is in the `dataset`.
+
+        :param refnorm_size: The size of the refnorm set, this can be a float, to indicate a fraction, or an integer
+                             to indicate an absolute amount of source_ids in each split. If not provided, the dataset
+                             will not be split and the refnorm dataset will be None
+        :param seed: Ensures repeatability of the experiments
+        """
+        if not refnorm_size:
+            return self, None
+        dataset, refnorm_dataset = list(
+            self.get_splits(train_size=None, test_size=refnorm_size, group_by_source=True, stratified=False,
+                            seed=seed))[0]
+        refnorm_measurement_pairs = list(filter(lambda x: (x.measurement_a.source.id in refnorm_dataset.source_ids) ^
+                                                          (x.measurement_b.source.id in refnorm_dataset.source_ids),
+                                                self.measurement_pairs))
+        refnorm_dataset = CommonSourceKFoldDataset(n_splits=self.n_splits,
+                                                   measurement_pairs=refnorm_measurement_pairs)
         return dataset, refnorm_dataset
 
-    def perform_refnorm(self, refnorm_dataset, source_ids_exclude = None):
-        for mp in self.measurement_pairs:
-            refnorm_pairs_m1 = self.filter_refnorm(mp.measurement_a, mp.measurement_b, source_ids_exclude, refnorm_dataset)
-            scores_m1 = self.get_scores(refnorm_pairs_m1)
-            refnorm_pairs_m2 = self.filter_refnorm(mp.measurement_b, mp.measurement_a, source_ids_exclude, refnorm_dataset)
-            scores_m2 = self.get_scores(refnorm_pairs_m2)
-            new_score = self.refnorm(mp.score, scores_m1, scores_m2)
-            mp.extra['score'] = new_score
+    @staticmethod
+    def select_refnorm_measurement_pairs(measurement: Measurement,
+                                         source_ids_to_exclude: List[Union[int, str]],
+                                         refnorm_dataset: 'CommonSourceKFoldDataset') -> List[Measurement]:
+        """
+        Finds in the refnorm dataset the measurement pairs for which one of the measurements is equal to the provided
+        measurement, and the other measurement with a source_id that is not in the list of source ids to exclude.
 
-    def filter_refnorm(self, measurement_to_find, measurement_to_exclude, source_ids_exclude, refnorm_dataset):
-        new_mp = []
-        source_ids_exclude = [s for s in source_ids_exclude if s != measurement_to_find.source.id] if source_ids_exclude else []
+        :param measurement: the measurement which should be present in all selected refnorm measurement pairs
+        :param source_ids_to_exclude: source ids from which measurements should not be selected as the complementary
+        :param refnorm_dataset: the dataset to select the appropriate measurement pairs from.
+        """
+        selected_measurement_pairs = []
+        source_ids_to_exclude = [s for s in source_ids_to_exclude if
+                                 s != measurement.source.id] if source_ids_to_exclude else []
         for r in refnorm_dataset.measurement_pairs:
-            if ((r.measurement_a.source.id == measurement_to_find.source.id and
-                r.measurement_a.extra['filename'] == measurement_to_find.extra['filename'] and
-                r.measurement_b.source.id not in source_ids_exclude + [measurement_to_exclude.source.id, measurement_to_find.source.id]) or
-                (r.measurement_b.source.id == measurement_to_find.source.id and
-                 r.measurement_b.extra['filename'] == measurement_to_find.extra['filename'] and
-                 r.measurement_a.source.id not in [measurement_to_exclude.source.id, measurement_to_find.source.id])):
-                new_mp.append(r)
-        return new_mp
+            # either measurement a in the measurement pair should be equal to the provided measurement
+            if ((r.measurement_a == measurement and
+                 r.measurement_b.source.id not in source_ids_to_exclude) or
+                    # or measurement b in the measurement pair should be equal to the provided measurement
+                    (r.measurement_b == measurement and
+                     r.measurement_a.source.id not in source_ids_to_exclude)):
+                selected_measurement_pairs.append(r)
+        return selected_measurement_pairs
 
-    def get_scores(self, refnorm_pairs):
-        return [mp.score for mp in refnorm_pairs]
+    def perform_refnorm(self,
+                        refnorm_dataset: 'CommonSourceKFoldDataset',
+                        source_ids_to_exclude: List[Union[int, str]]):
+        """
+        Transform the scores of the measurement pairs with reference normalization. For each measurement in the
+        measurement pair, the appropriate refnorm measurement pairs are selected (all pairs in which one of the
+        measurements is equal to the measurement that has to be normalized, and the other any measurement that has a
+        source_id that is not in the source_ids_to_exclude list). Once the refnorm pair are selected, their scores are
+        extracted and used for the transformation. The normalized score is replaced in the measurement pair.
 
-    def refnorm(self, score, scores_m1, scores_m2):
-        norm1 = (score - (sum(scores_m1) / len(scores_m1))) / np.std(scores_m1)
-        norm2 = (score - (sum(scores_m2) / len(scores_m2))) / np.std(scores_m2)
-        return round((norm1 + norm2) / 2, 6)
+        :param refnorm_dataset: the dataset from which to select measurement pairs to perform the refnorm transformation
+        :param source_ids_to_exclude: list of source_ids which the complementary measurement is not allowed to have.
+        """
+        for mp in tqdm(self.measurement_pairs, desc="Performing reference normalization"):
+            refnorm_pairs_m1 = self.select_refnorm_measurement_pairs(
+                measurement=mp.measurement_a,
+                source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_b.source.id] + source_ids_to_exclude,
+                refnorm_dataset=refnorm_dataset)
+            scores_m1 = self.get_scores(refnorm_pairs_m1)
+            refnorm_pairs_m2 = self.select_refnorm_measurement_pairs(
+                measurement=mp.measurement_b,
+                source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_a.source.id] + source_ids_to_exclude,
+                refnorm_dataset=refnorm_dataset)
+            scores_m2 = self.get_scores(refnorm_pairs_m2)
+            normalized_score = refnorm(mp.score, scores_m1, scores_m2)
+            mp.extra['score'] = normalized_score
 
     def get_x_y_pairs(self,
                       seed: Optional[int] = None,
@@ -357,7 +399,7 @@ class ASRDataset(CommonSourceKFoldDataset):
             reader = csv.reader(f)
             data = list(reader)
         header_measurement_data = np.array(data[0][1:])
-        measurement_data = np.array(data)[1:, 1:]
+        measurement_data = np.array(data)[1:200, 1:200]
 
         recording_data = self.load_recording_annotations()
 
@@ -365,12 +407,12 @@ class ASRDataset(CommonSourceKFoldDataset):
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
             info_a = recording_data.get(filename_a.replace('_30s', ''))
-            source_id_a = filename_a.split("_")[0]
+            source_id_a = int(filename_a.split("_")[0])
             if info_a:  # check whether there is recording info present for the first file
-                for j in range(i+1, measurement_data.shape[1]):
+                for j in range(i + 1, measurement_data.shape[1]):
                     filename_b = header_measurement_data[j]
                     info_b = recording_data.get(filename_b.replace('_30s', ''))
-                    source_id_b = filename_b.split("_")[0]
+                    source_id_b = int(filename_b.split("_")[0])
                     if info_b:  # check whether there is recording info present for the other file
                         mps.append(MeasurementPair(Measurement(Source(id=source_id_a,
                                                                       extra={'sex': info_a['sex'],

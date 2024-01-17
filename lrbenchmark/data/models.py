@@ -40,7 +40,7 @@ class Measurement:
 
     def __eq__(self, other):
         return (isinstance(other, Measurement) and self.source == other.source and
-                (self.value == other.value or self.value is None))
+                (self.value == other.value or self.value is None)) and self.extra == other.extra
 
 
 @dataclass
@@ -65,7 +65,7 @@ class MeasurementPair:
         raise ValueError("No score found in the extra mapping.")
 
     @property
-    def source_ids(self) -> List[int]:
+    def source_ids(self) -> List[Union[int, str]]:
         return [self.measurement_a.source.id, self.measurement_b.source.id]
 
     @property
