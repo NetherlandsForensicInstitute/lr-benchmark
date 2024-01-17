@@ -127,10 +127,6 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement_pair(self) -> XYType:
         return self.get_x_measurement_pair(), self.get_y_measurement_pair()
 
-    @staticmethod
-    def get_scores(measurement_pairs: List[MeasurementPair]) -> List[Union[None, float, np.ndarray]]:
-        return [mp.score for mp in measurement_pairs]
-
     def get_splits(self, stratified: bool = False, group_by_source: bool = False,
                    train_size: Optional[Union[float, int]] = 0.8, test_size: Optional[Union[float, int]] = 0.2,
                    seed: int = None) -> Iterable[Dataset]:
@@ -215,7 +211,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
 
     def get_refnorm_split(self,
                           refnorm_size: Optional[Union[float, int]],
-                          seed: int) -> Tuple[Dataset, Optional[Dataset]]:
+                          seed: int) -> Tuple['CommonSourceKFoldDataset', Optional['CommonSourceKFoldDataset']]:
         """
         Splits the measurement pairs in a dataset (used for training and validation) and a refnorm dataset. The
         split is done based on the source ids. The refnorm dataset is then further processed to contain only those
@@ -283,12 +279,12 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                 measurement=mp.measurement_a,
                 source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_b.source.id] + source_ids_to_exclude,
                 refnorm_dataset=refnorm_dataset)
-            scores_m_a = self.get_scores(refnorm_pairs_m_a)
+            scores_m_a = [mp.score for mp in refnorm_pairs_m_a]
             refnorm_pairs_m_b = self.select_refnorm_measurement_pairs(
                 measurement=mp.measurement_b,
                 source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_a.source.id] + source_ids_to_exclude,
                 refnorm_dataset=refnorm_dataset)
-            scores_m_b = self.get_scores(refnorm_pairs_m_b)
+            scores_m_b = [mp.score for mp in refnorm_pairs_m_b]
             normalized_score = refnorm(mp.score, scores_m_a, scores_m_b)
             mp.extra['score'] = normalized_score
 
