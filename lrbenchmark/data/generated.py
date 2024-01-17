@@ -2,7 +2,7 @@ from typing import Iterable, Tuple, List
 
 import numpy as np
 
-from lrbenchmark.data.dataset import Dataset, CommonSourceDatasetMeasurementPairs
+from lrbenchmark.data.dataset import Dataset, CommonSourceMeasurementPairsDataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
 
