@@ -1,20 +1,27 @@
+from abc import ABC, abstractmethod
 from typing import Iterable, Tuple, List
 
 import numpy as np
 
-from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset
+from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset, MeasurementsDataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
 
-class SynthesizedNormalDataset(Dataset):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_train_instances: int,
-                 n_test_instances: int):
+class DatasetSimulator(ABC):
+    @abstractmethod
+    def simulate_dataset(self) -> Dataset:
+        raise NotImplementedError
+
+
+class SynthesizedNormalDataset(DatasetSimulator):
+    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_same_source: int,
+                 n_diff_source: int):
         super().__init__()
         self.mean = mean
         self.sigma = sigma
         self.trace_measurement_stdev = trace_measurement_stdev
-        self.n_train_instances = n_train_instances
-        self.n_test_instances = n_test_instances
+        self.n_same_source = n_same_source
+        self.n_diff_source = n_diff_source
 
     def get_pairs(self, n_same_source: int, n_diff_source: int) -> Tuple[List[MeasurementPair], List[MeasurementPair]]:
         """
@@ -43,13 +50,11 @@ class SynthesizedNormalDataset(Dataset):
                                                   value=real_value[i], extra={}),
                         extra={}) for i in range(min(n_diff_source, n_same_source))])
 
-    def generate_data(self, n: int) -> Dataset:
-        ss_pairs, ds_pairs = self.get_pairs(n // 2, n // 2)
+    def simulate_dataset(self) -> MeasurementPairsDataset:
+        ss_pairs, ds_pairs = self.get_pairs(self.n_same_source, self.n_diff_source)
         pairs = ss_pairs + ds_pairs
         return MeasurementPairsDataset(measurement_pairs=pairs)
 
-    def get_splits(self, seed: int = None, **kwargs) -> Iterable[Dataset]:
-        yield [self.generate_data(self.n_train_instances), self.generate_data(self.n_test_instances)]
 
     def __repr__(self):
         return (f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, "
