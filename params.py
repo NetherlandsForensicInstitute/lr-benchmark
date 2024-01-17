@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
 from lrbenchmark.data.dataset import XTCDataset, GlassDataset, ASRDataset
-from lrbenchmark.data.simulation import SynthesizedNormalDataset
+from lrbenchmark.data.simulation import NormalPairsSimulator
 from lrbenchmark.evaluation import DescribedValue
 from lrbenchmark.transformers import DummyTransformer, DummyClassifier
 
@@ -78,7 +78,7 @@ DATASETS = {
     'asr': ASRDataset,
     'drugs_xtc': XTCDataset,
     'glass': GlassDataset,
-    'synthesized_normal': SynthesizedNormalDataset,
+    'synthesized_normal': NormalPairsSimulator,
 }
 
 

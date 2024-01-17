@@ -7,6 +7,7 @@ import pytest
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.data.dataset import MeasurementsDataset, MeasurementPairsDataset, GlassDataset, Dataset
+from lrbenchmark.data.simulation import SynthesizedNormalDataset
 
 
 @pytest.fixture
@@ -79,15 +80,14 @@ def test_get_splits_measurement_pairs(measurement_pairs):
 
 
 @pytest.mark.parametrize("class_name, config_key", [  # (ASRDataset, 'asr', True),
-    (GlassDataset, 'glass'),])
+    (GlassDataset, 'glass'),
+    (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):
     config = confidence.load_name('tests/lrbenchmark_test')
     if config_key in config.dataset_test:
         dataset = class_name(**config.dataset_test[config_key])
     else:
         dataset = class_name()
-
-    dataset.load()
 
     sets = dataset.get_splits()
 
