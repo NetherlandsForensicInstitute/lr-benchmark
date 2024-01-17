@@ -22,8 +22,6 @@ experiment:
   splitting_strategy:
     train_size: 0.8
     test_size: 0.2
-    stratified: False
-    group_by_source: True
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer
