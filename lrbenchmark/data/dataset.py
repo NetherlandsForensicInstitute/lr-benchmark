@@ -198,7 +198,7 @@ class XTCDataset(MeasurementsDataset):
         X = df[features].to_numpy()
         y = df['batchnumber'].to_numpy()
 
-        self.measurements = None
+        self.measurements = None, X, y
 
     def __repr__(self):
         return "XTC dataset"
