@@ -5,9 +5,9 @@ import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.dataset import CommonSourceKFoldDataset, GlassDataset, Dataset
 from lrbenchmark.data.generated import SynthesizedNormalDataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
+from lrbenchmark.data.dataset import CommonSourceMeasurementsDataset, CommonSourceMeasurementPairsDataset, GlassDataset, Dataset
 
 
 @pytest.fixture
@@ -36,14 +36,14 @@ def measurement_pairs(measurements, measurements_set2) -> List[MeasurementPair]:
 @pytest.mark.parametrize('group_by_source', [True, False])
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
 def test_get_splits_measurements(measurements, group_by_source, stratified, train_size, test_size):
-    dataset = CommonSourceKFoldDataset(n_splits=3, measurements=measurements)
+    dataset = CommonSourceMeasurementsDataset(measurements=measurements)
     if stratified:
         with pytest.raises(ValueError):
-            list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified))
+            list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified, n_splits=3))
     for dataset_train, dataset_test in dataset.get_splits(seed=0, group_by_source=group_by_source,
-                                                          train_size=train_size, test_size=test_size):
-        X_train, y_train = dataset_train.get_x_y_measurement()
-        X_test, y_test = dataset_test.get_x_y_measurement()
+                                                          train_size=train_size, validate_size=test_size, n_splits=3):
+        X_train, y_train = dataset_train.get_x(), dataset_train.get_y()
+        X_test, y_test = dataset_test.get_x(), dataset_test.get_y()
         assert len(np.intersect1d(X_train, X_test)) == 0
         assert len(np.intersect1d(y_train, y_test)) == 0
 
@@ -72,13 +72,13 @@ def test_get_splits_measurements(measurements, group_by_source, stratified, trai
 @pytest.mark.parametrize('group_by_source', [True, False])
 @pytest.mark.parametrize('stratified', [True, False])
 def test_get_splits_measurement_pairs(measurement_pairs, group_by_source, stratified):
-    dataset = CommonSourceKFoldDataset(n_splits=3, measurement_pairs=measurement_pairs)
+    dataset = CommonSourceMeasurementPairsDataset(measurement_pairs=measurement_pairs)
     if stratified and group_by_source:
         with pytest.raises(ValueError):
-            list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified))
+            list(dataset.get_splits(seed=0, group_by_source=group_by_source, stratified=stratified, n_splits=3))
     else:
         for dataset_train, dataset_test in dataset.get_splits(seed=0, group_by_source=group_by_source,
-                                                              stratified=stratified):
+                                                              stratified=stratified, n_splits=3):
             train_measurements = list(
                 itertools.chain.from_iterable([mp.measurements for mp in dataset_train.measurement_pairs]))
             test_measurements = list(
@@ -98,8 +98,11 @@ def test_get_splits_measurement_pairs(measurement_pairs, group_by_source, strati
     (SynthesizedNormalDataset, 'normal', False)])
 def test_dataset_basic_functions(class_name, config_key, load):
     config = confidence.load_name('tests/lrbenchmark_test')
+    if config_key in config.dataset_test:
+        dataset = class_name(**config.dataset_test[config_key])
+    else:
+        dataset = class_name()
 
-    dataset = class_name(**config.dataset_test[config_key])
     if load:
         dataset.load()
     else:
