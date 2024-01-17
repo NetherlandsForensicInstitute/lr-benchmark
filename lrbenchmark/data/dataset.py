@@ -159,8 +159,9 @@ class MeasurementPairsDataset(Dataset):
                     split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
                 self.measurement_pairs))) for split_idx in split]
 
-    def get_x_y(self,
-                transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
+    def get_x_y_pairs(self,
+                      seed: Optional[int] = None,
+                      transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
