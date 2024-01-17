@@ -60,36 +60,6 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def pop(self,
-            fraction: float,
-            seed: int = None) -> 'Dataset':
-        """
-        Draws a random sample from the data set.
-
-        The returned data will be removed.
-
-        Parameters
-        ----------
-        fraction : float
-            The size of the sample as a fraction of the _original_ data set
-            size, i.e. subsequent calls will return arrays of (approximately)
-            the same size.
-        seed : int, optional
-            Optional random seed. The default is None.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented by this data set.
-
-        Returns
-        -------
-        Dataset
-            A 'Dataset' consisting of a subset of the instances of the original
-            Dataset.
-        """
-        raise NotImplementedError
-
 
 class CommonSourceDataset(Dataset, ABC):
     def __init__(self):
