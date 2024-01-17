@@ -54,16 +54,11 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-
-class CommonSourceDataset(Dataset, ABC):
-    def __init__(self):
-        super().__init__()
-
     def load(self):
         raise NotImplementedError
 
 
-class CommonSourceMeasurementsDataset(CommonSourceDataset):
+class MeasurementsDataset(Dataset):
     def __init__(self, measurements: Optional[List[Measurement]] = None):
         super().__init__()
         self.measurements = measurements
@@ -71,6 +66,9 @@ class CommonSourceMeasurementsDataset(CommonSourceDataset):
         if self.measurements is None:
             # TODO: self.measurements = self.load(): make it more explicit
             self.load()
+
+    def load(self):
+        raise NotImplementedError
 
     @property
     def source_ids(self) -> Set[int]:
@@ -106,7 +104,7 @@ class CommonSourceMeasurementsDataset(CommonSourceDataset):
         source_ids = [m.source.id for m in self.measurements]
 
         for split in s.split(self.measurements, groups=source_ids):
-            yield [CommonSourceMeasurementsDataset(measurements=list(map(lambda i: self.measurements[i], split_idx)))
+            yield [MeasurementsDataset(measurements=list(map(lambda i: self.measurements[i], split_idx)))
                    for split_idx in split]
 
     def get_x_y_pairs(self,
@@ -128,7 +126,7 @@ class CommonSourceMeasurementsDataset(CommonSourceDataset):
         return X_pairs, y_pairs
 
 
-class CommonSourceMeasurementPairsDataset(CommonSourceDataset):
+class MeasurementPairsDataset(Dataset):
     def __init__(self, measurement_pairs: Optional[List[MeasurementPair]] = None):
         super().__init__()
         self.measurement_pairs = measurement_pairs
@@ -136,6 +134,9 @@ class CommonSourceMeasurementPairsDataset(CommonSourceDataset):
         if self.measurement_pairs is None:
             # TODO: self.measurement_pairs = self.load(): make it more explicit
             self.load()
+
+    def load(self):
+        raise NotImplementedError
 
     @property
     def source_ids(self) -> Set[int]:
@@ -170,7 +171,7 @@ class CommonSourceMeasurementPairsDataset(CommonSourceDataset):
         s = ShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
         source_ids = list(self.source_ids)
         for split in s.split(source_ids):
-            yield [CommonSourceMeasurementPairsDataset(measurement_pairs=list(filter(
+            yield [MeasurementPairsDataset(measurement_pairs=list(filter(
                 lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
                     split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
                 self.measurement_pairs))) for split_idx in split]
@@ -199,8 +200,7 @@ class CommonSourceMeasurementPairsDataset(CommonSourceDataset):
             return X_pairs, y_pairs
 
 
-class XTCDataset(CommonSourceDataset):
-
+class XTCDataset(MeasurementsDataset):
     def __init__(self, n_splits):
         super().__init__(n_splits)
 
@@ -225,8 +225,7 @@ class XTCDataset(CommonSourceDataset):
         return "XTC dataset"
 
 
-class GlassDataset(CommonSourceMeasurementsDataset):
-
+class GlassDataset(MeasurementsDataset):
     def __init__(self):
         super().__init__()
 
@@ -260,11 +259,10 @@ class GlassDataset(CommonSourceMeasurementsDataset):
         return "Glass dataset"
 
 
-class ASRDataset(CommonSourceMeasurementPairsDataset):
+class ASRDataset(MeasurementPairsDataset):
     """
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
-
     def __init__(self, measurements_path, sources_path):
         self.measurements_path = measurements_path  # TODO: besluiten waar data te laten, nu nog inlezen vanaf schijf
         self.sources_path = sources_path

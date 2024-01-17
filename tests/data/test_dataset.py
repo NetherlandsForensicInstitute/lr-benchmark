@@ -7,7 +7,7 @@ import pytest
 
 from lrbenchmark.data.generated import SynthesizedNormalDataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.data.dataset import CommonSourceMeasurementsDataset, CommonSourceMeasurementPairsDataset, GlassDataset, Dataset
+from lrbenchmark.data.dataset import MeasurementsDataset, MeasurementPairsDataset, GlassDataset, Dataset
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def measurement_pairs(measurements, measurements_set2) -> List[MeasurementPair]:
 
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
 def test_get_splits_measurements(measurements, train_size, test_size):
-    dataset = CommonSourceMeasurementsDataset(measurements=measurements)
+    dataset = MeasurementsDataset(measurements=measurements)
     for dataset_train, dataset_test in dataset.get_splits(seed=0,
                                                           train_size=train_size, validate_size=test_size, n_splits=3):
         X_train, y_train = dataset_train.get_x(), dataset_train.get_y()
@@ -64,7 +64,7 @@ def test_get_splits_measurements(measurements, train_size, test_size):
 
 
 def test_get_splits_measurement_pairs(measurement_pairs):
-    dataset = CommonSourceMeasurementPairsDataset(measurement_pairs=measurement_pairs)
+    dataset = MeasurementPairsDataset(measurement_pairs=measurement_pairs)
     for dataset_train, dataset_test in dataset.get_splits(seed=0, n_splits=3):
         train_measurements = list(
             itertools.chain.from_iterable([mp.measurements for mp in dataset_train.measurement_pairs]))
