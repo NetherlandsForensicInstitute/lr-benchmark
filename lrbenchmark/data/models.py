@@ -40,7 +40,7 @@ class Measurement:
 
     def __eq__(self, other):
         return (isinstance(other, Measurement) and self.source == other.source and
-                (self.value == other.value or self.value is None)) and self.extra == other.extra
+                (np.array_equal(self.value, other.value) or self.value is None) and self.extra == other.extra)
 
 
 @dataclass

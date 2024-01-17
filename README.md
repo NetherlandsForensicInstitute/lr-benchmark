@@ -18,7 +18,7 @@ Usage
 -----------
 Running the benchmark can be done as follows:
 1. Specify the parameters for the benchmark in the `lrbenchmark.yaml`
-2. Run `python run.py`
+2. Run `python run.py -d <dataset_config>`. The available dataset configuration files can be found in the `config/data` folder
 
 The parameters for the benchmark must be provided in the following structure: 
 ```
@@ -29,11 +29,16 @@ experiment:
     - 'name scorer 2'
   calibrator: 
     - 'name calibrator'
-  dataset:
-    - 'name dataset'
   preprocessor:
     - 'name preprocessor 1'
     - 'name preprocessor 2'
+  splitting_strategy:
+    - train_size: <int for a specific number of sources in the training set, float for a fraction, None to be complementary to the test_size>
+    - test_size: <int for a specific number of sources in the test set, float for a fraction, None to be complementary to the train_size>
+  refnorm:
+    refnorm_size: <int for a specific number of sources in the refnorm set, float for a fraction, None to use the Leave-One-Out method>    
+    
+    
 ```
 At least 1 setting needs to be provided for each parameter, but more settings per parameter can be provided. The pipeline will
 create the cartesian product over all parameter settings (except `repeats`) and will execute the experiments accordingly.
@@ -42,7 +47,6 @@ All possible settings can be found in `params.py`. The parameters that need to b
 - `repeats`: Number of repeats for each experiment.
 - `scorer`: Scoring models for generating scores.
 - `calibrator`: Models for calibrating scores. 
-- `dataset`: Datasets on which the experiments can be executed.
 - `preprocessor`: Data preprocessing steps. You can use the value `'dummy'` if no preprocessing is needed.
 
 
@@ -59,20 +63,23 @@ experiment:
     - 'XGB'
   calibrator:
     - 'logit'
-  dataset:
-    drugs_xtc:
-      n_splits: 2
-    glass:
-      n_splits: 2
   preprocessor:
     - 'dummy'
     - 'rank_transformer'
 ```
-When executing `python run.py` an experiment for all possible combination of parameters will be executed. The results for each experiment (metrics + plots)
-will be stored in separate folders within the `output` folder.
+When executing `python run.py -d glass` an experiment for all possible combination of parameters will be executed on the glass dataset. 
+The results for each experiment (metrics + plots) will be stored in separate folders within the `output` folder.
 
 Datasets
 ----------
-There are currently two datasets implemented for this project:
+There are currently a number of datasets implemented for this project:
 - drugs_xtc: will be published on our github soon
-- glass: LA-ICPMS measurements of elemental concentration from floatglass. The data will be downloaded automatically from https://github.com/NetherlandsForensicInstitute/elemental_composition_glass when used in the pipeline for the first time. 
+- glass: LA-ICPMS measurements of elemental concentration from floatglass. The data will be downloaded automatically from https://github.com/NetherlandsForensicInstitute/elemental_composition_glass when used in the pipeline for the first time.
+- asr: a sample dataset will be published on our github
+- synthesized-normal: a dataset containing generated samples from normal distributions following the specifications in the `config/data/synthesized-normal.yaml` file.
+
+
+Reference Normalization
+----------
+TBD
+

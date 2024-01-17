@@ -3,6 +3,7 @@ import pytest
 
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
+
 @pytest.fixture
 def test_measurement() -> Measurement:
     return Measurement(source=Source(id=1, extra={}),

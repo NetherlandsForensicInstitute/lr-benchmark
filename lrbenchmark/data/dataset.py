@@ -248,8 +248,7 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         :param refnorm_dataset: the dataset to select the appropriate measurement pairs from.
         """
         selected_measurement_pairs = []
-        source_ids_to_exclude = [s for s in source_ids_to_exclude if
-                                 s != measurement.source.id] if source_ids_to_exclude else []
+
         for rn_pair in refnorm_dataset.measurement_pairs:
             # either measurement a in the refnorm measurement pair should be equal to the provided measurement
             if ((rn_pair.measurement_a == measurement and
