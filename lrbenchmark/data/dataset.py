@@ -202,8 +202,8 @@ class MeasurementPairsDataset(Dataset):
 
     def get_refnorm_split(self,
                           refnorm_size: Optional[Union[float, int]],
-                          seed: int) -> Tuple['CommonSourceMeasurementPairsDataset',
-                                              Optional['CommonSourceMeasurementPairsDataset']]:
+                          seed: int) -> Tuple['MeasurementPairsDataset',
+                                              Optional['MeasurementPairsDataset']]:
         """
         Splits the measurement pairs in a dataset (used for training and validation) and a refnorm dataset. The
         split is done based on the source ids. The refnorm dataset is then further processed to contain only those
