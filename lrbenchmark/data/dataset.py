@@ -127,7 +127,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     def get_x_y_measurement_pair(self) -> XYType:
         return self.get_x_measurement_pair(), self.get_y_measurement_pair()
 
-    def get_scores(self, measurement_pairs):
+    @staticmethod
+    def get_scores(measurement_pairs: List[MeasurementPair]) -> List[Union[None, float, np.ndarray]]:
         return [mp.score for mp in measurement_pairs]
 
     def get_splits(self, stratified: bool = False, group_by_source: bool = False,
@@ -218,8 +219,8 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         """
         Splits the measurement pairs in a dataset (used for training and validation) and a refnorm dataset. The
         split is done based on the source ids. The refnorm dataset is then further processed to contain only those
-        measurement pairs for which only one of the source ids of the measurements is in the `refnorm dataset`, and the
-        other is in the `dataset`.
+        measurement pairs for which exactly one of the source ids of the measurements is in the `refnorm dataset`, and
+        the other is in the `dataset`.
 
         :param refnorm_size: The size of the refnorm set, this can be a float, to indicate a fraction, or an integer
                              to indicate an absolute amount of source_ids in each split. If not provided, the dataset
@@ -241,10 +242,10 @@ class CommonSourceKFoldDataset(Dataset, ABC):
     @staticmethod
     def select_refnorm_measurement_pairs(measurement: Measurement,
                                          source_ids_to_exclude: List[Union[int, str]],
-                                         refnorm_dataset: 'CommonSourceKFoldDataset') -> List[Measurement]:
+                                         refnorm_dataset: 'CommonSourceKFoldDataset') -> List[MeasurementPair]:
         """
         Finds in the refnorm dataset the measurement pairs for which one of the measurements is equal to the provided
-        measurement, and the other measurement with a source_id that is not in the list of source ids to exclude.
+        measurement, and the other measurement has a source_id that is not in the list of source ids to exclude.
 
         :param measurement: the measurement which should be present in all selected refnorm measurement pairs
         :param source_ids_to_exclude: source ids from which measurements should not be selected as the complementary
@@ -253,14 +254,14 @@ class CommonSourceKFoldDataset(Dataset, ABC):
         selected_measurement_pairs = []
         source_ids_to_exclude = [s for s in source_ids_to_exclude if
                                  s != measurement.source.id] if source_ids_to_exclude else []
-        for r in refnorm_dataset.measurement_pairs:
-            # either measurement a in the measurement pair should be equal to the provided measurement
-            if ((r.measurement_a == measurement and
-                 r.measurement_b.source.id not in source_ids_to_exclude) or
-                    # or measurement b in the measurement pair should be equal to the provided measurement
-                    (r.measurement_b == measurement and
-                     r.measurement_a.source.id not in source_ids_to_exclude)):
-                selected_measurement_pairs.append(r)
+        for rn_pair in refnorm_dataset.measurement_pairs:
+            # either measurement a in the refnorm measurement pair should be equal to the provided measurement
+            if ((rn_pair.measurement_a == measurement and
+                 rn_pair.measurement_b.source.id not in source_ids_to_exclude) or
+                    # or measurement b in the refnorm measurement pair should be equal to the provided measurement
+                    (rn_pair.measurement_b == measurement and
+                     rn_pair.measurement_a.source.id not in source_ids_to_exclude)):
+                selected_measurement_pairs.append(rn_pair)
         return selected_measurement_pairs
 
     def perform_refnorm(self,
@@ -268,26 +269,27 @@ class CommonSourceKFoldDataset(Dataset, ABC):
                         source_ids_to_exclude: List[Union[int, str]]):
         """
         Transform the scores of the measurement pairs with reference normalization. For each measurement in the
-        measurement pair, the appropriate refnorm measurement pairs are selected (all pairs in which one of the
-        measurements is equal to the measurement that has to be normalized, and the other any measurement that has a
-        source_id that is not in the source_ids_to_exclude list). Once the refnorm pair are selected, their scores are
-        extracted and used for the transformation. The normalized score is replaced in the measurement pair.
+        measurement pair, the appropriate refnorm measurement pairs are selected (i.e. all pairs of which one of the
+        measurements is equal to the measurement that has to be normalized, and the other measurement has a source_id
+        that is not in the `source_ids_to_exclude` list or equal to the source ids in the measurement pair).
+        Once the refnorm pairs are selected, their scores are extracted and used for the transformation. The normalized
+        score is replaced in the measurement pair.
 
         :param refnorm_dataset: the dataset from which to select measurement pairs to perform the refnorm transformation
         :param source_ids_to_exclude: list of source_ids which the complementary measurement is not allowed to have.
         """
-        for mp in tqdm(self.measurement_pairs, desc="Performing reference normalization"):
-            refnorm_pairs_m1 = self.select_refnorm_measurement_pairs(
+        for mp in tqdm(self.measurement_pairs, desc="Performing reference normalization", position=0):
+            refnorm_pairs_m_a = self.select_refnorm_measurement_pairs(
                 measurement=mp.measurement_a,
                 source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_b.source.id] + source_ids_to_exclude,
                 refnorm_dataset=refnorm_dataset)
-            scores_m1 = self.get_scores(refnorm_pairs_m1)
-            refnorm_pairs_m2 = self.select_refnorm_measurement_pairs(
+            scores_m_a = self.get_scores(refnorm_pairs_m_a)
+            refnorm_pairs_m_b = self.select_refnorm_measurement_pairs(
                 measurement=mp.measurement_b,
                 source_ids_to_exclude=[mp.measurement_a.source.id, mp.measurement_a.source.id] + source_ids_to_exclude,
                 refnorm_dataset=refnorm_dataset)
-            scores_m2 = self.get_scores(refnorm_pairs_m2)
-            normalized_score = refnorm(mp.score, scores_m1, scores_m2)
+            scores_m_b = self.get_scores(refnorm_pairs_m_b)
+            normalized_score = refnorm(mp.score, scores_m_a, scores_m_b)
             mp.extra['score'] = normalized_score
 
     def get_x_y_pairs(self,
