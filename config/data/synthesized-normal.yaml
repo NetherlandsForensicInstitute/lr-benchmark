@@ -1,0 +1,7 @@
+dataset:
+  synthesized_normal:
+    mean: 180
+    sigma: 10
+    trace_measurement_stdev: 3
+    n_train_instances: 1000
+    n_test_instances: 1000
