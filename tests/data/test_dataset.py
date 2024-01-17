@@ -1,10 +1,13 @@
 import itertools
 from typing import List
 
+import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.dataset import CommonSourceKFoldDataset
+from lrbenchmark.data.dataset import CommonSourceMeasurementPairsDataset, GlassDataset, Dataset, \
+    CommonSourceMeasurementsDataset
+from lrbenchmark.data.generated import SynthesizedNormalDataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 
 
@@ -32,10 +35,10 @@ def measurement_pairs(measurements, measurements_set2) -> List[MeasurementPair]:
 
 @pytest.fixture
 def dataset(measurement_pairs):
-    return CommonSourceKFoldDataset(n_splits=3, measurement_pairs=measurement_pairs)
+    return CommonSourceMeasurementPairsDataset(measurement_pairs=measurement_pairs)
 
 
-def test_get_refnorm_split(dataset: CommonSourceKFoldDataset):
+def test_get_refnorm_split(dataset: CommonSourceMeasurementPairsDataset):
     refnorm_size = 5
     dataset, refnorm_dataset = dataset.get_refnorm_split(refnorm_size=refnorm_size, seed=1)
     source_ids_dataset, source_ids_refnorm = dataset.source_ids, refnorm_dataset.source_ids
@@ -46,7 +49,7 @@ def test_get_refnorm_split(dataset: CommonSourceKFoldDataset):
         assert sum(source_id in source_ids_dataset for source_id in source_ids) == 1
 
 
-def test_select_refnorm_measurement_pairs(dataset: CommonSourceKFoldDataset):
+def test_select_refnorm_measurement_pairs(dataset: CommonSourceMeasurementPairsDataset):
     dataset, refnorm_dataset = dataset.get_refnorm_split(5, seed=1)
     source_ids_dataset = dataset.source_ids
     source_ids_to_exclude = list(source_ids_dataset)[:2]
@@ -58,7 +61,7 @@ def test_select_refnorm_measurement_pairs(dataset: CommonSourceKFoldDataset):
         assert all(sum(source_id in source_ids_to_exclude for source_id in mp.source_ids) <= 1 for mp in refnorm_pairs)
 
 
-def test_select_refnorm_measurement_pairs_leave_two_out(dataset: CommonSourceKFoldDataset):
+def test_select_refnorm_measurement_pairs_leave_two_out(dataset: CommonSourceMeasurementPairsDataset):
     dataset, refnorm_dataset = dataset.get_refnorm_split(refnorm_size=None, seed=1)
     dataset_train, dataset_test = next(dataset.get_splits(seed=0, group_by_source=True, stratified=False))
 
@@ -77,11 +80,11 @@ def test_select_refnorm_measurement_pairs_leave_two_out(dataset: CommonSourceKFo
 
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
 def test_get_splits_measurements(measurements, train_size, test_size):
-    dataset = CommonSourceKFoldDataset(n_splits=3, measurements=measurements)
+    dataset = CommonSourceMeasurementsDataset(measurements=measurements)
     for dataset_train, dataset_test in dataset.get_splits(seed=0, group_by_source=True,
-                                                          train_size=train_size, test_size=test_size):
-        X_train, y_train = dataset_train.get_x_y_measurement()
-        X_test, y_test = dataset_test.get_x_y_measurement()
+                                                          train_size=train_size, validate_size=test_size):
+        X_train, y_train = dataset_train.get_x(), dataset_train.get_y()
+        X_test, y_test = dataset_test.get_x(), dataset_test.get_y()
         assert len(np.intersect1d(X_train, X_test)) == 0
         assert len(np.intersect1d(y_train, y_test)) == 0
 
@@ -116,3 +119,25 @@ def test_get_splits_measurement_pairs(dataset):
         test_sources = list(
             itertools.chain.from_iterable([mp.source_ids for mp in dataset_test.measurement_pairs]))
         assert not any([train_source in test_sources for train_source in train_sources])
+
+
+@pytest.mark.parametrize("class_name, config_key, load", [  # (ASRDataset, 'asr', True),
+    (GlassDataset, 'glass', True),
+    (SynthesizedNormalDataset, 'normal', False)])
+def test_dataset_basic_functions(class_name, config_key, load):
+    config = confidence.load_name('tests/lrbenchmark_test')
+    if config_key in config.dataset_test:
+        dataset = class_name(**config.dataset_test[config_key])
+    else:
+        dataset = class_name()
+
+    if load:
+        dataset.load()
+    else:
+        dataset = dataset.generate_data(1000)
+
+    sets = dataset.get_splits()
+
+    for set in sets:
+        for fold in set:
+            assert isinstance(fold, Dataset)

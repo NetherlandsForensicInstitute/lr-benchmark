@@ -49,8 +49,8 @@ def evaluate(dataset: Dataset,
                 dataset_test.perform_refnorm(dataset_refnorm or dataset,
                                              source_ids_to_exclude=list(dataset_test.source_ids))
 
-            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
-            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+            X_train, y_train = dataset_train.get_x_y(seed=idx)
+            X_test, y_test = dataset_test.get_x_y(seed=idx)
 
             if preprocessor:
                 X_train = preprocessor.fit_transform(X_train)
@@ -77,7 +77,7 @@ def evaluate(dataset: Dataset,
 
     results = {'desc': get_experiment_description(selected_params),
                'figures': figs,
-                **lr_metrics._asdict()}
+               **lr_metrics._asdict()}
 
     if not isinstance(calibrated_scorer.scorer, DummyClassifier):
         test_probas = np.concatenate(test_probas)
