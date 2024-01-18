@@ -9,3 +9,4 @@ dataset_test:
     trace_measurement_stdev: 0.1
     n_same_source: 100
     n_diff_source: 100
+    seed: 42
