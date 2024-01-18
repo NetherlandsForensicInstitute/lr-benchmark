@@ -14,7 +14,7 @@ class MeasurementPairsSimulator(ABC):
 
 
 class NormalPairsSimulator(MeasurementPairsSimulator):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, seed:int=None):
+    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, seed: int = None):
         super().__init__()
         self.mean = mean
         self.sigma = sigma
