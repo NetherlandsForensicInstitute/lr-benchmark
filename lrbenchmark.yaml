@@ -4,20 +4,9 @@ experiment:
     - logit
   calibrator:
     - logit
-  dataset:
-    synthesized_normal:
-      mean: 180
-      sigma: 10
-      trace_measurement_stdev: 3
-      n_same_source: 100
-      n_diff_source: 100
-#    drugs_xtc:
-#    asr:
-  #      measurements_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
-  #      sources_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
   splitting_strategy:
-    train_size: 20
-    validate_size: 20
+    train_size: .8
+    validate_size: .2
     n_splits: 2
   preprocessor:
     pipeline:

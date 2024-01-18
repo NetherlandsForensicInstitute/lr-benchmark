@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
+from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.transformers import DummyClassifier
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
@@ -79,16 +80,16 @@ def evaluate(dataset: Dataset,
     return results
 
 
-def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
+def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configuration) -> None:
     """
     Executes experiments and saves results to file.
     :param exp: Helper class for execution of experiments.
-    :param exp_params: Experiment parameters.
-    :return:
+    :param exp_config: Experiment parameters.
+    :param data_config: Dataset parameters.
     """
-    path_prefix = "output"
+    exp_params = exp_config.experiment
     exp.parameter('repeats', exp_params.repeats)
-    parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
+    parameters = {'dataset': get_parameters(data_config.dataset, DATASETS),
                   'splitting_strategy_config': [exp_params.splitting_strategy],
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
@@ -98,14 +99,13 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
         raise ValueError('Every parameter should have at least one value, '
                          'see README.')
 
-    agg_result = []
-    param_sets = []
+    agg_result, param_sets = [], []
     for param_set, param_values, result in exp.run_full_grid(parameters):
         agg_result.append(result)
         param_sets.append(param_set)
 
     # create foldername for this run
-    folder_name = f'{path_prefix}/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
+    folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write results to file
     with open(prepare_output_file(f'{folder_name}/all_results.csv'), 'w') as file:
@@ -125,8 +125,10 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
 
 
 if __name__ == '__main__':
+    parser = get_parser()
+    args = parser.parse_args()
+    data_config = load_data_config(args.data_config)
     config = confidence.load_name('lrbenchmark')
-    exp_params = config.experiment
     exp = evaluation.Setup(evaluate)
 
-    run(exp, exp_params)
+    run(exp, config, data_config)
