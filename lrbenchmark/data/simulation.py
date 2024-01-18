@@ -3,13 +3,13 @@ from typing import List
 
 import numpy as np
 
-from lrbenchmark.data.dataset import MeasurementPairsDataset
+from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import Measurement, MeasurementPair, Source
 
 
 class MeasurementPairsSimulator(ABC):
     @abstractmethod
-    def get_pairs(self, **kwargs) -> MeasurementPairsDataset:
+    def get_pairs(self, **kwargs) -> Dataset:
         raise NotImplementedError
 
 
@@ -51,7 +51,7 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
                 f"trace_measurement_stdev={self.trace_measurement_stdev})")
 
 
-class SynthesizedNormalDataset(MeasurementPairsDataset):
+class SynthesizedNormalDataset(Dataset):
     def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_same_source: int,
                  n_diff_source: int):
         super().__init__()

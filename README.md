@@ -83,7 +83,7 @@ Reference Normalization
 ----------
 #Todo more explanation what refnorm is and why you use it.
 
-If `refnorm` is specified in the `lrbenchmark.yaml` file, and the dataset is a `MeasurementPairsDataset`,
+If `refnorm` is specified in the `lrbenchmark.yaml` file, and the dataset is a `Dataset`,
 the scores of the measurement pairs will be transformed using reference normalization.
 This reference normalization will be either performed using a separate refnorm dataset (when `refnorm.size` is defined). 
 This dataset has a set of unique source ids that do not occur in the training or validation sets. The measurement pairs 

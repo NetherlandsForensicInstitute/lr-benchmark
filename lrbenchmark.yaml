@@ -1,7 +1,7 @@
 experiment:
   repeats: 1
   scorer:
-    - logit
+    - precalculated
   calibrator:
     - logit
   splitting_strategy:

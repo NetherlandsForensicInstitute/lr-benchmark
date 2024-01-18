@@ -11,82 +11,77 @@ import numpy as np
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
 from sklearn.base import TransformerMixin, BaseEstimator
-from sklearn.metrics import accuracy_score, roc_auc_score
 from tqdm import tqdm
 
 from lrbenchmark import evaluation
-from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset
+from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.transformers import DummyClassifier
+from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
 
 
-def evaluate(dataset: Dataset,
-             preprocessor: TransformerMixin,
-             calibrator: TransformerMixin,
-             scorer: BaseEstimator,
-             splitting_strategy_config: Configuration,
-             selected_params: Dict[str, Any] = None,
-             refnorm: Optional[Configuration] = None,
-             repeats: int = 1) -> Dict:
+def evaluate(dataset: Dataset, preprocessor: TransformerMixin, calibrator: TransformerMixin, scorer: BaseEstimator,
+             splitting_strategy_config: Configuration, selected_params: Dict[str, Any] = None,
+             refnorm: Optional[Configuration] = None, repeats: int = 1) -> Dict:
     """
     Measures performance for an LR system with given parameters
     """
-    calibrated_scorer = lir.CalibratedScorer(scorer, calibrator)
+    # calibrated_scorer = lir.CalibratedScorer(scorer, calibrator)
 
-    test_lrs = []
-    test_labels = []
-    test_probas = []
-    test_predictions = []
+    validate_lrs = []
+    validate_labels = []
+    validate_probas = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        if (refnorm and isinstance(dataset, MeasurementPairsDataset) and
-                'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
-            dataset, dataset_refnorm = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
-        for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
-            if (refnorm and isinstance(dataset, MeasurementPairsDataset) and
-                    'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
-                dataset_train.perform_refnorm(dataset_refnorm or dataset,
-                                              source_ids_to_exclude=list(dataset_train.source_ids))
-                dataset_test.perform_refnorm(dataset_refnorm or dataset,
-                                             source_ids_to_exclude=list(dataset_test.source_ids))
+        # if (refnorm and isinstance(dataset, Dataset) and
+        #         'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
+        if refnorm and refnorm.refnorm_size:
+            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm.refnorm_size, seed=idx))
+        for dataset_train, dataset_validate in dataset.get_splits(seed=idx, **splitting_strategy_config):
+            # if (refnorm and isinstance(dataset, Dataset) and
+            #         'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
+            #     dataset_train.perform_refnorm(dataset_refnorm or dataset,
+            #                                   source_ids_to_exclude=list(dataset_train.source_ids))
+            #     dataset_test.perform_refnorm(dataset_refnorm or dataset,
+            #                                  source_ids_to_exclude=list(dataset_test.source_ids))
 
-            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
-            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
+            train_pairs = dataset_train.get_pairs(seed=idx)[:1000]
+            validate_pairs = dataset_validate.get_pairs(seed=idx)[:1000]
 
-            if preprocessor:
-                X_train = preprocessor.fit_transform(X_train)
-                X_test = preprocessor.fit_transform(X_test)
+            # if preprocessor:
+            #     X_train = preprocessor.fit_transform(X_train)
+            #     X_test = preprocessor.fit_transform(X_test)
 
-            calibrated_scorer.fit(X_train, y_train)
-            test_lrs.append(calibrated_scorer.predict_lr(X_test))
-            test_labels.append(y_test)
+            train_scores = scorer.fit_transform(train_pairs)
+            validate_scores = scorer.transform(validate_pairs)
 
-            if not isinstance(calibrated_scorer.scorer, DummyClassifier):
-                test_probas.append(calibrated_scorer.scorer.predict_proba(X_test)[:, 1])
-                test_predictions.append(calibrated_scorer.scorer.predict(X_test))
+            if refnorm:
+                train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
+                validate_scores = perform_refnorm(validate_scores, validate_pairs, dataset_refnorm or dataset_train,
+                                                  scorer)
 
-    test_lrs = np.concatenate(test_lrs)
-    test_labels = np.concatenate(test_labels)
+            calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
+            validate_lrs.append(calibrator.transform(validate_scores))
+            validate_labels.append([mp.is_same_source for mp in validate_pairs])
+
+            validate_probas.append(validate_scores)
+
+    validate_lrs = np.concatenate(validate_lrs)
+    validate_labels = np.concatenate(validate_labels)
 
     # plotting results for a single experiment
     figs = {}
     fig = plt.figure()
-    lir.plotting.lr_histogram(test_lrs, test_labels, bins=20)
+    lir.plotting.lr_histogram(validate_lrs, validate_labels, bins=20)
     figs['lr_distribution'] = fig
 
-    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(test_lrs, test_labels))
+    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
-    results = {'desc': get_experiment_description(selected_params),
-               'figures': figs,
-               **lr_metrics._asdict()}
-
-    if not isinstance(calibrated_scorer.scorer, DummyClassifier):
-        test_probas = np.concatenate(test_probas)
-        test_predictions = np.concatenate(test_predictions)
-        results['auc'] = roc_auc_score(test_labels, test_probas)
-        results['acc'] = accuracy_score(test_labels, test_predictions)
+    results = {'desc': get_experiment_description(selected_params), 'figures': figs, **lr_metrics._asdict()}
+    # todo fix scores -> between 0 and 1
+    # validate_probas = np.concatenate(validate_probas)
+    # results['auc'] = roc_auc_score(validate_labels, validate_probas)
 
     return results
 

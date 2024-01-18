@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union, Optional, List
+from typing import Mapping, Any, Union, Optional, List, Tuple
 
 import numpy as np
 
@@ -14,6 +14,9 @@ class Source:
     """
     id: Union[int, str]
     extra: Mapping[str, Any]
+
+    # def __eq__(self, other):
+    #     return isinstance(other, Source) and self.id == other.id
 
 
 @dataclass
@@ -52,30 +55,23 @@ class MeasurementPair:
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    extra: Mapping[str, Any]
+    extra: Mapping[str, Any] = None
+    value: Optional[np.ndarray] = None
 
     @property
     def is_same_source(self) -> bool:
         return self.measurement_a.source.id == self.measurement_b.source.id
 
     @property
-    def score(self) -> Union[None, float, np.ndarray]:
-        if 'score' in self.extra.keys():
-            return self.extra['score']
-        raise ValueError("No score found in the extra mapping.")
-
-    @property
     def source_ids(self) -> List[Union[int, str]]:
         return [self.measurement_a.source.id, self.measurement_b.source.id]
 
     @property
-    def measurements(self) -> List[Measurement]:
-        return [self.measurement_a, self.measurement_b]
+    def measurements(self) -> Tuple[Measurement, Measurement]:
+        return self.measurement_a, self.measurement_b
 
     def get_x(self) -> np.ndarray:
-        if 'score' in self.extra.keys():
-            return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
-        raise ValueError("No score found in the extra mapping.")
+        return np.vstack([self.measurement_a.get_x(), self.measurement_b.get_x()]).T
 
     def get_measurement_values(self) -> np.ndarray:
         measurement_a_value = np.array([self.measurement_a.value]) if not (

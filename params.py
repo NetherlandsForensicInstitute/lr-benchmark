@@ -12,7 +12,7 @@ from xgboost import XGBClassifier
 from lrbenchmark.data.dataset import XTCDataset, GlassDataset, ASRDataset
 from lrbenchmark.data.simulation import NormalPairsSimulator, SynthesizedNormalDataset
 from lrbenchmark.evaluation import DescribedValue
-from lrbenchmark.transformers import DummyTransformer, DummyClassifier
+from lrbenchmark.transformers import DummyTransformer, DummyClassifier, PrecalculatedScorer, MeasurementPairScorer
 
 
 def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]],
@@ -48,22 +48,22 @@ def get_parameters(param: Union[str, Sequence, Mapping], possible_params: Mappin
         return alternatives
 
 
-SCORERS = {
-    'dummy': DummyClassifier,
-    'lda': LDA,
-    'qda': QDA,
-    'gb': GradientBoostingClassifier,
-    'rf': lambda: RandomForestClassifier(n_estimators=100, class_weight='balanced'),
-    'logit': lambda: LogisticRegression(solver='liblinear', class_weight='balanced', max_iter=500),
-    'xgb': lambda: XGBClassifier(eval_metric='error', use_label_encoder=False),
-    'rf_optim': lambda: RandomizedSearchCV(estimator=RandomForestClassifier(),
+SCORERS =    {
+    'precalculated': PrecalculatedScorer,
+    'lda': partial(MeasurementPairScorer,AbsDiffTransformer, LDA),
+    'qda': partial(MeasurementPairScorer,AbsDiffTransformer, QDA),
+    'gb': partial(MeasurementPairScorer,AbsDiffTransformer, GradientBoostingClassifier),
+    'rf': partial(MeasurementPairScorer,AbsDiffTransformer, lambda: RandomForestClassifier(n_estimators=100, class_weight='balanced')),
+    'logit': partial(MeasurementPairScorer,AbsDiffTransformer, lambda: LogisticRegression(solver='liblinear', class_weight='balanced', max_iter=500)),
+    'xgb': partial(MeasurementPairScorer,AbsDiffTransformer, lambda: XGBClassifier(eval_metric='error', use_label_encoder=False)),
+    'rf_optim': partial(MeasurementPairScorer,AbsDiffTransformer, lambda: RandomizedSearchCV(estimator=RandomForestClassifier(),
                                    param_distributions={'bootstrap': [True, False],
                                                         'max_depth': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
                                                                       None],
                                                         'max_features': ['auto', 'sqrt'],
                                                         'min_samples_leaf': [1, 2, 4],
                                                         'min_samples_split': [2, 5, 10],
-                                                        'n_estimators': [5, 10, 20, 50, 100]}, n_iter=100, cv=3)
+                                                        'n_estimators': [5, 10, 20, 50, 100]}, n_iter=100, cv=3))
 }
 
 CALIBRATORS = {
