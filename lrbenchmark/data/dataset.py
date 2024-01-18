@@ -281,27 +281,30 @@ class CommonSourceDatasetMeasurementPairs(CommonSourceDataset):
             return X_pairs, y_pairs
 
 
-class XTCDataset(CommonSourceDataset):
+class XTCDataset(CommonSourceDatasetMeasurements):
 
     def __init__(self, n_splits):
         super().__init__(n_splits)
 
-    def load(self) -> XYType:
+    def load(self):
         """
         Loads XTC dataset
         """
-        data_file = 'Champ_data.csv'
+        data_file = 'xtc_data.csv'
         url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
         print(f"{self.__repr__()} is not yet available for download")
         xtc_folder = os.path.join('resources', 'drugs_xtc')
         download_dataset_file(xtc_folder, data_file, url)
-        df = pd.read_csv(os.path.join(xtc_folder, data_file), delimiter=',')
-        features = ["Diameter", "Thickness", "Weight", "Purity"]
+        path = os.path.join(xtc_folder, data_file)
 
-        X = df[features].to_numpy()
-        y = df['batchnumber'].to_numpy()
+        with open(path, "r") as f:
+            reader = csv.DictReader(f)
+            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
+                                        extra={'Measurement': int(row['measurement'])},
+                                        value=np.array(list(map(float, row.values()))[2:])) for row in reader]
 
-        return X, y
+
+        self.measurements = measurements
 
     def __repr__(self):
         return "XTC dataset"
