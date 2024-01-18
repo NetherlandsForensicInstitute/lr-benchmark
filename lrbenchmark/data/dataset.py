@@ -55,21 +55,11 @@ class Dataset(ABC):
         """
         raise NotImplementedError
 
-    def load(self):
-        raise NotImplementedError
-
 
 class MeasurementsDataset(Dataset):
     def __init__(self, measurements: Optional[List[Measurement]] = None):
         super().__init__()
         self.measurements = measurements
-
-        if self.measurements is None:
-            # TODO: self.measurements = self.load(): make it more explicit
-            self.load()
-
-    def load(self):
-        raise NotImplementedError
 
     @property
     def source_ids(self) -> Set[int]:
@@ -132,13 +122,6 @@ class MeasurementPairsDataset(Dataset):
         super().__init__()
         self.measurement_pairs = measurement_pairs
 
-        if self.measurement_pairs is None:
-            # TODO: self.measurement_pairs = self.load(): make it more explicit
-            self.load()
-
-    def load(self):
-        raise NotImplementedError
-
     @property
     def source_ids(self) -> Set[int]:
         return set(chain.from_iterable(
@@ -177,8 +160,9 @@ class MeasurementPairsDataset(Dataset):
                     split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
                 self.measurement_pairs))) for split_idx in split]
 
-    def get_x_y(self,
-                transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
+    def get_x_y_pairs(self,
+                      seed: Optional[int] = None,
+                      transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -283,10 +267,6 @@ class XTCDataset(MeasurementsDataset):
     def __init__(self, n_splits):
         super().__init__(n_splits)
 
-    def load(self) -> XYType:
-        """
-        Loads XTC dataset
-        """
         data_file = 'Champ_data.csv'
         url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
         print(f"{self.__repr__()} is not yet available for download")
@@ -298,7 +278,7 @@ class XTCDataset(MeasurementsDataset):
         X = df[features].to_numpy()
         y = df['batchnumber'].to_numpy()
 
-        return X, y
+        self.measurements = None, X, y
 
     def __repr__(self):
         return "XTC dataset"
@@ -308,7 +288,6 @@ class GlassDataset(MeasurementsDataset):
     def __init__(self):
         super().__init__()
 
-    def load(self):
         datasets = {'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
                                  'elemental_composition_glass/main/duplo.csv',
                     'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
@@ -347,7 +326,6 @@ class ASRDataset(MeasurementPairsDataset):
         self.sources_path = sources_path
         super().__init__()
 
-    def load(self):
         with open(self.measurements_path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)

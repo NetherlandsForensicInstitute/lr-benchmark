@@ -4,26 +4,13 @@ experiment:
     - logit
   calibrator:
     - logit
-  dataset:
-#    synthesized_normal:
-#      mean: 180
-#      sigma: 10
-#      trace_measurement_stdev: 3
-#      n_train_instances: 1000
-#      n_test_instances: 1000
-#    drugs_xtc:
-#      n_splits: 2
-#    glass:
-#      n_splits: 2
-    asr:
-        n_splits: 1
-        measurements_path: /mnt/projects/fbda/Profi_ASR/data/scorematrix.csv # change this
-        sources_path: /mnt/projects/fbda/Profi_ASR/data/recordings_anon.txt # change this
   splitting_strategy:
     train_size: 0.8
-    test_size: 0.2
+    validate_size: .2
+    n_splits: 2
   refnorm:
     refnorm_size: 10 # If empty, the trainset will be used as refnorm dataset, with the LOO method
+    train_size: .8
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer

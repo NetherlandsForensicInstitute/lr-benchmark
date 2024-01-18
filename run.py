@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset, MeasurementPairsDataset
+from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.transformers import DummyClassifier
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
@@ -40,17 +41,19 @@ def evaluate(dataset: Dataset,
     test_predictions = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        if refnorm and isinstance(dataset, MeasurementPairsDataset):
+        if (refnorm and isinstance(dataset, MeasurementPairsDataset) and
+                'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
             dataset, dataset_refnorm = dataset.get_refnorm_split(refnorm.refnorm_size, seed=idx)
         for dataset_train, dataset_test in dataset.get_splits(seed=idx, **splitting_strategy_config):
-            if refnorm and isinstance(dataset, MeasurementPairsDataset):
+            if (refnorm and isinstance(dataset, MeasurementPairsDataset) and
+                    'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
                 dataset_train.perform_refnorm(dataset_refnorm or dataset,
                                               source_ids_to_exclude=list(dataset_train.source_ids))
                 dataset_test.perform_refnorm(dataset_refnorm or dataset,
                                              source_ids_to_exclude=list(dataset_test.source_ids))
 
-            X_train, y_train = dataset_train.get_x_y(seed=idx)
-            X_test, y_test = dataset_test.get_x_y(seed=idx)
+            X_train, y_train = dataset_train.get_x_y_pairs(seed=idx)
+            X_test, y_test = dataset_test.get_x_y_pairs(seed=idx)
 
             if preprocessor:
                 X_train = preprocessor.fit_transform(X_train)
@@ -88,18 +91,18 @@ def evaluate(dataset: Dataset,
     return results
 
 
-def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
+def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configuration) -> None:
     """
     Executes experiments and saves results to file.
     :param exp: Helper class for execution of experiments.
-    :param exp_params: Experiment parameters.
-    :return:
+    :param exp_config: Experiment parameters.
+    :param data_config: Dataset parameters.
     """
-    path_prefix = "output"
+    exp_params = exp_config.experiment
     exp.parameter('repeats', exp_params.repeats)
     exp.parameter('refnorm', exp_params.refnorm)
     exp.parameter('splitting_strategy_config', exp_params.splitting_strategy)
-    parameters = {'dataset': get_parameters(exp_params.dataset, DATASETS),
+    parameters = {'dataset': get_parameters(data_config.dataset, DATASETS),
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
@@ -108,14 +111,13 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
         raise ValueError('Every parameter should have at least one value, '
                          'see README.')
 
-    agg_result = []
-    param_sets = []
+    agg_result, param_sets = [], []
     for param_set, param_values, result in exp.run_full_grid(parameters):
         agg_result.append(result)
         param_sets.append(param_set)
 
     # create foldername for this run
-    folder_name = f'{path_prefix}/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
+    folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write results to file
     with open(prepare_output_file(f'{folder_name}/all_results.csv'), 'w') as file:
@@ -135,8 +137,10 @@ def run(exp: evaluation.Setup, exp_params: Configuration) -> None:
 
 
 if __name__ == '__main__':
+    parser = get_parser()
+    args = parser.parse_args()
+    data_config = load_data_config(args.data_config)
     config = confidence.load_name('lrbenchmark')
-    exp_params = config.experiment
     exp = evaluation.Setup(evaluate)
 
-    run(exp, exp_params)
+    run(exp, config, data_config)
