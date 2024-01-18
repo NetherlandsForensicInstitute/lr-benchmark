@@ -7,7 +7,6 @@ from itertools import chain
 from typing import Iterable, Optional, Callable, List, Set, Union, Mapping
 
 import numpy as np
-import pandas as pd
 from lir.transformers import InstancePairing, AbsDiffTransformer
 from sklearn.model_selection import ShuffleSplit, GroupShuffleSplit
 from tqdm import tqdm
