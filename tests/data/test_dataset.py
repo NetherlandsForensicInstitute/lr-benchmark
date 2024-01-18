@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.data.dataset import MeasurementsDataset, MeasurementPairsDataset, GlassDataset, Dataset
+from lrbenchmark.data.dataset import MeasurementsDataset, MeasurementPairsDataset, GlassDataset, XTCDataset, Dataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
 
 
@@ -80,6 +80,7 @@ def test_get_splits_measurement_pairs(measurement_pairs):
 
 
 @pytest.mark.parametrize("class_name, config_key", [  # (ASRDataset, 'asr', True),
+    (XTCDataset, 'xtc'),
     (GlassDataset, 'glass'),
     (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):

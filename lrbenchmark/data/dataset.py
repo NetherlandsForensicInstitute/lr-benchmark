@@ -185,14 +185,11 @@ class MeasurementPairsDataset(Dataset):
 
 
 class XTCDataset(MeasurementsDataset):
-    def __init__(self, n_splits):
-        super().__init__(n_splits)
+    def __init__(self):
+        super().__init__()
 
         data_file = 'xtc_data.csv'
-        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
-        print(f"{self.__repr__()} is not yet available for download")
         xtc_folder = os.path.join('resources', 'drugs_xtc')
-        download_dataset_file(xtc_folder, data_file, url)
         path = os.path.join(xtc_folder, data_file)
 
         with open(path, "r") as f:
@@ -200,8 +197,6 @@ class XTCDataset(MeasurementsDataset):
             measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
                                         extra={'Measurement': int(row['measurement'])},
                                         value=np.array(list(map(float, row.values()))[2:])) for row in reader]
-
-
         self.measurements = measurements
 
     def __repr__(self):

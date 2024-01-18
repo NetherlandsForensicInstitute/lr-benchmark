@@ -151,4 +151,4 @@ results/
 logs/
 /fbda.yaml
 resources/glass/
-resources/drugs_xtc/
+# resources/drugs_xtc/
