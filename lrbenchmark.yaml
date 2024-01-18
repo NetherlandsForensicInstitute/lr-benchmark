@@ -5,8 +5,9 @@ experiment:
   calibrator:
     - logit
   splitting_strategy:
-    train_size: 0.8
-    test_size: 0.2
+    train_size: .8
+    validate_size: .2
+    n_splits: 2
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer
