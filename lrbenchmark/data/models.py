@@ -15,9 +15,6 @@ class Source:
     id: Union[int, str]
     extra: Mapping[str, Any]
 
-    # def __eq__(self, other):
-    #     return isinstance(other, Source) and self.id == other.id
-
 
 @dataclass
 class Measurement:
@@ -40,10 +37,6 @@ class Measurement:
 
     def get_y(self) -> int:
         return self.source.id
-
-    def __eq__(self, other):
-        return (isinstance(other, Measurement) and self.source == other.source and
-                (np.array_equal(self.value, other.value) or self.value is None) and self.extra == other.extra)
 
 
 @dataclass
