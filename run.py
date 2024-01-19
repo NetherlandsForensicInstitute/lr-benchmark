@@ -11,50 +11,47 @@ import numpy as np
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
 from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
+from lrbenchmark.pairing import BasePairing
 from lrbenchmark.refnorm import perform_refnorm
+from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
-from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters
+from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters, PAIRING
 
 
-def evaluate(dataset: Dataset, preprocessor: TransformerMixin, calibrator: TransformerMixin, scorer: BaseEstimator,
-             splitting_strategy_config: Configuration, selected_params: Dict[str, Any] = None,
-             refnorm: Optional[Configuration] = None, repeats: int = 1) -> Dict:
+def evaluate(dataset: Dataset,
+             preprocessor: TransformerMixin,
+             pairing_function: BasePairing,
+             calibrator: BaseEstimator,
+             scorer: BaseScorer,
+             experiment_config: Configuration,
+             selected_params: Dict[str, Any] = None,
+             refnorm: Optional[Configuration] = None,
+             repeats: int = 1) -> Dict:
     """
     Measures performance for an LR system with given parameters
     """
-    # calibrated_scorer = lir.CalibratedScorer(scorer, calibrator)
-
     validate_lrs = []
     validate_labels = []
     validate_probas = []
 
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        # if (refnorm and isinstance(dataset, Dataset) and
-        #         'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
         if refnorm and refnorm.refnorm_size:
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm.refnorm_size, seed=idx))
-        for dataset_train, dataset_validate in dataset.get_splits(seed=idx, **splitting_strategy_config):
-            # if (refnorm and isinstance(dataset, Dataset) and
-            #         'score' in dataset.measurement_pairs[0].measurement_a.extra.keys()):
-            #     dataset_train.perform_refnorm(dataset_refnorm or dataset,
-            #                                   source_ids_to_exclude=list(dataset_train.source_ids))
-            #     dataset_test.perform_refnorm(dataset_refnorm or dataset,
-            #                                  source_ids_to_exclude=list(dataset_test.source_ids))
+        for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
+                                                                  **experiment_config.experiment.splitting_strategy):
+            train_pairs = dataset_train.get_measurements(pairing_function=pairing_function, seed=idx)
+            validate_pairs = dataset_validate.get_measurements(pairing_function=pairing_function, seed=idx)
 
-            train_pairs = dataset_train.get_pairs(seed=idx)[:1000]
-            validate_pairs = dataset_validate.get_pairs(seed=idx)[:1000]
-
-            # if preprocessor:
-            #     X_train = preprocessor.fit_transform(X_train)
-            #     X_test = preprocessor.fit_transform(X_test)
-
-            train_scores = scorer.fit_transform(train_pairs)
-            validate_scores = scorer.transform(validate_pairs)
+            # todo: what to do with the preprocessor?
+            # todo: another way to get the paths in the scorer?
+            train_scores = scorer.fit_predict(train_pairs, experiment_config.dataset)
+            validate_scores = scorer.predict(validate_pairs)
 
             if refnorm:
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
@@ -64,11 +61,11 @@ def evaluate(dataset: Dataset, preprocessor: TransformerMixin, calibrator: Trans
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
             validate_lrs.append(calibrator.transform(validate_scores))
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
-
             validate_probas.append(validate_scores)
 
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
+    validate_probas = np.concatenate(validate_probas)
 
     # plotting results for a single experiment
     figs = {}
@@ -80,13 +77,13 @@ def evaluate(dataset: Dataset, preprocessor: TransformerMixin, calibrator: Trans
 
     results = {'desc': get_experiment_description(selected_params), 'figures': figs, **lr_metrics._asdict()}
     # todo fix scores -> between 0 and 1
-    # validate_probas = np.concatenate(validate_probas)
-    # results['auc'] = roc_auc_score(validate_labels, validate_probas)
+    if np.min(validate_probas) >= 0 and np.max(validate_probas) <= 1:
+        results['auc'] = roc_auc_score(validate_labels, validate_probas)
 
     return results
 
 
-def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configuration) -> None:
+def run(exp: evaluation.Setup, exp_config: Configuration) -> None:
     """
     Executes experiments and saves results to file.
     :param exp: Helper class for execution of experiments.
@@ -96,8 +93,9 @@ def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configura
     exp_params = exp_config.experiment
     exp.parameter('repeats', exp_params.repeats)
     exp.parameter('refnorm', exp_params.refnorm)
-    exp.parameter('splitting_strategy_config', exp_params.splitting_strategy)
-    parameters = {'dataset': get_parameters(data_config.dataset, DATASETS),
+    exp.parameter('experiment_config', exp_config)
+    parameters = {'dataset': get_parameters(exp_config.dataset, DATASETS),
+                  'pairing_function': get_parameters(exp_params.pairing, PAIRING),
                   'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
                   'scorer': get_parameters(exp_params.scorer, SCORERS),
                   'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
@@ -134,8 +132,7 @@ def run(exp: evaluation.Setup, exp_config: Configuration, data_config: Configura
 if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
-    data_config = load_data_config(args.data_config)
-    config = confidence.load_name('lrbenchmark')
+    config = Configuration(confidence.load_name('lrbenchmark'), load_data_config(args.data_config))
     exp = evaluation.Setup(evaluate)
 
-    run(exp, config, data_config)
+    run(exp, config)

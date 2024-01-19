@@ -1,7 +1,9 @@
 experiment:
   repeats: 1
+  pairing:
+    - balanced
   scorer:
-    - precalculated
+    - logit
   calibrator:
     - logit
   splitting_strategy:

@@ -1,12 +1,11 @@
-import itertools
 from typing import List
 
 import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.data.dataset import Dataset, Dataset, GlassDataset, Dataset
+from lrbenchmark.data.models import Measurement, Source
+from lrbenchmark.data.dataset import GlassDataset, Dataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
 
 
@@ -65,8 +64,8 @@ def test_dataset_basic_functions(class_name, config_key):
     else:
         dataset = class_name()
 
-    sets = dataset.get_splits()
+    datasets = dataset.get_splits()
 
-    for set in sets:
-        for fold in set:
+    for dataset in datasets:
+        for fold in dataset:
             assert isinstance(fold, Dataset)

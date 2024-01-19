@@ -33,10 +33,10 @@ def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair]
     for (score, mp) in tqdm(zip(train_scores, train_pairs), desc="Performing reference normalization", position=0):
         refnorm_measurements = [measurement for measurement in refnorm_dataset.measurements if
                                 measurement.source not in [mp.measurement_a.source, mp.measurement_b.source]]
-        scores_m_a = scorer.transform([MeasurementPair(mp.measurement_a, other_measurement) for other_measurement in
-                      refnorm_measurements])
-        scores_m_b = scorer.transform([MeasurementPair(mp.measurement_b, other_measurement) for other_measurement in
-                      refnorm_measurements])
+        scores_m_a = scorer.predict([MeasurementPair(mp.measurement_a, other_measurement) for other_measurement
+                                     in refnorm_measurements])
+        scores_m_b = scorer.predict([MeasurementPair(mp.measurement_b, other_measurement) for other_measurement
+                                     in refnorm_measurements])
         normalized_score = refnorm(score, scores_m_a, scores_m_b)
         normalized_scores.append(normalized_score)
     return np.array(normalized_scores)

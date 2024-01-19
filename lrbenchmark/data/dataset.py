@@ -2,7 +2,7 @@ import csv
 import os
 import urllib.request
 from abc import ABC
-from typing import Iterable, Optional, Callable, List, Set, Union, Mapping
+from typing import Iterable, Optional, List, Set, Union, Mapping
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ from sklearn.model_selection import GroupShuffleSplit
 from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-from lrbenchmark.pairing import CartesianPairing
+from lrbenchmark.pairing import CartesianPairing, BasePairing
 
 
 class Dataset(ABC):
@@ -28,9 +28,11 @@ class Dataset(ABC):
     def get_y(self) -> np.ndarray:
         return np.array([m.get_y() for m in self.measurements])
 
-    def get_splits(self, train_size: Optional[Union[float, int]] = 0.8,
-                   validate_size: Optional[Union[float, int]] = 0.2, n_splits: Optional[int] = 1, seed: int = None) -> \
-    Iterable['Dataset']:
+    def get_splits(self,
+                   train_size: Optional[Union[float, int]] = 0.8,
+                   validate_size: Optional[Union[float, int]] = 0.2,
+                   n_splits: Optional[int] = 1,
+                   seed: int = None) -> Iterable['Dataset']:
         # TODO: allow specific source splits
         """
         This function splits the measurements in a dataset into two splits, as specified by the
@@ -52,8 +54,9 @@ class Dataset(ABC):
         for split in s.split(self.measurements, groups=source_ids):
             yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
 
-    def get_pairs(self, seed: Optional[int] = None, pairing_function: Optional[Callable] = CartesianPairing) -> List[
-        MeasurementPair]:
+    def get_pairs(self,
+                  seed: Optional[int] = None,
+                  pairing_function: BasePairing = CartesianPairing()) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -62,76 +65,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function(seed=seed).transform(self.measurements)
-
-
-# class Dataset(Dataset):
-#     def __init__(self, measurement_pairs: Optional[List[MeasurementPair]] = None):
-#         super().__init__()
-#         self.measurement_pairs = measurement_pairs
-#
-#     @property
-#     def source_ids(self) -> Set[int]:
-#         return set(chain.from_iterable(
-#             [[mp.measurement_a.source.id, mp.measurement_b.source.id] for mp in self.measurement_pairs]))
-#
-#     def get_x(self) -> np.ndarray:
-#         return np.array([mp.get_x() for mp in self.measurement_pairs])
-#
-#     def get_y(self) -> np.ndarray:
-#         return np.array([mp.get_y() for mp in self.measurement_pairs])
-#
-#     def get_splits(self,
-#                    train_size: Optional[Union[float, int]] = 0.8,
-#                    validate_size: Optional[Union[float, int]] = 0.2,
-#                    n_splits: Optional[int] = 1,
-#                    seed: int = None) -> Iterable[Dataset]:
-#         # TODO: allow specific source splits
-#         """
-#         This function splits the measurement pairs in a dataset into two splits, as specified by the
-#         provided parameters. All measurement (pairs) from the same source are in the same split.
-#
-#         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
-#                            absolute number of measurement pairs in each split.  If not
-#                            specified, is the complement of the validate_size.
-#         :param validate_size: size of the validation set. Can be a float, to indicate a fraction, or an integer to
-#                           indicate an absolute number of measurements pairs in each split. If not specified, is the
-#                            complement of the train_size.
-#         :param n_splits: number of splits to ...
-#         :param seed: seed to ensure repeatability of the split
-#         """
-#         s = ShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
-#         source_ids = list(self.source_ids)
-#         for split in s.split(source_ids):
-#             yield [Dataset(measurement_pairs=list(filter(
-#                 lambda mp: mp.measurement_a.source.id in np.array(source_ids)[
-#                     split_idx] and mp.measurement_b.source.id in np.array(source_ids)[split_idx],
-#                 self.measurement_pairs))) for split_idx in split]
-#
-#     def get_x_y_pairs(self,
-#                       seed: Optional[int] = None,
-#                       transformer: Optional[Callable] = AbsDiffTransformer) -> XYType:
-#         """
-#         Transforms a dataset into same source and different source pairs and
-#         returns two arrays of X_pairs and y_pairs where the X_pairs are by
-#         default transformed to the absolute difference between two pairs. If
-#         pairs are already available, we return those.
-#
-#         Note that this method is different from sklearn TransformerMixin
-#         because it also transforms y.
-#         """
-#         if 'score' in self.measurement_pairs[0].extra.keys():
-#             return self.get_x(), self.get_y()
-#         # If the measurement pair has no score, the values of the individual measurements first need to be
-#         # transformed to scores
-#         else:
-#             # the shape of the measurement values should be (m, f,2), with m=number of pairs, f=number of features
-#             # and 2 values (for the two measurements), to be compatible with the transformation function
-#             X_pairs = np.array([mp.get_measurement_values() for mp in self.measurement_pairs])
-#             y_pairs = np.array([mp.is_same_source for mp in self.measurement_pairs])
-#             X_pairs = transformer().transform(X_pairs)
-#             return X_pairs, y_pairs
-#
+        return pairing_function.transform(self.measurements, seed=seed)
 
 
 class XTCDataset(Dataset):
@@ -193,12 +127,12 @@ class ASRDataset(Dataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, measurements_path, sources_path):
-        self.measurements_path = measurements_path  # TODO: besluiten waar data te laten, nu nog inlezen vanaf schijf
-        self.sources_path = sources_path
+    def __init__(self, scores_path, meta_info_path):
+        self.scores_path = scores_path
+        self.meta_info_path = meta_info_path
         super().__init__()
 
-        with open(self.measurements_path, "r") as f:
+        with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)
         header_measurement_data = np.array(data[0][1:])
@@ -221,7 +155,7 @@ class ASRDataset(Dataset):
         """
         Read annotations containing information of the recording and speaker.
         """
-        with open(self.sources_path, 'r') as f:
+        with open(self.meta_info_path, 'r') as f:
             reader = csv.DictReader(f, delimiter='\t')
             data = list(reader)
 

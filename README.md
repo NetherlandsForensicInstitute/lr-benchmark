@@ -81,32 +81,38 @@ There are currently a number of datasets implemented for this project:
 
 Reference Normalization
 ----------
-#Todo more explanation what refnorm is and why you use it.
+Reference normalization is a procedure that helps combat condition mismatch. It attempts to measure the influence that 
+the measurement conditions have on the comparison score. It then uses this measurement to compensate for unwanted 
+influence of those measurement conditions. In the case of symmetrical normalization (S-norm), this is performed by 
+comparing all the measurements in the reference normalization cohort with each of the two measurements that are to be 
+compared. This produces two collections of scores, which, if the practitioner chose the reference normalization 
+sources correctly, are all different source-scores. Of each of those sets of different source scores the average and 
+standard deviation are calculated. The ‘unnormalized’ score that was obtained by comparing the to-be-compared 
+measurement is then normalized with the first average and standard deviation. Then the same ‘unnormalized’ score is 
+normalized again with the second average and standard deviation, again by subtracting the average and dividing over 
+the standard deviation. This results in two intermediate normalized scores. These two scores are then averaged, 
+resulting in the normalized score. 
 
-If `refnorm` is specified in the `lrbenchmark.yaml` file, and the dataset is a `Dataset`,
-the scores of the measurement pairs will be transformed using reference normalization.
-This reference normalization will be either performed using a separate refnorm dataset (when `refnorm.size` is defined). 
-This dataset has a set of unique source ids that do not occur in the training or validation sets. The measurement pairs 
-in the refnorm dataset have one measurement with a source from this refnorm specific source id set, and the other 
-measurement comes from the training/validation set. 
+This procedure is designed to discard effects on the score coming from measurement conditions that have an influence on 
+both the actual comparison data and the reference normalization cohort data. Note that this procedure assumes the 
+sources in the reference normalization cohort and the sources that are compared are different speakers. If, 
+inadvertently, there is source overlap between the compared sources and the reference cohort sources, some of the 
+comparisons are of same source comparisons instead of the expected different source comparisons. Both the average and 
+the standard deviation of the sets of scores would become too high, resulting in a normalized score that is too low.
 
-An example: the dataset contains source ids `a`, `b` and `z`, the selected measurement pair has
-a measurement 1 with source `a` and a measurement 2 with source `b`. The refnorm source ids are `c` and `d`. All 
-measurement pairs in the refnorm set contain one measurement with source `c` or `d`, and one measurement with source 
-`a`, `b`, or `z`. When selecting the refnorm measurement pairs for measurement 1, we take 
-all the measurement pairs from the refnorm set that contain measurement 1 and a measurement with source `c` or `d`.
+If `refnorm` is specified in the `lrbenchmark.yaml` file, the scores of the measurement pairs will be transformed using
+reference normalization. This reference normalization will be either performed using a separate refnorm dataset (when 
+`refnorm.size` is defined). This dataset has a set of unique sources that do not occur in the training or validation 
+sets. An example: the dataset contains source ids `a`, `b` and `z`, the refnorm source ids are `c` and `d`, and the 
+selected measurement pair has a measurement 1 with source `a` and a measurement 2 with source `b`. When 
+performing reference normalization all measurements with source id `c` or `d` will be compared with both measurements in
+the measurement pair. 
 
 If the `refnorm.refnorm_size` is not defined, the normalization will be done with the Leave-One-Out method. This means
 that for each measurement pair in the dataset, the rest of the dataset will be acting as refnorm set. 
-For each measurement in the selected measurement pair, only the measurement pairs in the left-over dataset will be used 
-where one of the measurements is equal to this measurement, and the other has a source_id that is different from the 
-source ids in the selected measurement pair. 
+For each measurement in the selected measurement pair, only the measurements in the left-over dataset will be used 
+which have source ids that are not in the selected measurement pair. 
 
 An example: the selected measurement pair has a measurement 1 with source `a` and a measurement 2 with source `b`. When 
-selecting the refnorm measurement pairs for measurement 1, we take all the measurement pairs from the dataset that 
-contain measurement 1 and a measurement that does not come from source `a` or source `b`.
-
-Once we have the appropriate refnorm pairs for each of the measurements in the selected pair, the score of the pair is 
-transformed with each set of refnorm pairs by subtracting the mean of the scores of the refnorm pairs and 
-dividing by the standard deviation. The subsequent two scores are averaged to come to the transformed score that will 
-be used in the pipeline. 
+selecting the refnorm measurement pairs for measurement 1, we take all the measurements from the dataset that do not 
+come from source `a` or source `b`.
