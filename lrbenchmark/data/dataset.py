@@ -184,17 +184,14 @@ class MeasurementPairsDataset(Dataset):
 
 
 class XTCDataset(MeasurementsDataset):
-    def __init__(self):
+    def __init__(self, measurements_path):
+        self.measurements_path = measurements_path
         super().__init__()
 
-        data_file = 'xtc_data.csv'
-        xtc_folder = os.path.join('resources', 'drugs_xtc')
-        path = os.path.join(xtc_folder, data_file)
-
-        with open(path, "r") as f:
+        with open(self.measurements_path, "r") as f:
             reader = csv.DictReader(f)
             measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
-                                        extra={'Measurement': int(row['measurement'])},
+                                        extra={'Repeat': int(row['measurement'])},
                                         value=np.array(list(map(float, row.values()))[2:])) for row in reader]
         self.measurements = measurements
 

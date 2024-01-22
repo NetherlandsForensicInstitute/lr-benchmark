@@ -9,3 +9,5 @@ dataset_test:
     trace_measurement_stdev: 0.1
     n_same_source: 100
     n_diff_source: 100
+  xtc:
+    measurements_path: resources/drugs_xtc/xtc_data.csv
