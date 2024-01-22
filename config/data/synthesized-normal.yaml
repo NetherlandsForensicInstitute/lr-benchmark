@@ -5,3 +5,4 @@ dataset:
     trace_measurement_stdev: 3
     n_diff_source: 1000
     n_same_source: 1000
+    seed: 42

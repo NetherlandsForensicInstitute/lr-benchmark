@@ -14,11 +14,12 @@ class MeasurementPairsSimulator(ABC):
 
 
 class NormalPairsSimulator(MeasurementPairsSimulator):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float):
+    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, seed: int = None):
         super().__init__()
         self.mean = mean
         self.sigma = sigma
         self.trace_measurement_stdev = trace_measurement_stdev
+        self.generator = np.random.default_rng(seed=seed)
 
     def get_pairs(self, n_same_source: int, n_diff_source: int) -> List[MeasurementPair]:
         """
@@ -30,9 +31,9 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
         :param n_diff_source: number of different source pairs to generate
         :return: tuple of same source and different source measurement pairs
         """
-        real_value = np.random.normal(self.mean, self.sigma, n_same_source)
-        other_value = np.random.normal(self.mean, self.sigma, n_diff_source)
-        measurement_error = np.random.normal(0, self.trace_measurement_stdev, n_same_source)
+        real_value = self.generator.normal(self.mean, self.sigma, n_same_source)
+        other_value = self.generator.normal(self.mean, self.sigma, n_diff_source)
+        measurement_error = self.generator.normal(0, self.trace_measurement_stdev, n_same_source)
         measured_value = real_value + measurement_error
         return [
                    MeasurementPair(
@@ -53,7 +54,10 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
 
 class SynthesizedNormalDataset(MeasurementPairsDataset):
     def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_same_source: int,
-                 n_diff_source: int):
+                 n_diff_source: int, seed: int):
         super().__init__()
-        self.simulator = NormalPairsSimulator(mean=mean, sigma=sigma, trace_measurement_stdev=trace_measurement_stdev)
+        self.simulator = NormalPairsSimulator(mean=mean,
+                                              sigma=sigma,
+                                              trace_measurement_stdev=trace_measurement_stdev,
+                                              seed=seed)
         self.measurement_pairs = self.simulator.get_pairs(n_same_source, n_diff_source)
