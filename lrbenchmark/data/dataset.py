@@ -5,7 +5,6 @@ from abc import ABC
 from typing import Optional, List, Set, Union, Mapping, Iterator
 
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
 from tqdm import tqdm
 
@@ -69,21 +68,16 @@ class Dataset(ABC):
 
 
 class XTCDataset(Dataset):
-    def __init__(self, n_splits):
-        super().__init__(n_splits)
+    def __init__(self, measurements_path):
+        self.measurements_path = measurements_path
+        super().__init__()
 
-        data_file = 'Champ_data.csv'
-        url = "https://raw.githubusercontent.com/NetherlandsForensicInstitute/placeholder"  # todo publish to github
-        print(f"{self.__repr__()} is not yet available for download")
-        xtc_folder = os.path.join('resources', 'drugs_xtc')
-        download_dataset_file(xtc_folder, data_file, url)
-        df = pd.read_csv(os.path.join(xtc_folder, data_file), delimiter=',')
-        features = ["Diameter", "Thickness", "Weight", "Purity"]
-
-        X = df[features].to_numpy()
-        y = df['batchnumber'].to_numpy()
-
-        self.measurements = None, X, y
+        with open(self.measurements_path, "r") as f:
+            reader = csv.DictReader(f)
+            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
+                                        extra={'Repeat': int(row['measurement'])},
+                                        value=np.array(list(map(float, row.values()))[2:])) for row in reader]
+        self.measurements = measurements
 
     def __repr__(self):
         return "XTC dataset"

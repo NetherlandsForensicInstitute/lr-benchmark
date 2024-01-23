@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.models import Measurement, Source
-from lrbenchmark.data.dataset import GlassDataset, Dataset
+from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
 
 
@@ -55,6 +55,7 @@ def test_get_splits_measurements(measurements, train_size, test_size):
 
 
 @pytest.mark.parametrize("class_name, config_key", [  # (ASRDataset, 'asr', True),
+    (XTCDataset, 'xtc'),
     (GlassDataset, 'glass'),
     (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):

@@ -1,0 +1,3 @@
+dataset:
+  xtc:
+    measurements_path: resources/drugs_xtc/xtc_data.csv # change this
