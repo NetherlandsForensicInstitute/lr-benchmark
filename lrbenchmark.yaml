@@ -3,7 +3,7 @@ experiment:
   pairing:
     - balanced
   scorer:
-    - logit
+    - precalculated
   calibrator:
     - logit
   splitting_strategy:
@@ -11,8 +11,7 @@ experiment:
     validate_size: .2
     n_splits: 2
   refnorm:
-    refnorm_size: 10 # If empty, the trainset will be used as refnorm dataset, with the LOO method
-    train_size: .8
+    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer

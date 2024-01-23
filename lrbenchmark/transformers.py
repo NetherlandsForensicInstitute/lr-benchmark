@@ -39,7 +39,7 @@ class BaseScorer(BaseEstimator, ClassifierMixin, ABC):
         raise NotImplementedError
 
 
-class PrecalculatedScorer(BaseScorer):
+class PrecalculatedScorerASR(BaseScorer):
     def __init__(self):
         self.scores = {}
 

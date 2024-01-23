@@ -23,7 +23,8 @@ class CartesianPairing(BasePairing):
     Creates pairs of instances.
 
     This transformer takes a list of Measurement as input, and returns a list of MeasurementPair.
-    By default, the list of MeasurementPair contains all possible pairs of Measurement.
+    By default, the list of MeasurementPair contains all possible pairs of Measurement, except the combination
+    of a Measurement with itself.
     """
 
     def fit(self, measurements: Iterable[Measurement]):
@@ -46,7 +47,9 @@ class BalancedPairing(BasePairing):
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
         different_source_pairs = [a for a in all_pairs if not a.is_same_source]
-        different_source_pairs = random.choices(different_source_pairs, k=len(same_source_pairs))
+        n_pairs = min(len(same_source_pairs), len(different_source_pairs))
+        same_source_pairs = random.sample(same_source_pairs, k=n_pairs)
+        different_source_pairs = random.sample(different_source_pairs, k=n_pairs)
         selected_pairs = same_source_pairs + different_source_pairs
         random.shuffle(selected_pairs)
         return selected_pairs

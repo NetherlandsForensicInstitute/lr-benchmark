@@ -15,7 +15,7 @@ from lrbenchmark.data.dataset import XTCDataset, GlassDataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
 from lrbenchmark.evaluation import DescribedValue
 from lrbenchmark.pairing import CartesianPairing, BalancedPairing
-from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorer, MeasurementPairScorer
+from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorerASR, MeasurementPairScorer
 
 
 def resolve_parameter(param: Optional[Union[str, int, Sequence, Mapping]], possible_params: Mapping,
@@ -53,7 +53,7 @@ def get_parameters(param: Union[str, Sequence, Mapping], possible_params: Mappin
 PAIRING = {'cartesian': CartesianPairing,
            'balanced': BalancedPairing}
 
-SCORERS = {'precalculated': PrecalculatedScorer,
+SCORERS = {'precalculated': PrecalculatedScorerASR,
            'lda': partial(MeasurementPairScorer, AbsDiffTransformer, LDA),
            'qda': partial(MeasurementPairScorer, AbsDiffTransformer, QDA),
            'gb': partial(MeasurementPairScorer, AbsDiffTransformer, GradientBoostingClassifier),

@@ -2,7 +2,7 @@ import csv
 import os
 import urllib.request
 from abc import ABC
-from typing import Iterable, Optional, List, Set, Union, Mapping
+from typing import Optional, List, Set, Union, Mapping, Iterator
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ class Dataset(ABC):
                    train_size: Optional[Union[float, int]] = 0.8,
                    validate_size: Optional[Union[float, int]] = 0.2,
                    n_splits: Optional[int] = 1,
-                   seed: int = None) -> Iterable['Dataset']:
+                   seed: int = None) -> Iterator['Dataset']:
         # TODO: allow specific source splits
         """
         This function splits the measurements in a dataset into two splits, as specified by the
