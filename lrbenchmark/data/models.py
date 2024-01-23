@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union, Optional, List
+from typing import Mapping, Any, Union, Optional, List, Tuple
 
 import numpy as np
 
@@ -38,10 +38,6 @@ class Measurement:
     def get_y(self) -> int:
         return self.source.id
 
-    def __eq__(self, other):
-        return (isinstance(other, Measurement) and self.source == other.source and
-                (self.value == other.value or self.value is None))
-
 
 @dataclass
 class MeasurementPair:
@@ -52,37 +48,24 @@ class MeasurementPair:
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    extra: Mapping[str, Any]
+    extra: Mapping[str, Any] = None
 
     @property
     def is_same_source(self) -> bool:
         return self.measurement_a.source.id == self.measurement_b.source.id
 
     @property
-    def score(self) -> Union[None, float, np.ndarray]:
-        if 'score' in self.extra.keys():
-            return self.extra['score']
-        raise ValueError("No score found in the extra mapping.")
-
-    @property
-    def source_ids(self) -> List[int]:
+    def source_ids(self) -> List[Union[int, str]]:
         return [self.measurement_a.source.id, self.measurement_b.source.id]
 
     @property
-    def measurements(self) -> List[Measurement]:
-        return [self.measurement_a, self.measurement_b]
+    def measurements(self) -> Tuple[Measurement, Measurement]:
+        return self.measurement_a, self.measurement_b
 
     def get_x(self) -> np.ndarray:
-        if 'score' in self.extra.keys():
-            return np.array([self.score]) if not isinstance(self.score, np.ndarray) else self.score
-        raise ValueError("No score found in the extra mapping.")
-
-    def get_measurement_values(self) -> np.ndarray:
-        measurement_a_value = np.array([self.measurement_a.value]) if not (
-            isinstance(self.measurement_a.value, np.ndarray)) else self.measurement_a.value
-        measurement_b_value = np.array([self.measurement_b.value]) if not (
-            isinstance(self.measurement_b.value, np.ndarray)) else self.measurement_b.value
-        return np.array(list(zip(measurement_a_value, measurement_b_value)))
+        if self.measurement_a.get_x() is None or self.measurement_b.get_x() is None:
+            raise ValueError('No values present in MeasurementPair. Use PrecalculatedScorer to retrieve scores.')
+        return np.vstack([self.measurement_a.get_x(), self.measurement_b.get_x()]).T
 
     def get_y(self) -> bool:
         return self.is_same_source
