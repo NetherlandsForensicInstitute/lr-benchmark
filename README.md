@@ -79,6 +79,16 @@ There are currently a number of datasets implemented for this project:
 - synthesized-normal: a dataset containing generated samples from normal distributions following the specifications in the `config/data/synthesized-normal.yaml` file.
 
 
+Computing Case LRs
+----------
+To compute case LRs, provide a dataset with the ids of the sources of interest as `validation_source_ids`. This will
+train a model as specified in the yaml on the other sources, and apply it on the specified source. All LRs for the
+measurement pairs for these sources will be provided in a text file. Typically, you may want to run experimentation
+and validation on a set that does not contain the case sources to select a set of parameters. You then run the pipeline
+again after including the case-relevant source in the dataset, identifying them with the `validation_source_ids` 
+parameter. Examples are given in the `asr.yaml` and 'asr_case.yaml` files.
+
+
 Reference Normalization
 ----------
 Reference normalization is a procedure that helps combat condition mismatch. It attempts to measure the influence that 

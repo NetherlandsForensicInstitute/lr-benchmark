@@ -1,8 +1,9 @@
 import csv
+import logging
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator
+from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -11,11 +12,19 @@ from tqdm import tqdm
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.pairing import CartesianPairing, BasePairing
 
+LOG = logging.getLogger(__name__)
 
 class Dataset(ABC):
-    def __init__(self, measurements: Optional[List[Measurement]] = None):
+    def __init__(self,
+                 measurements: Optional[List[Measurement]] = None,
+                 validation_source_ids: Optional[Iterable[Union[int, str]]]=None):
+        """
+        :param validation_source_ids: provide the precise sources to include in the validation data. The complement
+        is included in the train data. Cannot be provided at the same time as either train or validation size.
+        """
         super().__init__()
         self.measurements = measurements
+        self.validation_source_ids = validation_source_ids
 
     @property
     def source_ids(self) -> Set[int]:
@@ -28,8 +37,8 @@ class Dataset(ABC):
         return np.array([m.get_y() for m in self.measurements])
 
     def get_splits(self,
-                   train_size: Optional[Union[float, int]] = 0.8,
-                   validate_size: Optional[Union[float, int]] = 0.2,
+                   train_size: Optional[Union[float, int]] = None,
+                   validate_size: Optional[Union[float, int]] = None,
                    n_splits: Optional[int] = 1,
                    seed: int = None) -> Iterator['Dataset']:
         # TODO: allow specific source splits
@@ -42,16 +51,29 @@ class Dataset(ABC):
                            split. If not specified, is the complement of the validate_size.
         :param validate_size: size of the validation set. Can be a float, to indicate a fraction, or an integer to
                           indicate an absolute number of sources
-                          in each split. If not specified, is the complement of the train_size.
+                          in each split. If not specified, is the complement of the train_size if provided, else or 0.2
+
         :param n_splits: number of splits to ...
         :param seed: seed to ensure repeatability of the split
 
         """
-        s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
+        assert not ((validate_size or train_size) and self.validation_source_ids), 'Cannot provide train or validation data set sizes for a dataset with specified sources to include in validation!'
+
         source_ids = [m.source.id for m in self.measurements]
 
-        for split in s.split(self.measurements, groups=source_ids):
-            yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
+        if self.validation_source_ids:
+            if n_splits!=1:
+                LOG.warning('source ids for evaluation set were provided, but n_splits!=1. Is this intended?')
+            for i in range(n_splits):
+                val_measurements = [measurement for measurement in self.measurements if measurement.source.id in self.validation_source_ids]
+                train_measurements = [measurement for measurement in self.measurements if measurement.source.id not in self.validation_source_ids]
+                yield [Dataset(measurements=train_measurements), Dataset(measurements=val_measurements)]
+
+        else:
+            s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
+
+            for split in s.split(self.measurements, groups=source_ids):
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
 
     def get_pairs(self,
                   seed: Optional[int] = None,
@@ -121,10 +143,10 @@ class ASRDataset(Dataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path):
+    def __init__(self, scores_path, meta_info_path, validation_source_ids):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
-        super().__init__()
+        super().__init__(validation_source_ids=validation_source_ids)
 
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
