@@ -2,7 +2,7 @@ import csv
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator
+from typing import Optional, List, Set, Union, Mapping, Iterator, Tuple
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -121,9 +121,10 @@ class ASRDataset(Dataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path):
+    def __init__(self, scores_path, meta_info_path, source_filter):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
+        self.source_filter = source_filter or {}
         super().__init__()
 
         with open(self.scores_path, "r") as f:
@@ -138,12 +139,23 @@ class ASRDataset(Dataset):
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
             info_a = recording_data.get(filename_a.replace('_30s', ''))
-            source_id_a = filename_a.split("_")[0]
-            if info_a:
+            source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
+            if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}))
+                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
+                                       'actual_duration': duration}))
         self.measurements = measurements
+
+    @staticmethod
+    def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
+        """
+        Retrieve the source id and actual duration of the recording from the file name.
+        """
+        source_id, _, duration = filename.split("_")
+        duration = duration.split("s")[0]
+        return source_id, int(duration)
+
 
     def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
         """
