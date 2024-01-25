@@ -1,9 +1,10 @@
 import argparse
 import os
 from pathlib import Path
+from typing import Optional, Iterable
 
 from confidence import Configuration, loadf
-from typing import Optional, Iterable, Union
+
 from lrbenchmark.typing import PathLike
 
 
@@ -28,7 +29,7 @@ def load_data_config(paths: Iterable[PathLike]) -> Iterable[Configuration]:
     # first check whether the path refers to an existing file. If not, we extract the
     # full path and then load the file.
     # interpret ['all'] as all datasets
-    if paths[0]=='all':
+    if paths[0] == 'all':
         for path in get_all_data_config_paths():
             yield loadf(path)
     else:
@@ -45,7 +46,6 @@ def get_all_data_config_paths(root: Optional[PathLike] = ".") -> Iterable[PathLi
     path = os.path.join(root, 'config', 'data')
     for file in os.listdir(path):
         yield Path(os.path.join(path, file))
-
 
 
 def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> PathLike:
