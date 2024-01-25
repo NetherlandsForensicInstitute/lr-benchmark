@@ -24,7 +24,11 @@ class CartesianPairing(BasePairing):
 
     This transformer takes a list of Measurement as input, and returns a list of MeasurementPair.
     By default, the list of MeasurementPair contains all possible pairs of Measurement, except the combination
-    of a Measurement with itself.
+    of a Measurement with itself. Pairs are considered symmetric, so pairing of measurements [a,b,c] will return
+    a-b
+    a-c
+    b-c
+    but not also b-a.
     """
 
     def fit(self, measurements: Iterable[Measurement]):
