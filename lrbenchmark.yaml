@@ -11,7 +11,7 @@ experiment:
     validate_size: .2
     n_splits: 2
   refnorm:
-    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
+    refnorm_size: 0.2 # If empty, the trainset will be used as refnorm dataset, with the leave-one-out method
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer
