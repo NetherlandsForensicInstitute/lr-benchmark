@@ -72,7 +72,7 @@ class Dataset(ABC):
         """
         if self.holdout_source_ids:
             holdout_measurements = [measurement for measurement in self.measurements if
-                                measurement.source.id in self.holdout_source_ids]
+                                    measurement.source.id in self.holdout_source_ids]
             other_measurements = [measurement for measurement in self.measurements if
                                   measurement.source.id not in self.holdout_source_ids]
             return Dataset(measurements=holdout_measurements), Dataset(measurements=other_measurements)
