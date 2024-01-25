@@ -17,7 +17,7 @@ from tqdm import tqdm
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.pairing import BasePairing
+from lrbenchmark.pairing import BasePairing, CartesianPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
@@ -41,7 +41,10 @@ def fit_and_evaluate(dataset: Dataset,
     validate_scores = []
 
     dataset_refnorm = None
+    holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+        # split off the sources that should only be evaluated
+        holdout_set, dataset = dataset.split_off_holdout_set()
         if refnorm.refnorm_size:
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm.refnorm_size, seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
@@ -65,6 +68,17 @@ def fit_and_evaluate(dataset: Dataset,
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
 
+    # retrain with everything, and apply to the holdout
+    # I will do this only once
+    if holdout_set:
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
+        holdout_scores = scorer.predict(holdout_pairs)
+        if refnorm:
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
+                            scorer)
+        holdout_lrs = calibrator.transform(holdout_scores)
+
+
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
     validate_scores = np.concatenate(validate_scores)
@@ -82,11 +96,11 @@ def fit_and_evaluate(dataset: Dataset,
                'figures': figs, **lr_metrics._asdict(),
                'auc': roc_auc_score(validate_labels, validate_scores)}
 
-    if dataset.validation_source_ids:
+    if holdout_set:
         # validation set was specified, record LRs. Only takes those from the last repeat.
-        results['validation_lrs']={}
-        for pair, lr in zip(validate_pairs, current_validation_lrs):
-            results['validation_lrs'][str(pair)] = lr
+        results['holdout_lrs']={}
+        for pair, lr in zip(holdout_pairs, holdout_lrs):
+            results['holdout_lrs'][str(pair)] = lr
 
     return results
 
@@ -128,12 +142,12 @@ def run(exp: evaluation.Setup, exp_config: Configuration) -> None:
             writer.writerow({fieldname: value for fieldname, value in result_row.items() if fieldname in fieldnames})
 
     # write LRs to file
-    if 'validation_lrs' in agg_result[0]:
-        with open(prepare_output_file(f'{folder_name}/validation_lrs.csv'), 'w') as file:
+    if 'holdout_lrs' in agg_result[0]:
+        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
             writer = csv.writer(file)
             writer.writerow( ['desc','pair', 'LR'])
             for result_row in agg_result:
-                for pair_desc, lr in result_row['validation_lrs'].items():
+                for pair_desc, lr in result_row['holdout_lrs'].items():
                     writer.writerow([result_row['desc'], pair_desc, lr])
 
     # save figures and results per parameter set

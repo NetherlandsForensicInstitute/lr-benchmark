@@ -3,7 +3,7 @@ import logging
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable
+from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -18,14 +18,13 @@ LOG = logging.getLogger(__name__)
 class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
-                 validation_source_ids: Optional[Iterable[Union[int, str]]] = None):
+                 holdout_source_ids: Optional[Iterable[Union[int, str]]] = None):
         """
-        :param validation_source_ids: provide the precise sources to include in the validation data. The complement
-        is included in the train data. Cannot be provided at the same time as either train or validation size.
+        :param holdout_source_ids: provide the precise sources to include in the holdout data.
         """
         super().__init__()
         self.measurements = measurements
-        self.validation_source_ids = validation_source_ids
+        self.holdout_source_ids = holdout_source_ids
 
     @property
     def source_ids(self) -> Set[int]:
@@ -46,40 +45,38 @@ class Dataset(ABC):
         """
         This function splits the measurements in a dataset into two splits, as specified by the
         provided parameters. Every source is in exactly one split.
-
         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
                            absolute number of sources in each
-                           split. If not specified, is the complement of the validate_size.
+                           split. If not specified, is the complement of the validate_size if provided, else 0.8.
         :param validate_size: size of the validation set. Can be a float, to indicate a fraction, or an integer to
                           indicate an absolute number of sources
-                          in each split. If not specified, is the complement of the train_size if provided, else or 0.2
+                          in each split. If not specified, is the complement of the train_size if provided, else 0.2.
 
         :param n_splits: number of splits to ...
         :param seed: seed to ensure repeatability of the split
 
         """
-        assert not ((validate_size or train_size) and self.validation_source_ids), \
-            'Cannot provide train or validation data set sizes for a dataset ' \
-            'with specified sources to include in validation!'
-
         source_ids = [m.source.id for m in self.measurements]
 
-        if self.validation_source_ids:
-            if n_splits != 1:
-                LOG.warning('source ids for evaluation set were provided, but n_splits!=1. Is this intended?')
-            for i in range(n_splits):
-                val_measurements = [measurement for measurement in self.measurements if
-                                    measurement.source.id in self.validation_source_ids]
-                train_measurements = [measurement for measurement in self.measurements if
-                                      measurement.source.id not in self.validation_source_ids]
-                yield [Dataset(measurements=train_measurements), Dataset(measurements=val_measurements)]
+        s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
 
-        else:
-            s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
+        for split in s.split(self.measurements, groups=source_ids):
+            yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
+                   split]
 
-            for split in s.split(self.measurements, groups=source_ids):
-                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
-                       split]
+    def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
+        """
+        if holdout source ids were provided, returns the dataset with those sources, and the dataset of the complement
+
+        if no hold source ids were provided, returns None and this set itself
+        """
+        if self.holdout_source_ids:
+            holdout_measurements = [measurement for measurement in self.measurements if
+                                measurement.source.id in self.holdout_source_ids]
+            other_measurements = [measurement for measurement in self.measurements if
+                                  measurement.source.id not in self.holdout_source_ids]
+            return Dataset(measurements=holdout_measurements), Dataset(measurements=other_measurements)
+        return None, self
 
     def get_pairs(self,
                   seed: Optional[int] = None,
@@ -96,9 +93,9 @@ class Dataset(ABC):
 
 
 class XTCDataset(Dataset):
-    def __init__(self, measurements_path):
+    def __init__(self, measurements_path, **kwargs):
         self.measurements_path = measurements_path
-        super().__init__()
+        super().__init__(**kwargs)
 
         with open(self.measurements_path, "r") as f:
             reader = csv.DictReader(f)
@@ -112,8 +109,8 @@ class XTCDataset(Dataset):
 
 
 class GlassDataset(Dataset):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         datasets = {'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
                                  'elemental_composition_glass/main/duplo.csv',
@@ -149,10 +146,10 @@ class ASRDataset(Dataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path, validation_source_ids):
+    def __init__(self, scores_path, meta_info_path, **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
-        super().__init__(validation_source_ids=validation_source_ids)
+        super().__init__(**kwargs)
 
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
