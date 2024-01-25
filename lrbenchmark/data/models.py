@@ -38,7 +38,6 @@ class Measurement:
     def get_y(self) -> int:
         return self.source.id
 
-
     def __str__(self):
         return f'source_id: {self.source.id}, {self.extra}'
 

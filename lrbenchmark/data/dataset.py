@@ -14,10 +14,11 @@ from lrbenchmark.pairing import CartesianPairing, BasePairing
 
 LOG = logging.getLogger(__name__)
 
+
 class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
-                 validation_source_ids: Optional[Iterable[Union[int, str]]]=None):
+                 validation_source_ids: Optional[Iterable[Union[int, str]]] = None):
         """
         :param validation_source_ids: provide the precise sources to include in the validation data. The complement
         is included in the train data. Cannot be provided at the same time as either train or validation size.
@@ -57,23 +58,28 @@ class Dataset(ABC):
         :param seed: seed to ensure repeatability of the split
 
         """
-        assert not ((validate_size or train_size) and self.validation_source_ids), 'Cannot provide train or validation data set sizes for a dataset with specified sources to include in validation!'
+        assert not ((validate_size or train_size) and self.validation_source_ids), \
+            'Cannot provide train or validation data set sizes for a dataset ' \
+            'with specified sources to include in validation!'
 
         source_ids = [m.source.id for m in self.measurements]
 
         if self.validation_source_ids:
-            if n_splits!=1:
+            if n_splits != 1:
                 LOG.warning('source ids for evaluation set were provided, but n_splits!=1. Is this intended?')
             for i in range(n_splits):
-                val_measurements = [measurement for measurement in self.measurements if measurement.source.id in self.validation_source_ids]
-                train_measurements = [measurement for measurement in self.measurements if measurement.source.id not in self.validation_source_ids]
+                val_measurements = [measurement for measurement in self.measurements if
+                                    measurement.source.id in self.validation_source_ids]
+                train_measurements = [measurement for measurement in self.measurements if
+                                      measurement.source.id not in self.validation_source_ids]
                 yield [Dataset(measurements=train_measurements), Dataset(measurements=val_measurements)]
 
         else:
             s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
-                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
+                       split]
 
     def get_pairs(self,
                   seed: Optional[int] = None,
@@ -163,8 +169,8 @@ class ASRDataset(Dataset):
             source_id_a = filename_a.split("_")[0]
             if info_a:
                 measurements.append(Measurement(
-                                Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}))
+                    Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                    extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}))
         self.measurements = measurements
 
     def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
