@@ -36,11 +36,11 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
         measured_value = real_value + measurement_error
         measurements = []
         for i in range(n_same_source):
-            measurements.append(Measurement(source=Source(id=i, extra={}), value=real_value[i], extra={}))
-            measurements.append(Measurement(source=Source(id=i, extra={}), value=measured_value[i], extra={}))
+            measurements.append(Measurement(source=Source(id=i, extra={}), value=np.array(real_value[i]), extra={}))
+            measurements.append(Measurement(source=Source(id=i, extra={}), value=np.array(measured_value[i]), extra={}))
         for i in range(min(n_same_source, n_diff_source)):
             measurements.append(Measurement(source=Source(id=n_same_source + i, extra={}),
-                                            value=other_value[i], extra={}))
+                                            value=np.array(other_value[i]), extra={}))
         return measurements
 
     def __repr__(self):

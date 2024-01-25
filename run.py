@@ -131,7 +131,7 @@ def run(exp: evaluation.Setup, exp_config: Configuration) -> None:
 if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
-    config = Configuration(confidence.load_name('lrbenchmark'), load_data_config(args.data_config))
+    config = Configuration(confidence.load_name('lrbenchmark'), *load_data_config(args.data_config))
     exp = evaluation.Setup(evaluate)
 
     run(exp, config)
