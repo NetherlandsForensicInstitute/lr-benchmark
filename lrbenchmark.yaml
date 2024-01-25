@@ -3,9 +3,9 @@ experiment:
   pairing:
     - balanced
   scorer:
-    - precalculated
-  calibrator:
     - logit
+  calibrator:
+    - elub_logit
   splitting_strategy:
     train_size: 0.8
     validate_size: .2

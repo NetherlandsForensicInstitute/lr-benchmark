@@ -72,11 +72,11 @@ SCORERS = {'precalculated': PrecalculatedScorerASR,
                                                                                'min_samples_leaf': [1, 2, 4],
                                                                                'min_samples_split': [2, 5, 10],
                                                                                'n_estimators': [5, 10, 20, 50, 100]},
-                                                          n_iter=100, cv=3))}
+                                                             n_iter=100, cv=3))}
 
 CALIBRATORS = {'logit': LogitCalibrator,
+               'elub_logit': partial(ELUBbounder, first_step_calibrator=LogitCalibrator()),
                'kde': KDECalibrator,
-               'elub': ELUBbounder,
                'dummy': DummyLogOddsCalibrator,
                'isotonic': IsotonicCalibrator}
 
