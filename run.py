@@ -63,8 +63,7 @@ def fit_and_evaluate(dataset: Dataset,
                                                   scorer)
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
-            current_validation_lrs = calibrator.transform(validation_scores)
-            validate_lrs.append(current_validation_lrs)
+            validate_lrs.append(calibrator.transform(validation_scores))
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
 
