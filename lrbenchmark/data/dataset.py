@@ -138,8 +138,8 @@ class ASRDataset(Dataset):
         measurements = []
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
-            info_a = recording_data.get(filename_a.replace('_30s', ''))
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
+            info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
