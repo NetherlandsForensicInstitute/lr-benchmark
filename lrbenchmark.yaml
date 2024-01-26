@@ -1,17 +1,21 @@
 experiment:
   repeats: 1
   pairing:
-    - balanced
+    - name: balanced
   scorer:
-    - precalculated
+    - name: logit
+      preprocessors:
+          - name: abs_diff
+          - name: rank_transformer
+    - name: lda
+      preprocessors:
+          - name: abs_diff
+          - name: rank_transformer
   calibrator:
-    - logit
+    - name: logit
   splitting_strategy:
     train_size: 0.8
     validate_size: .2
     n_splits: 2
   refnorm:
     refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
-  preprocessor:
-    pipeline:
-      rank_transformer: rank_transformer

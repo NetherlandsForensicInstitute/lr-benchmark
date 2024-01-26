@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.pairing import CartesianPairing, BasePairing
+from lrbenchmark.typing import PathLike
 
 
 class Dataset(ABC):
@@ -84,22 +85,22 @@ class XTCDataset(Dataset):
 
 
 class GlassDataset(Dataset):
-    def __init__(self):
+    def __init__(self, measurements_folder: Optional[PathLike] = None):
+        self.measurements_folder = measurements_folder
         super().__init__()
 
-        datasets = {'duplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
-                                 'elemental_composition_glass/main/duplo.csv',
-                    'training.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
-                                    'elemental_composition_glass/main/training.csv',
-                    'triplo.csv': 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/'
-                                  'elemental_composition_glass/main/triplo.csv'}
-        glass_folder = os.path.join('resources', 'glass')
+        glass_files = ['duplo.csv', 'training.csv', 'triplo.csv']
+        if not self.measurements_folder:
+            path = 'https://raw.githubusercontent.com/NetherlandsForensicInstitute/elemental_composition_glass/main/'
+            glass_folder = os.path.join('resources', 'glass')
+            for file in glass_files:
+                download_dataset_file(glass_folder, file, os.path.join(path, file))
+            self.measurements_folder = glass_folder
 
         measurements = []
         max_item = 0
-        for file, url in datasets.items():
-            download_dataset_file(glass_folder, file, url)
-            path = os.path.join(glass_folder, file)
+        for file in glass_files:
+            path = os.path.join(self.measurements_folder, file)
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),

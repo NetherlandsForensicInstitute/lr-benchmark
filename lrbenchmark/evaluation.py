@@ -35,19 +35,6 @@ from typing import Optional, List, Any, Dict, Union
 LOG = logging.getLogger(__name__)
 
 
-class DescribedValue:
-    def __init__(self, value: Any, desc: Optional[str] = None):
-        if isinstance(value, DescribedValue):
-            self.value = value.value
-            self._desc = desc or value._desc
-        else:
-            self.value = value
-            self._desc = desc
-
-    def __repr__(self):
-        return self._desc or str(self.value)
-
-
 class Setup:
     def __init__(self, evaluate: Callable):
         self._evaluate = evaluate
@@ -57,14 +44,14 @@ class Setup:
         """
         Defines a parameter with name `name` and optionally a default value.
         """
-        self._default_values[name] = DescribedValue(default_value)
+        self._default_values[name] = default_value
         return self
 
     def default_values(self):
         """
         Returns a dictionary with default parameter names and values as key/value.
         """
-        return {name: described_value.value for name, described_value in self._default_values.items()}
+        return {name: value for name, value in self._default_values.items()}
 
     def run_full_grid(self, parameter_ranges: Dict[str, List[Any]], default_values: Optional[Dict[str, Any]] = None):
         """
@@ -79,7 +66,7 @@ class Setup:
         combinations = itertools.product(*parameter_ranges.values())
 
         experiments = [
-            collections.OrderedDict([(dim, DescribedValue(combi[i])) for i, dim in enumerate(parameter_ranges.keys())])
+            collections.OrderedDict([(dim, combi[i]) for i, dim in enumerate(parameter_ranges.keys())])
             for combi in combinations]
         yield from self.run_experiments(experiments, default_values=default_values)
 
@@ -92,7 +79,7 @@ class Setup:
             - values: the values to try out in this search
             - default_values: any predefined parameter values
         """
-        experiments = [{name: DescribedValue(value)} for value in values]
+        experiments = [{name: value} for value in values]
         yield from self.run_experiments(experiments, default_values=default_values)
 
     def run_defaults(self):
@@ -116,7 +103,7 @@ class Setup:
 
         param_values = defaults.copy()
         for name, value in param_set.items():
-            param_values[name] = value.value
+            param_values[name] = value
 
         result = self._evaluate(**param_values)
         return param_set, param_values, result
