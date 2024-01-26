@@ -3,4 +3,6 @@ dataset:
     scores_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
     meta_info_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
     source_filter:
-      sex: M
+      sex: M # todo mogelijkmaken meerdere opties
+    trace_typicalities:
+    reference_typicalities:

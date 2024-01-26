@@ -46,8 +46,10 @@ def evaluate(dataset: Dataset,
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm.refnorm_size, seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
                                                                   **experiment_config.experiment.splitting_strategy):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                  split_trace_reference=experiment_config.experiment.split_trace_reference)
+            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                        split_trace_reference=experiment_config.experiment.split_trace_reference)
 
             # todo: what to do with the preprocessor?
             # todo: another way to get the paths in the scorer?

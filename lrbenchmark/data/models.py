@@ -28,6 +28,7 @@ class Measurement:
     """
     source: Source
     extra: Mapping[str, Any]
+    is_like_reference: Optional[bool] = None  # False -> like trace, None -> not specified
     value: Optional[Any] = None
 
     def get_x(self) -> np.ndarray:

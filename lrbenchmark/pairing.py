@@ -14,7 +14,10 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def transform(self, measurements: Iterable[Measurement], seed: Optional[int] = None) -> List[MeasurementPair]:
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         raise NotImplementedError
 
 
@@ -30,8 +33,15 @@ class CartesianPairing(BasePairing):
     def fit(self, measurements: Iterable[Measurement]):
         return self
 
-    def transform(self, measurements: Iterable[Measurement], seed: Optional[int] = None) -> List[MeasurementPair]:
-        return [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+        all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
+        if split_trace_reference:
+            all_pairs = [mp for mp in all_pairs if
+                         mp.measurement_a.is_like_reference is True and mp.measurement_b.is_like_reference is False]
+        return all_pairs
 
 
 class BalancedPairing(BasePairing):
@@ -42,7 +52,10 @@ class BalancedPairing(BasePairing):
     def fit(self, measurements: Iterable[Measurement]):
         return self
 
-    def transform(self, measurements: Iterable[Measurement], seed=None) -> List[MeasurementPair]:
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]

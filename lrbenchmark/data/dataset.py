@@ -55,7 +55,8 @@ class Dataset(ABC):
 
     def get_pairs(self,
                   seed: Optional[int] = None,
-                  pairing_function: BasePairing = CartesianPairing()) -> List[MeasurementPair]:
+                  pairing_function: BasePairing = CartesianPairing(),
+                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -64,7 +65,10 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed)
+        if split_trace_reference and all(m.is_like_reference is None for m in self.measurements):
+            raise ValueError("Want to split trace and reference measurements, but attribute 'is_like_reference' is not "
+                             "set for any measurement.")
+        return pairing_function.transform(self.measurements, seed=seed, split_trace_reference=split_trace_reference)
 
 
 class XTCDataset(Dataset):
@@ -121,10 +125,12 @@ class ASRDataset(Dataset):
     A dataset containing paired measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path, source_filter):
+    def __init__(self, scores_path, meta_info_path, source_filter, reference_typicalities, trace_typicalities):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
+        self.reference_typicalities = reference_typicalities
+        self.trace_typicalities = trace_typicalities
         super().__init__()
 
         with open(self.scores_path, "r") as f:
@@ -141,10 +147,19 @@ class ASRDataset(Dataset):
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
+                if self.reference_typicalities is None and self.trace_typicalities is None:
+                    is_like_reference = None
+                elif all([info_a.get(key) == val for key, val in self.reference_typicalities.items()]):
+                    is_like_reference = True
+                elif all([info_a.get(key) == val for key, val in self.trace_typicalities.items()]):
+                    is_like_reference = False
+                else:
+                    is_like_reference = None
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                                is_like_reference=is_like_reference,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
-                                       'actual_duration': duration}))
+                                       'actual_duration': duration, 'auto': info_a['auto']}))
         self.measurements = measurements
 
     @staticmethod
