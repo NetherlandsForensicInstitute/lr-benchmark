@@ -5,4 +5,6 @@ dataset:
     source_filter:
       sex: M # todo mogelijkmaken meerdere opties
     trace_typicalities:
+      auto: ja
     reference_typicalities:
+      auto: nee

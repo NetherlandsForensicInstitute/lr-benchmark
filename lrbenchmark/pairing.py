@@ -39,6 +39,7 @@ class CartesianPairing(BasePairing):
                   split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         if split_trace_reference:
+            # todo: moeten we hier nog checken of er paren bestaan?
             all_pairs = [mp for mp in all_pairs if
                          mp.measurement_a.is_like_reference is True and mp.measurement_b.is_like_reference is False]
         return all_pairs
