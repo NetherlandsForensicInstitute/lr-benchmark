@@ -18,7 +18,9 @@ from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorerASR, M
 
 PAIRING = {'cartesian': CartesianPairing, 'balanced': BalancedPairing}
 
-SCORERS = {'precalculated': partial(PrecalculatedScorerASR, **load_data_config('asr')),
+SCORERS = {'precalculated_asr': partial(PrecalculatedScorerASR,
+                                    scores_path=load_data_config('asr').dataset['scores_path'],
+                                    meta_info_path=load_data_config('asr').dataset['meta_info_path']),
            'lda': partial(MeasurementPairScorer, LDA),
            'qda': partial(MeasurementPairScorer, QDA),
            'gb': partial(MeasurementPairScorer, GradientBoostingClassifier),
@@ -43,8 +45,8 @@ SCORERS = {'precalculated': partial(PrecalculatedScorerASR, **load_data_config('
                                                                                  cv=3))}
 
 CALIBRATORS = {'logit': LogitCalibrator,
+               'elub_logit': partial(ELUBbounder, first_step_calibrator=LogitCalibrator()),
                'kde': KDECalibrator,
-               'elub': ELUBbounder,
                'dummy': DummyLogOddsCalibrator,
                'isotonic': IsotonicCalibrator}
 
