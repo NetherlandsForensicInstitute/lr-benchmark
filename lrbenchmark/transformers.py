@@ -75,9 +75,6 @@ class PrecalculatedScorerASR(BaseScorer):
         self.fit(measurement_pairs)
         return self.predict(measurement_pairs)
 
-    def add_preprocessing(self, preprocessor):
-        raise ValueError('Preprocessor currently not allowed for asr dataset')
-
     def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
         """
         Read annotations containing information of the recording and speaker.
@@ -90,17 +87,20 @@ class PrecalculatedScorerASR(BaseScorer):
 
 
 class MeasurementPairScorer(BaseScorer):
-    def __init__(self, scorer, preprocessors: Sequence[TransformerMixin]):
-        self.transformer = Pipeline([(v.__class__.__name__, v) for v in preprocessors])
+    def __init__(self, scorer, preprocessors: Optional[Sequence[TransformerMixin]]):
+        self.transformer = Pipeline([(v.__class__.__name__, v) for v in preprocessors]) if preprocessors else None
         self.scorer = scorer()
 
     def fit(self, measurement_pairs: Iterable[MeasurementPair]):
-        X = self.transformer.fit_transform(np.array([mp.get_x() for mp in measurement_pairs]))
+        X = np.array([mp.get_x() for mp in measurement_pairs])
+        if self.transformer:
+            X = self.transformer.fit_transform(X)
         y = [mp.is_same_source for mp in measurement_pairs]
         self.scorer.fit(X, y)
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
-        X = self.transformer.transform(np.array([mp.get_x() for mp in measurement_pairs]))
+        if self.transformer:
+            X = self.transformer.transform(np.array([mp.get_x() for mp in measurement_pairs]))
         return self.scorer.predict_proba(X)[:, 1]
 
     def fit_predict(self,
