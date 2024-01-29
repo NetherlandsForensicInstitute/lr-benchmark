@@ -3,11 +3,11 @@ experiment:
   pairing:
     - name: balanced
   scorer:
-    - name: precalculated_asr
-#    - name: logit
-#      preprocessors:
-#          - name: abs_diff
-#          - name: rank_transformer
+#    - name: precalculated_asr
+    - name: logit
+      preprocessors:
+          - name: abs_diff
+          - name: rank_transformer
 #    - name: lda
 #      preprocessors:
 #          - name: abs_diff
@@ -18,5 +18,5 @@ experiment:
     train_size: 0.8
     validate_size: .2
     n_splits: 2
-#  refnorm:
-#    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
+  refnorm:
+    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method

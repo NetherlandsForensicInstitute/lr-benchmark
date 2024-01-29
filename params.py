@@ -51,7 +51,7 @@ CALIBRATORS = {'logit': LogitCalibrator,
                'isotonic': IsotonicCalibrator}
 
 DATASETS = {'asr': ASRDataset,
-            'drugs_xtc': XTCDataset,
+            'xtc': XTCDataset,
             'glass': GlassDataset,
             'synthesized_normal': SynthesizedNormalDataset}
 

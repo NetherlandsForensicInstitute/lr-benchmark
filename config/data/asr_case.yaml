@@ -1,7 +1,7 @@
 dataset:
-  asr:
-    scores_path: /mnt/projects/fbda/Profi_ASR/data/scorematrix.csv # change this
-    meta_info_path: /mnt/projects/fbda/Profi_ASR/data/recordings_anon.txt # change this
-    holdout_source_ids:
-      109051
-      114844
+  name: asr
+  scores_path: /mnt/projects/fbda/Profi_ASR/data/scorematrix.csv # change this
+  meta_info_path: /mnt/projects/fbda/Profi_ASR/data/recordings_anon.txt # change this
+  holdout_source_ids:
+    109051
+    114844
