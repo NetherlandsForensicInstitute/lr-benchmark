@@ -129,8 +129,8 @@ class ASRDataset(Dataset):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
-        self.reference_typicalities = reference_typicalities
-        self.trace_typicalities = trace_typicalities
+        self.reference_typicalities = reference_typicalities or {}
+        self.trace_typicalities = trace_typicalities or {}
         super().__init__()
 
         with open(self.scores_path, "r") as f:
@@ -147,17 +147,19 @@ class ASRDataset(Dataset):
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
-                if self.reference_typicalities is None and self.trace_typicalities is None:
-                    is_like_reference = None
-                elif all([info_a.get(key) == val for key, val in self.reference_typicalities.items()]):
+                if all([info_a.get(key) == val for key, val in self.reference_typicalities.items()]):
                     is_like_reference = True
-                elif all([info_a.get(key) == val for key, val in self.trace_typicalities.items()]):
-                    is_like_reference = False
                 else:
-                    is_like_reference = None
+                    is_like_reference = False
+
+                if all([info_a.get(key) == val for key, val in self.trace_typicalities.items()]):
+                    is_like_trace = True
+                else:
+                    is_like_trace = False
+
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                                is_like_reference=is_like_reference,
+                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
         self.measurements = measurements

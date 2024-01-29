@@ -25,10 +25,12 @@ class Measurement:
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
     :param value: the value of the measurement
+    # TODO
     """
     source: Source
     extra: Mapping[str, Any]
-    is_like_reference: Optional[bool] = None  # False -> like trace, None -> not specified
+    is_like_reference: Optional[bool] = None
+    is_like_trace: Optional[bool] = None
     value: Optional[Any] = None
 
     def get_x(self) -> np.ndarray:

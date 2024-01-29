@@ -6,5 +6,7 @@ dataset:
       sex: M # todo mogelijkmaken meerdere opties
     trace_typicalities:
       auto: ja
+      duration: 12
     reference_typicalities:
       auto: nee
+      duration: 18

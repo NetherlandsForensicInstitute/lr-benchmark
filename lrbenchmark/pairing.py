@@ -42,6 +42,7 @@ class CartesianPairing(BasePairing):
             # todo: moeten we hier nog checken of er paren bestaan?
             all_pairs = [mp for mp in all_pairs if
                          mp.measurement_a.is_like_reference is True and mp.measurement_b.is_like_reference is False]
+            # is like trace and is like reference
         return all_pairs
 
 
