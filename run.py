@@ -17,30 +17,33 @@ from tqdm import tqdm
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.pairing import BasePairing
+from lrbenchmark.pairing import BasePairing, CartesianPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import parse_config, config_option_dicts
 
 
-def evaluate(dataset: Dataset,
-             pairing_function: BasePairing,
-             calibrator: BaseEstimator,
-             scorer: BaseScorer,
-             experiment_config: Configuration,
-             selected_params: Dict[str, Any] = None,
-             refnorm: Optional[Configuration] = None,
-             repeats: int = 1) -> Dict:
+def fit_and_evaluate(dataset: Dataset,
+                     pairing_function: BasePairing,
+                     calibrator: BaseEstimator,
+                     scorer: BaseScorer,
+                     experiment_config: Configuration,
+                     selected_params: Dict[str, Any] = None,
+                     refnorm: Optional[Configuration] = None,
+                     repeats: int = 1) -> Dict:
     """
-    Measures performance for an LR system with given parameters
+    Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
     validate_lrs = []
     validate_labels = []
     validate_scores = []
 
     dataset_refnorm = None
+    holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+        # split off the sources that should only be evaluated
+        holdout_set, dataset = dataset.split_off_holdout_set()
         if refnorm and refnorm['refnorm_size']:
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
@@ -61,6 +64,15 @@ def evaluate(dataset: Dataset,
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
 
+    # retrain with everything, and apply to the holdout (after the repeat loop)
+    if holdout_set:
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
+        holdout_scores = scorer.predict(holdout_pairs)
+        if refnorm:
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
+                                             scorer)
+        holdout_lrs = calibrator.transform(holdout_scores)
+
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
     validate_scores = np.concatenate(validate_scores)
@@ -76,6 +88,10 @@ def evaluate(dataset: Dataset,
     results = {'desc': get_experiment_description(selected_params),
                'figures': figs, **lr_metrics._asdict(),
                'auc': roc_auc_score(validate_labels, validate_scores)}
+
+    if holdout_set:
+        # holdout set was specified, record LRs. Only takes those from the last repeat.
+        results['holdout_lrs'] = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
     return results
 
@@ -110,12 +126,21 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write results to file
-    with open(prepare_output_file(f'{folder_name}/all_results.csv'), 'w') as file:
+    with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
         fieldnames = ['desc', 'auc', 'acc', 'cllr', 'cllr_min', 'cllr_cal']
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
             writer.writerow({fieldname: value for fieldname, value in result_row.items() if fieldname in fieldnames})
+
+    # write LRs to file
+    if 'holdout_lrs' in agg_result[0]:
+        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
+            writer = csv.writer(file)
+            writer.writerow(['desc', 'pair', 'LR'])
+            for result_row in agg_result:
+                for pair_desc, lr in result_row['holdout_lrs'].items():
+                    writer.writerow([result_row['desc'], pair_desc, lr])
 
     # save figures and results per parameter set
     for result_row, param_set in zip(agg_result, param_sets):
@@ -130,6 +155,6 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
     config = Configuration(confidence.load_name('lrbenchmark'), load_data_config(args.data_config))
-    exp = evaluation.Setup(evaluate)
+    exp = evaluation.Setup(fit_and_evaluate)
 
     run(exp, config)
