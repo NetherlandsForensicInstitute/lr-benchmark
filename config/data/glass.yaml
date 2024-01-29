@@ -1,2 +1,3 @@
 dataset:
-  glass:
+  name: glass
+  measurements_folder: resources/glass # change this
