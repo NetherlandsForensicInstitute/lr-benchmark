@@ -173,22 +173,21 @@ class ASRDataset(Dataset):
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
-                if all([info_a.get(key) == val for key, val in self.reference_typicalities.items()]):
-                    is_like_reference = True
-                else:
-                    is_like_reference = False
-
-                if all([info_a.get(key) == val for key, val in self.trace_typicalities.items()]):
-                    is_like_trace = True
-                else:
-                    is_like_trace = False
+                is_like_reference = all([info_a.get(key) == val for key, val in self.reference_typicalities.items()])
+                is_like_trace = all([info_a.get(key) == val for key, val in self.trace_typicalities.items()])
 
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
+            elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
+                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a}))
         self.measurements = measurements
+
+    def check_dingetje(self, duration, info):
+        all([info_a.get(key) == val for key, val in self.reference_typicalities.items()])
+        return 
 
     @staticmethod
     def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
