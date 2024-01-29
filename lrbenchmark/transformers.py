@@ -50,18 +50,12 @@ class PrecalculatedScorerASR(BaseScorer):
         header_measurement_data = np.array(data[0][1:])
         measurement_data = np.array(data)[1:, 1:]
 
-        recording_data = self.load_recording_annotations(data_config.asr.meta_info_path)
-
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
             filename_a = header_measurement_data[i]
-            info_a = recording_data.get(filename_a.replace('_30s', ''))
-            if info_a:  # check whether there is recording info present for the first file
-                for j in range(i + 1, measurement_data.shape[1]):
-                    filename_b = header_measurement_data[j]
-                    info_b = recording_data.get(filename_b.replace('_30s', ''))
-                    if info_b:  # check whether there is recording info present for the other file
-                        self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
-                        self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
+            for j in range(i + 1, measurement_data.shape[1]):
+                filename_b = header_measurement_data[j]
+                self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
+                self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
         return np.array([self.scores[(measurement_pair.measurement_a.extra['filename'],

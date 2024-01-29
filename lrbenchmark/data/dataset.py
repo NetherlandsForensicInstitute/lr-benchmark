@@ -168,6 +168,9 @@ class ASRDataset(Dataset):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                     extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}))
+            elif source_id_a == "Case":
+                measurements.append(Measurement(
+                    Source(id=source_id_a, extra={}), extra={'filename': filename_a}))
         self.measurements = measurements
 
     def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:

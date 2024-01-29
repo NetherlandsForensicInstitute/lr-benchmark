@@ -3,15 +3,15 @@ experiment:
   pairing:
     - balanced
   scorer:
-    - logit
+    - precalculated
   calibrator:
     - elub_logit
   splitting_strategy:
     train_size: 0.8
     validate_size: .2
-    n_splits: 2
+    n_splits: 1
   refnorm:
-    refnorm_size: 0.2 # If empty, the trainset will be used as refnorm dataset, with the leave-one-out method
+    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the leave-one-out method
   preprocessor:
     pipeline:
       rank_transformer: rank_transformer

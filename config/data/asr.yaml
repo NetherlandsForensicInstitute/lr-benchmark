@@ -1,4 +1,4 @@
 dataset:
   asr:
-    scores_path: /mnt/projects/fbda/Profi_ASR/data/scorematrix.csv # change this
-    meta_info_path: /mnt/projects/fbda/Profi_ASR/data/recordings_anon.txt # change this
+    scores_path: \\fbda-prj.projects.holmes.nl\PROJECTS\Profi_ASR\data\scorematrix_Apollo_klein.csv # change this
+    meta_info_path: \\fbda-prj.projects.holmes.nl\PROJECTS\Profi_ASR\data\recordings_anon.txt # change this
