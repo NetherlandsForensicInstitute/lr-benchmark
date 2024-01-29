@@ -41,6 +41,9 @@ class Measurement:
     def get_y(self) -> int:
         return self.source.id
 
+    def __str__(self):
+        return f'source_id: {self.source.id}, {self.extra}'
+
 
 @dataclass
 class MeasurementPair:
@@ -72,3 +75,6 @@ class MeasurementPair:
 
     def get_y(self) -> bool:
         return self.is_same_source
+
+    def __str__(self):
+        return f'[{self.measurement_a} - {self.measurement_b}]'

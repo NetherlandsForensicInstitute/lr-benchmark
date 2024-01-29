@@ -1,18 +1,23 @@
 experiment:
   repeats: 1
   pairing:
-    - cartesian
+    - name: cartesian
   split_trace_reference: True
   scorer:
-    - precalculated
+    - name: precalculated_asr
+#    - name: logit
+#      preprocessors:
+#          - name: abs_diff
+#          - name: rank_transformer
+#    - name: lda
+#      preprocessors:
+#          - name: abs_diff
+#          - name: rank_transformer
   calibrator:
-    - logit
+    - name: elub_logit
   splitting_strategy:
     train_size: 0.8
-    validate_size: 0.2
-    n_splits: 2
+    validate_size: .2
+    n_splits: 1
   refnorm:
-    refnorm_size: 10 # If empty, the train set will be used as refnorm dataset, with the LOO method
-  preprocessor:
-    pipeline:
-      rank_transformer: rank_transformer
+    refnorm_size: 2 # If empty, the trainset will be used as refnorm dataset, with the LOO method

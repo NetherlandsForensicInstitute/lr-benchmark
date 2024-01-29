@@ -1,12 +1,12 @@
 dataset:
-  asr:
-    scores_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
-    meta_info_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
-    source_filter:
-      sex: M # todo mogelijkmaken meerdere opties
-    trace_typicalities:
-      auto: ja
-      duration: 12
-    reference_typicalities:
-      auto: nee
-      duration: 18
+  name: asr
+  scores_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
+  meta_info_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
+  source_filter:
+    sex: M # todo mogelijkmaken meerdere opties
+  trace_typicalities:
+    auto: ja
+    duration: 12
+  reference_typicalities:
+    auto: nee
+    duration: 18

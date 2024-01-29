@@ -10,61 +10,68 @@ import matplotlib.pyplot as plt
 import numpy as np
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
-from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.base import BaseEstimator
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.pairing import BasePairing
+from lrbenchmark.pairing import BasePairing, CartesianPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
-from params import SCORERS, CALIBRATORS, DATASETS, PREPROCESSORS, get_parameters, PAIRING
+from params import parse_config, config_option_dicts
 
 
-def evaluate(dataset: Dataset,
-             preprocessor: TransformerMixin,
-             pairing_function: BasePairing,
-             calibrator: BaseEstimator,
-             scorer: BaseScorer,
-             experiment_config: Configuration,
-             selected_params: Dict[str, Any] = None,
-             refnorm: Optional[Configuration] = None,
-             repeats: int = 1) -> Dict:
+def fit_and_evaluate(dataset: Dataset,
+                     pairing_function: BasePairing,
+                     calibrator: BaseEstimator,
+                     scorer: BaseScorer,
+                     experiment_config: Configuration,
+                     selected_params: Dict[str, Any] = None,
+                     refnorm: Optional[Configuration] = None,
+                     repeats: int = 1) -> Dict:
     """
-    Measures performance for an LR system with given parameters
+    Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
     validate_lrs = []
     validate_labels = []
     validate_scores = []
 
     dataset_refnorm = None
+    holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        if refnorm.refnorm_size:
-            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm.refnorm_size, seed=idx))
+        # split off the sources that should only be evaluated
+        holdout_set, dataset = dataset.split_off_holdout_set()
+        if refnorm and refnorm['refnorm_size']:
+            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
-                                                                  **experiment_config.experiment.splitting_strategy):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  split_trace_reference=experiment_config.experiment.split_trace_reference)
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        split_trace_reference=experiment_config.experiment.split_trace_reference)
+                                                                  **experiment_config['splitting_strategy']):
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx, split_trace_reference=experiment_config.experiment.split_trace_reference)
+            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx, split_trace_reference=experiment_config.experiment.split_trace_reference)
 
-            # todo: what to do with the preprocessor?
-            # todo: another way to get the paths in the scorer?
-            train_scores = scorer.fit_predict(train_pairs, experiment_config.dataset)
+            train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
 
             if refnorm:
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
                 validation_scores = perform_refnorm(validation_scores, validate_pairs, dataset_refnorm or dataset_train,
-                                                  scorer)
+                                                    scorer)
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
             validate_lrs.append(calibrator.transform(validation_scores))
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
+
+    # retrain with everything, and apply to the holdout (after the repeat loop)
+    if holdout_set:
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
+        holdout_scores = scorer.predict(holdout_pairs)
+        if refnorm:
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
+                                             scorer)
+        holdout_lrs = calibrator.transform(holdout_scores)
 
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
@@ -82,24 +89,29 @@ def evaluate(dataset: Dataset,
                'figures': figs, **lr_metrics._asdict(),
                'auc': roc_auc_score(validate_labels, validate_scores)}
 
+    if holdout_set:
+        # holdout set was specified, record LRs. Only takes those from the last repeat.
+        results['holdout_lrs'] = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
+
     return results
 
 
-def run(exp: evaluation.Setup, exp_config: Configuration) -> None:
+def run(exp: evaluation.Setup, config: Configuration) -> None:
     """
     Executes experiments and saves results to file.
     :param exp: Helper class for execution of experiments.
-    :param exp_config: Experiment parameters.
+    :param config: configuration
     """
-    exp_params = exp_config.experiment
-    exp.parameter('repeats', exp_params.repeats)
-    exp.parameter('refnorm', exp_params.refnorm)
+
+    config_resolved = parse_config(config, config_option_dicts)
+    exp_config = config_resolved['experiment']
+    exp.parameter('repeats', exp_config['repeats'])
+    exp.parameter('refnorm', exp_config.get('refnorm', None))
     exp.parameter('experiment_config', exp_config)
-    parameters = {'dataset': get_parameters(exp_config.dataset, DATASETS),
-                  'pairing_function': get_parameters(exp_params.pairing, PAIRING),
-                  'preprocessor': get_parameters(exp_params.preprocessor, PREPROCESSORS),
-                  'scorer': get_parameters(exp_params.scorer, SCORERS),
-                  'calibrator': get_parameters(exp_params.calibrator, CALIBRATORS)}
+    exp.parameter('dataset', config_resolved['dataset'])
+    parameters = {'pairing_function': exp_config['pairing'],
+                  'scorer': exp_config['scorer'],
+                  'calibrator': exp_config['calibrator']}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '
@@ -114,17 +126,26 @@ def run(exp: evaluation.Setup, exp_config: Configuration) -> None:
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write results to file
-    with open(prepare_output_file(f'{folder_name}/all_results.csv'), 'w') as file:
+    with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
         fieldnames = ['desc', 'auc', 'acc', 'cllr', 'cllr_min', 'cllr_cal']
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
             writer.writerow({fieldname: value for fieldname, value in result_row.items() if fieldname in fieldnames})
 
+    # write LRs to file
+    if 'holdout_lrs' in agg_result[0]:
+        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
+            writer = csv.writer(file)
+            writer.writerow(['desc', 'pair', 'LR'])
+            for result_row in agg_result:
+                for pair_desc, lr in result_row['holdout_lrs'].items():
+                    writer.writerow([result_row['desc'], pair_desc, lr])
+
     # save figures and results per parameter set
     for result_row, param_set in zip(agg_result, param_sets):
         for fig_name, fig in result_row['figures'].items():
-            short_description = ' - '.join([str(val)[:5] for val in param_set.values()])
+            short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
             path = f'{folder_name}/{short_description}/{fig_name}'
             prepare_output_file(path)
             fig.savefig(path)
@@ -134,6 +155,6 @@ if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
     config = Configuration(confidence.load_name('lrbenchmark'), load_data_config(args.data_config))
-    exp = evaluation.Setup(evaluate)
+    exp = evaluation.Setup(fit_and_evaluate)
 
     run(exp, config)
