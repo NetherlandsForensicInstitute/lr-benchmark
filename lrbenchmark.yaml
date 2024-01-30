@@ -20,4 +20,4 @@ experiment:
     validate_size: .2
     n_splits: 1
   refnorm:
-    refnorm_size: 2 # If empty, the trainset will be used as refnorm dataset, with the LOO method
+    refnorm_size: 20 # If empty, the trainset will be used as refnorm dataset, with the LOO method
