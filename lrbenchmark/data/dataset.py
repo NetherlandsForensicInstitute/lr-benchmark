@@ -172,9 +172,9 @@ class ASRDataset(Dataset):
             filename_a = header_measurement_data[i]
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
-            if info_a and check_rules(info_a, self.source_filter, {'duration': duration}):
-                is_like_reference = check_rules(info_a, self.reference_typicalities, {'duration': duration})
-                is_like_trace = check_rules(info_a, self.trace_typicalities, {'duration': duration})
+            if info_a and check_rules(self.source_filter, info_a, {'duration': duration}):
+                is_like_reference = check_rules(self.reference_typicalities, info_a, {'duration': duration})
+                is_like_trace = check_rules(self.trace_typicalities, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
