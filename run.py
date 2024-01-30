@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import csv
-from collections import namedtuple
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -21,11 +20,10 @@ from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
+from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import parse_config, config_option_dicts
 
-
-Result = namedtuple('Result', 'metrics figures holdout_lrs')
 
 def fit_and_evaluate(dataset: Dataset,
                      pairing_function: BasePairing,
