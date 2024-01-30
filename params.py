@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, Union, Optional, Iterable, MutableMapping, Callable, Mapping
 
 from lir import LogitCalibrator, KDECalibrator, ELUBbounder, DummyLogOddsCalibrator, IsotonicCalibrator
-import lir.plotting
 from lir.transformers import PercentileRankTransformer, AbsDiffTransformer
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA, LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
@@ -20,8 +19,8 @@ from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorerASR, M
 PAIRING = {'cartesian': CartesianPairing, 'balanced': BalancedPairing}
 
 SCORERS = {'precalculated_asr': partial(PrecalculatedScorerASR,
-                                    scores_path=load_data_config('asr').dataset['scores_path'],
-                                    meta_info_path=load_data_config('asr').dataset['meta_info_path']),
+                                        scores_path=load_data_config('asr').dataset['scores_path'],
+                                        meta_info_path=load_data_config('asr').dataset['meta_info_path']),
            'lda': partial(MeasurementPairScorer, LDA),
            'qda': partial(MeasurementPairScorer, QDA),
            'gb': partial(MeasurementPairScorer, GradientBoostingClassifier),
@@ -60,15 +59,11 @@ PREPROCESSORS = {'dummy': DummyTransformer,
                  'rank_transformer': PercentileRankTransformer,
                  'abs_diff': AbsDiffTransformer}
 
-# PLOTS = {'lr_distribution': lir.plotting.lr_histogram,
-#          'ece': lir.}
-
 config_option_dicts = {'scorer': SCORERS,
                        'pairing': PAIRING,
                        'preprocessors': PREPROCESSORS,
                        'dataset': DATASETS,
                        'calibrator': CALIBRATORS}
-
 
 
 def parse_config(config: Union[str, Path, Mapping[str, Any]],
