@@ -48,8 +48,10 @@ def fit_and_evaluate(dataset: Dataset,
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
                                                                   **experiment_config['splitting_strategy']):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx, split_trace_reference=experiment_config.experiment.split_trace_reference)
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx, split_trace_reference=experiment_config.experiment.split_trace_reference)
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                  split_trace_reference=experiment_config.get('split_trace_reference'))
+            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                        split_trace_reference=experiment_config.get('split_trace_reference'))
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)

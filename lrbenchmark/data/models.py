@@ -24,8 +24,9 @@ class Measurement:
 
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
+    :param is_like_reference: indication of whether the measurement is similar to reference measurements
+    :param is_like_trace: indication of whether the measurement is similar to trace measurements
     :param value: the value of the measurement
-    # TODO
     """
     source: Source
     extra: Mapping[str, Any]

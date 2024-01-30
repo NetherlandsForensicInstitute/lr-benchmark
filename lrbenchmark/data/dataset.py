@@ -3,7 +3,7 @@ import logging
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple
+from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple, Dict
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -12,6 +12,7 @@ from tqdm import tqdm
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.pairing import CartesianPairing, BasePairing
 from lrbenchmark.typing import PathLike
+from lrbenchmark.utils import check_rules
 
 LOG = logging.getLogger(__name__)
 
@@ -91,9 +92,6 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        if split_trace_reference and all(m.is_like_reference is None for m in self.measurements):
-            raise ValueError("Want to split trace and reference measurements, but attribute 'is_like_reference' is not "
-                             "set for any measurement.")
         return pairing_function.transform(self.measurements, seed=seed, split_trace_reference=split_trace_reference)
 
 
@@ -148,10 +146,12 @@ class GlassDataset(Dataset):
 
 class ASRDataset(Dataset):
     """
-    A dataset containing paired measurements for the purpose of automatic speaker recognition.
+    A dataset containing measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path, source_filter, reference_typicalities, trace_typicalities, **kwargs):
+    def __init__(self, scores_path: PathLike, meta_info_path: PathLike, source_filter: Optional[Mapping[str, str]],
+                 reference_typicalities: Optional[Mapping[str, str]], trace_typicalities: Optional[Mapping[str, str]],
+                 **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
@@ -172,10 +172,9 @@ class ASRDataset(Dataset):
             filename_a = header_measurement_data[i]
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
-            if info_a and all([info_a.get(key) == val for key, val in self.source_filter.items()]):
-                is_like_reference = all([info_a.get(key) == val for key, val in self.reference_typicalities.items()])
-                is_like_trace = all([info_a.get(key) == val for key, val in self.trace_typicalities.items()])
-
+            if info_a and check_rules(info_a, self.source_filter, {'duration': duration}):
+                is_like_reference = check_rules(info_a, self.reference_typicalities, {'duration': duration})
+                is_like_trace = check_rules(info_a, self.trace_typicalities, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
@@ -184,10 +183,6 @@ class ASRDataset(Dataset):
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a}))
         self.measurements = measurements
-
-    def check_dingetje(self, duration, info):
-        all([info_a.get(key) == val for key, val in self.reference_typicalities.items()])
-        return 
 
     @staticmethod
     def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
@@ -198,8 +193,7 @@ class ASRDataset(Dataset):
         duration = duration.split("s")[0]
         return source_id, int(duration)
 
-
-    def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
+    def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """
         Read annotations containing information of the recording and speaker.
         """

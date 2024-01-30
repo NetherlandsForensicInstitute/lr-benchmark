@@ -1,6 +1,6 @@
 import csv
 from abc import ABC, abstractmethod
-from typing import Iterable, Mapping, Optional, Sequence
+from typing import Iterable, Optional, Sequence
 
 import numpy as np
 from confidence import Configuration

@@ -3,10 +3,13 @@ dataset:
   scores_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
   meta_info_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
   source_filter:
-    sex: M # todo mogelijkmaken meerdere opties
+    sex: M
+    beller_fluistert:
+      - nee
+      - kort
   trace_typicalities:
     auto: ja
-    duration: 12
+    duration: 30
   reference_typicalities:
     auto: nee
-    duration: 18
+    duration: 30
