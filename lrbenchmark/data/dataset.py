@@ -92,7 +92,8 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed, distinguish_trace_reference=distinguish_trace_reference)
+        return pairing_function.transform(self.measurements, seed=seed,
+                                          distinguish_trace_reference=distinguish_trace_reference)
 
 
 class XTCDataset(Dataset):
@@ -173,7 +174,8 @@ class ASRDataset(Dataset):
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
-                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a, {'duration': duration})
+                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a,
+                                                                      {'duration': duration})
                 is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
