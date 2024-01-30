@@ -7,7 +7,7 @@ experiment:
     - name: logit
       preprocessors:
           - name: abs_diff
-          - name: rank_transformer
+#          - name: rank_transformer
 #    - name: lda
 #      preprocessors:
 #          - name: abs_diff
@@ -15,8 +15,7 @@ experiment:
   calibrator:
     - name: elub_logit
   splitting_strategy:
-    train_size: 0.8
-    validate_size: .2
-    n_splits: 2
+#    leave_two_out: True
+    train_size: 0.6
 #  refnorm:
-#    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
+#    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the leave one out method

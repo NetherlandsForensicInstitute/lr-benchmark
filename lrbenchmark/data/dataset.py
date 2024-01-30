@@ -6,7 +6,7 @@ from abc import ABC
 from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple
 
 import numpy as np
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupShuffleSplit, LeavePGroupsOut
 from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
@@ -40,12 +40,13 @@ class Dataset(ABC):
     def get_splits(self,
                    train_size: Optional[Union[float, int]] = None,
                    validate_size: Optional[Union[float, int]] = None,
-                   n_splits: Optional[int] = 1,
+                   leave_two_out: Optional[bool] = False,
                    seed: int = None) -> Iterator['Dataset']:
         # TODO: allow specific source splits
         """
         This function splits the measurements in a dataset into two splits, as specified by the
-        provided parameters. Every source is in exactly one split.
+        provided parameters. Every source is in exactly one split. Either the size parameters or leave_two_out
+        scheme should be used
         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
                            absolute number of sources in each
                            split. If not specified, is the complement of the validate_size if provided, else 0.8.
@@ -53,17 +54,34 @@ class Dataset(ABC):
                           indicate an absolute number of sources
                           in each split. If not specified, is the complement of the train_size if provided, else 0.2.
 
-        :param n_splits: number of splits to ...
+        :param leave_two_out: if true, uses all possible pairs of two sources as validation set (similar to leave one
+                        out but allowing for make difference-source pairs). Most computationally intensive.
         :param seed: seed to ensure repeatability of the split
 
         """
+        if (train_size or validate_size) and leave_two_out:
+            raise ValueError('Either the size parameters or leave_two_out scheme should be used')
+
         source_ids = [m.source.id for m in self.measurements]
 
-        s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
+        if leave_two_out:
+            # a group is a source. This class provides all combinations of two sources as validation splits.
+            lpgo = LeavePGroupsOut(n_groups=2)
+            for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
+                test_measurements = list(map(lambda i: self.measurements[i], test_index))
+                if len(test_measurements)>=3:
+                    #at least one of the sources should have more than one measurement,
+                    # assuming both have more than 0
+                    yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index))),
+                           Dataset(measurements=test_measurements), ]
+        else:
+            # set n_splits to 1 as we already have repeats in the outer experimental loop
+            s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
-        for split in s.split(self.measurements, groups=source_ids):
-            yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
-                   split]
+            for split in s.split(self.measurements, groups=source_ids):
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
+                       split]
+
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
