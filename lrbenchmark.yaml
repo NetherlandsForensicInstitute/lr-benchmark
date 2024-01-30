@@ -3,11 +3,11 @@ experiment:
   pairing:
     - name: balanced
   scorer:
-#    - name: precalculated_asr
-    - name: logit
-      preprocessors:
-          - name: abs_diff
-          - name: rank_transformer
+    - name: precalculated_asr
+#    - name: logit
+#      preprocessors:
+#          - name: abs_diff
+#          - name: rank_transformer
 #    - name: lda
 #      preprocessors:
 #          - name: abs_diff

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Union, Optional, Iterable, MutableMapping, Callable, Mapping
 
 from lir import LogitCalibrator, KDECalibrator, ELUBbounder, DummyLogOddsCalibrator, IsotonicCalibrator
+import lir.plotting
 from lir.transformers import PercentileRankTransformer, AbsDiffTransformer
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA, LinearDiscriminantAnalysis as LDA
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
@@ -59,11 +60,15 @@ PREPROCESSORS = {'dummy': DummyTransformer,
                  'rank_transformer': PercentileRankTransformer,
                  'abs_diff': AbsDiffTransformer}
 
+# PLOTS = {'lr_distribution': lir.plotting.lr_histogram,
+#          'ece': lir.}
+
 config_option_dicts = {'scorer': SCORERS,
                        'pairing': PAIRING,
                        'preprocessors': PREPROCESSORS,
                        'dataset': DATASETS,
                        'calibrator': CALIBRATORS}
+
 
 
 def parse_config(config: Union[str, Path, Mapping[str, Any]],
