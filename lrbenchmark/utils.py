@@ -29,7 +29,8 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def check_rules(filter: Dict[str, str], info: Optional[Dict[str, str]], extra: Optional[Dict[Any, Any]]) -> bool:
+def complies_with_filter_requirements(filter: Dict[str, str], info: Optional[Dict[str, str]],
+                                      extra: Optional[Dict[Any, Any]]) -> bool:
     """
     Check whether the values in `info` and `extra` match the values in the `filter`.
     """

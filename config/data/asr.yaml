@@ -7,9 +7,9 @@ dataset:
     beller_fluistert:
       - nee
       - kort
-  trace_typicalities:
+  trace_properties:
     auto: ja
     duration: 30
-  reference_typicalities:
+  reference_properties:
     auto: nee
     duration: 30

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.pairing import CartesianPairing, BasePairing
 from lrbenchmark.typing import PathLike
-from lrbenchmark.utils import check_rules
+from lrbenchmark.utils import complies_with_filter_requirements
 
 LOG = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -92,7 +92,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed, split_trace_reference=split_trace_reference)
+        return pairing_function.transform(self.measurements, seed=seed, distinguish_trace_reference=distinguish_trace_reference)
 
 
 class XTCDataset(Dataset):
@@ -150,13 +150,13 @@ class ASRDataset(Dataset):
     """
 
     def __init__(self, scores_path: PathLike, meta_info_path: PathLike, source_filter: Optional[Mapping[str, str]],
-                 reference_typicalities: Optional[Mapping[str, str]], trace_typicalities: Optional[Mapping[str, str]],
+                 reference_properties: Optional[Mapping[str, str]], trace_properties: Optional[Mapping[str, str]],
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
-        self.reference_typicalities = reference_typicalities or {}
-        self.trace_typicalities = trace_typicalities or {}
+        self.reference_properties = reference_properties or {}
+        self.trace_properties = trace_properties or {}
         super().__init__(**kwargs)
 
         with open(self.scores_path, "r") as f:
@@ -172,9 +172,9 @@ class ASRDataset(Dataset):
             filename_a = header_measurement_data[i]
             source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
-            if info_a and check_rules(self.source_filter, info_a, {'duration': duration}):
-                is_like_reference = check_rules(self.reference_typicalities, info_a, {'duration': duration})
-                is_like_trace = check_rules(self.trace_typicalities, info_a, {'duration': duration})
+            if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
+                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a, {'duration': duration})
+                is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
