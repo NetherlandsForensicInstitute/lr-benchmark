@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-from lrbenchmark.typing import PathLike
-
 from typing import List
 
 import numpy as np
