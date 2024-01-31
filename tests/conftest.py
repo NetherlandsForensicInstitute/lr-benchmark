@@ -1,4 +1,8 @@
+import os
 from pathlib import Path
+
+from lrbenchmark.typing import PathLike
+
 from typing import List
 
 import numpy as np
@@ -8,11 +12,8 @@ from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 
 
-@pytest.fixture
-def test_path() -> Path:
-    # create an absolute reference to the files in the tests folder
-    return Path(__file__).parent
-
+ROOT_DIR = Path(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+TEST_DIR = ROOT_DIR / 'tests'
 
 @pytest.fixture
 def test_measurement() -> Measurement:
