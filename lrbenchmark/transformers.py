@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import Iterable, Optional, Sequence
 
 import numpy as np
-from confidence import Configuration
 from sklearn.base import TransformerMixin, BaseEstimator, ClassifierMixin
 from sklearn.pipeline import Pipeline
 from tqdm import tqdm
