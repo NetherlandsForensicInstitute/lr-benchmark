@@ -9,7 +9,7 @@ from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 
 
 @pytest.fixture
-def test_path():
+def test_path() -> Path:
     # create an absolute reference to the files in the tests folder
     return Path(__file__).parent
 
@@ -26,6 +26,7 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
                                                      extra={},
                                                      value=np.array([0, 0, 0, 0])),
                            extra={'score': 0.8})
+
 
 @pytest.fixture
 def measurements() -> List[Measurement]:
