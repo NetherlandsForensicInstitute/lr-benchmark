@@ -150,7 +150,8 @@ class ASRDataset(Dataset):
     A dataset containing measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path: PathLike,
+    def __init__(self,
+                 scores_path: PathLike,
                  meta_info_path: PathLike,
                  source_filter: Optional[Mapping[str, Any]] = None,
                  reference_properties: Optional[Mapping[str, Any]] = None,

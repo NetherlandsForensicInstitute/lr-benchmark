@@ -1,7 +1,7 @@
 dataset:
   name: asr
-  scores_path: /mnt/p/Profi_ASR/data/scorematrix.csv # change this
-  meta_info_path: /mnt/p/Profi_ASR/data/recordings_anon.txt # change this
+  scores_path: resources/asr/scorematrix.csv
+  meta_info_path: resources/asr/recordings_anon.txt
   source_filter:
     sex: M
     beller_fluistert:
