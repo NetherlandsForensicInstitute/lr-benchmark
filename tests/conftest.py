@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -5,6 +6,12 @@ import pytest
 
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
+
+
+@pytest.fixture
+def test_path():
+    # create an absolute reference to the files in the tests folder
+    return Path(__file__).parent
 
 
 @pytest.fixture
