@@ -3,7 +3,7 @@ import logging
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple, Dict
+from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple, Dict, Any
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -150,8 +150,11 @@ class ASRDataset(Dataset):
     A dataset containing measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path: PathLike, meta_info_path: PathLike, source_filter: Optional[Mapping[str, str]],
-                 reference_properties: Optional[Mapping[str, str]], trace_properties: Optional[Mapping[str, str]],
+    def __init__(self, scores_path: PathLike,
+                 meta_info_path: PathLike,
+                 source_filter: Optional[Mapping[str, Any]] = None,
+                 reference_properties: Optional[Mapping[str, Any]] = None,
+                 trace_properties: Optional[Mapping[str, Any]] = None,
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
