@@ -15,14 +15,15 @@ def test_refnorm(test_path):
     filenames_refnorm = file.read().split('\n')
     filenames_refnorm = list(map(lambda x: x.replace("_30s", ""), filenames_refnorm))
     # create the refnorm dataset by filtering on filename
-    dataset_refnorm = ASRDataset(**asr_config,
+    dataset_refnorm = ASRDataset(scores_path=asr_config.scores_path, meta_info_path=asr_config.meta_info_path,
                                  source_filter={'filename': filenames_refnorm})
     # retrieve the raw scores that need to be normalized
-    scorer_raw = PrecalculatedScorerASR(asr_config.scores_path)
+    scorer_raw = PrecalculatedScorerASR(scores_path=asr_config.scores_path)
     # retrieve the normalized scores from csv
     scorer_normalized = PrecalculatedScorerASR(test_path / "test_resources/unittestrefnorm_normalizedscores.csv")
     # create a dataset and pair all measurements
-    dataset_asr = ASRDataset(test_path / "test_resources/unittestrefnorm_rawscores.csv", asr_config.meta_info_path)
+    dataset_asr = ASRDataset(scores_path=test_path / "test_resources/unittestrefnorm_rawscores.csv",
+                             meta_info_path=asr_config.meta_info_path)
     pairs = dataset_asr.get_pairs(pairing_function=CartesianPairing())
     # retrieve the raw and normalized scores for every pair
     raw_scores = scorer_raw.fit_predict(pairs)
