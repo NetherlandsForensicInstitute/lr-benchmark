@@ -183,7 +183,8 @@ class ASRDataset(Dataset):
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a}))
+                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a,
+                                                'actual_duration': duration}))
         self.measurements = measurements
 
     @staticmethod
