@@ -1,7 +1,8 @@
 experiment:
   repeats: 1
   pairing:
-    - name: balanced
+    - name: cartesian
+  distinguish_trace_reference: True
   scorer:
     - name: precalculated_asr
 #    - name: logit
@@ -17,6 +18,6 @@ experiment:
   splitting_strategy:
     train_size: 0.8
     validate_size: .2
-    n_splits: 2
-#  refnorm:
-#    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the LOO method
+    n_splits: 1
+  refnorm:
+    refnorm_size: 20 # If empty, the trainset will be used as refnorm dataset, with the LOO method

@@ -27,3 +27,21 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return '_'.join(string_agg)
     else:
         return "defaults"
+
+
+def complies_with_filter_requirements(filter: Dict[str, str], info: Optional[Dict[str, str]],
+                                      extra: Optional[Dict[Any, Any]]) -> bool:
+    """
+    Check whether the values in `info` and `extra` match the values in the `filter`.
+    """
+    if info is None:
+        info = {}
+    info.update(**extra) if extra else info
+    for key, val in filter.items():
+        if isinstance(val, list):
+            if not info.get(key) in val:
+                return False
+        else:
+            if not info.get(key) == val:
+                return False
+    return True

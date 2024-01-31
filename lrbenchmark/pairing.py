@@ -14,7 +14,10 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def transform(self, measurements: Iterable[Measurement], seed: Optional[int] = None) -> List[MeasurementPair]:
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         raise NotImplementedError
 
 
@@ -25,17 +28,24 @@ class CartesianPairing(BasePairing):
     This transformer takes a list of Measurement as input, and returns a list of MeasurementPair.
     By default, the list of MeasurementPair contains all possible pairs of Measurement, except the combination
     of a Measurement with itself. Pairs are considered symmetric, so pairing of measurements [a,b,c] will return
-    a-b
-    a-c
-    b-c
-    but not also b-a.
+    a-b, a-c, b-c but not also b-a.
+    It is possible to `distinguish_trace_reference`, meaning only measurement pairs will be created of which one
+    measurement is similar to the reference and the other measurement is similar to the trace.
     """
 
     def fit(self, measurements: Iterable[Measurement]):
         return self
 
-    def transform(self, measurements: Iterable[Measurement], seed: Optional[int] = None) -> List[MeasurementPair]:
-        return [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+        all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
+        if distinguish_trace_reference:
+            all_pairs = [mp for mp in all_pairs if
+                         (mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
+                         (mp.measurement_a.is_like_trace and mp.measurement_b.is_like_reference)]
+        return all_pairs
 
 
 class BalancedPairing(BasePairing):
@@ -46,7 +56,10 @@ class BalancedPairing(BasePairing):
     def fit(self, measurements: Iterable[Measurement]):
         return self
 
-    def transform(self, measurements: Iterable[Measurement], seed=None) -> List[MeasurementPair]:
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]

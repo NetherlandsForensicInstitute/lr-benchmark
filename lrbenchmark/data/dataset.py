@@ -3,7 +3,7 @@ import logging
 import os
 import urllib.request
 from abc import ABC
-from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple
+from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple, Dict
 
 import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
@@ -12,6 +12,7 @@ from tqdm import tqdm
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
 from lrbenchmark.pairing import CartesianPairing, BasePairing
 from lrbenchmark.typing import PathLike
+from lrbenchmark.utils import complies_with_filter_requirements
 
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +82,8 @@ class Dataset(ABC):
 
     def get_pairs(self,
                   seed: Optional[int] = None,
-                  pairing_function: BasePairing = CartesianPairing()) -> List[MeasurementPair]:
+                  pairing_function: BasePairing = CartesianPairing(),
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -90,7 +92,8 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed)
+        return pairing_function.transform(self.measurements, seed=seed,
+                                          distinguish_trace_reference=distinguish_trace_reference)
 
 
 class XTCDataset(Dataset):
@@ -144,12 +147,17 @@ class GlassDataset(Dataset):
 
 class ASRDataset(Dataset):
     """
-    A dataset containing paired measurements for the purpose of automatic speaker recognition.
+    A dataset containing measurements for the purpose of automatic speaker recognition.
     """
 
-    def __init__(self, scores_path, meta_info_path, **kwargs):
+    def __init__(self, scores_path: PathLike, meta_info_path: PathLike, source_filter: Optional[Mapping[str, str]],
+                 reference_properties: Optional[Mapping[str, str]], trace_properties: Optional[Mapping[str, str]],
+                 **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
+        self.source_filter = source_filter or {}
+        self.reference_properties = reference_properties or {}
+        self.trace_properties = trace_properties or {}
         super().__init__(**kwargs)
 
         with open(self.scores_path, "r") as f:
@@ -163,15 +171,32 @@ class ASRDataset(Dataset):
         measurements = []
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
-            info_a = recording_data.get(filename_a.replace('_30s', ''))
-            source_id_a = filename_a.split("_")[0]
-            if info_a:
+            source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
+            info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
+            if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
+                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a,
+                                                                      {'duration': duration})
+                is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
-                    Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                    extra={'filename': filename_a, 'net_duration': float(info_a['net duration'])}))
+                                Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
+                                       'actual_duration': duration, 'auto': info_a['auto']}))
+            elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
+                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a,
+                                                'actual_duration': duration}))
         self.measurements = measurements
 
-    def load_recording_annotations(self) -> Mapping[str, Mapping[str, str]]:
+    @staticmethod
+    def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
+        """
+        Retrieve the source id and actual duration of the recording from the file name.
+        """
+        source_id, _, duration = filename.split("_")
+        duration = duration.split("s")[0]
+        return source_id, int(duration)
+
+    def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """
         Read annotations containing information of the recording and speaker.
         """
