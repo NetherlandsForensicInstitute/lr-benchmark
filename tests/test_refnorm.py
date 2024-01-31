@@ -8,7 +8,7 @@ from lrbenchmark.transformers import PrecalculatedScorerASR
 
 
 def test_refnorm(test_path):
-    config = confidence.load_name('lrbenchmark_test')
+    config = confidence.load_name(test_path / 'lrbenchmark_test')
     asr_config = config.dataset_test.asr
     # read the file containing filenames of the refnorm cohort
     file = open(test_path / "test_resources/refnormcohort.txt", "r")
