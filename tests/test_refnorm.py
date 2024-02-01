@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import confidence
 import numpy as np
 
@@ -15,19 +12,19 @@ def test_refnorm():
     config = confidence.load_name(str(TEST_DIR / 'lrbenchmark_test'))
     asr_config = config.dataset_test.asr
     # read the file containing filenames of the refnorm cohort
-    file = open(TEST_DIR / "test_resources/refnormcohort.txt", "r")
-    filenames_refnorm = file.read().split('\n')
-    filenames_refnorm = list(map(lambda x: x.replace("_30s", ""), filenames_refnorm))
-    # create the refnorm dataset by filtering on filename
+    with open(TEST_DIR / "test_resources" / "refnormcohort.txt", "r") as f:
+        filenames_refnorm = f.read().split('\n')
+    # create the refnorm dataset by filtering on filenames present in the refnorm cohort
     dataset_refnorm = ASRDataset(scores_path=ROOT_DIR / asr_config.scores_path,
                                  meta_info_path=ROOT_DIR / asr_config.meta_info_path,
                                  source_filter={'filename': filenames_refnorm})
-    # retrieve the raw scores that need to be normalized
+    # retrieve the raw scores that need to be normalized, we need the full score matrix, since the
+    # scores of measurements paired with the refnorm pairs are not available in the unittestrefnorm_rawscores.csv
     scorer_raw = PrecalculatedScorerASR(scores_path=ROOT_DIR / asr_config.scores_path)
     # retrieve the normalized scores from csv
-    scorer_normalized = PrecalculatedScorerASR(TEST_DIR / "test_resources/unittestrefnorm_normalizedscores.csv")
+    scorer_normalized = PrecalculatedScorerASR(TEST_DIR / "test_resources" / "unittestrefnorm_normalizedscores.csv")
     # create a dataset and pair all measurements
-    dataset_asr = ASRDataset(scores_path=TEST_DIR / "test_resources/unittestrefnorm_rawscores.csv",
+    dataset_asr = ASRDataset(scores_path=TEST_DIR / "test_resources" / "unittestrefnorm_rawscores.csv",
                              meta_info_path=ROOT_DIR / asr_config.meta_info_path)
     pairs = dataset_asr.get_pairs(pairing_function=CartesianPairing())
     # retrieve the raw and normalized scores for every pair
