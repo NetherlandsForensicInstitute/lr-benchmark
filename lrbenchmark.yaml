@@ -2,7 +2,6 @@ experiment:
   repeats: 1
   pairing:
     - name: cartesian
-  distinguish_trace_reference: True
   scorer:
 #    - name: precalculated_asr
     - name: logit
@@ -16,8 +15,9 @@ experiment:
   calibrator:
     - name: elub_logit
   splitting_strategy:
-#    leave_two_out: True
-    train_size: 0.6
-#  refnorm:
-#    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the leave one out method
-
+    validation:
+      type: leave_one_out # leave_one_out or split
+      train_size: # size is only used for 'split'. Can be fraction or number
+    refnorm:
+      type:  # none, leave_one_out or split
+      size: .2 # size is only used for 'split'

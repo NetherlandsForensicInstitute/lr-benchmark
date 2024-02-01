@@ -2,6 +2,7 @@ dataset:
   name: asr
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
+  distinguish_trace_reference: True
   source_filter:
     sex: M
     beller_fluistert:

@@ -20,13 +20,17 @@ LOG = logging.getLogger(__name__)
 class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
-                 holdout_source_ids: Optional[Iterable[Union[int, str]]] = None):
+                 holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
+                 distinguish_trace_reference: bool = False):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
+        :param distinguish_trace_reference: whether or not measurements consists of two types that should be mixed
+                in pairing
         """
         super().__init__()
         self.measurements = measurements
         self.holdout_source_ids = holdout_source_ids
+        self.distinguish_trace_reference = distinguish_trace_reference
 
     @property
     def source_ids(self) -> Set[int]:
@@ -39,50 +43,54 @@ class Dataset(ABC):
         return np.array([m.get_y() for m in self.measurements])
 
     def get_splits(self,
+                   type: Optional[str] = 'single',  # 'single' or 'leave_one_out'
                    train_size: Optional[Union[float, int]] = None,
                    validate_size: Optional[Union[float, int]] = None,
-                   leave_two_out: Optional[bool] = False,
                    seed: int = None) -> Iterator['Dataset']:
         # TODO: allow specific source splits
         """
         This function splits the measurements in a dataset into two splits, as specified by the
         provided parameters. Every source is in exactly one split. Either the size parameters or leave_two_out
         scheme should be used
+        :param type: are we doing a single 'split', or using the 'leave_one_out' method?
+                    In the latter case, for computational efficiency, this is implemented by making all pairs with
+                    1 or 2 sources as validation, and selecting same source or different source pairs in
+                    the get_pairs() function.
         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
                            absolute number of sources in each
                            split. If not specified, is the complement of the validate_size if provided, else 0.8.
         :param validate_size: size of the validation set. Can be a float, to indicate a fraction, or an integer to
                           indicate an absolute number of sources
                           in each split. If not specified, is the complement of the train_size if provided, else 0.2.
-
-        :param leave_two_out: if true, uses all possible pairs of two sources as validation set (similar to leave one
-                        out but allowing for make difference-source pairs). Most computationally intensive.
         :param seed: seed to ensure repeatability of the split
 
         """
-        if (train_size or validate_size) and leave_two_out:
+        leave_one_out = type == 'leave_one_out'
+        if (train_size or validate_size) and leave_one_out:
             raise ValueError('Either the size parameters or leave_two_out scheme should be used')
 
         source_ids = [m.source.id for m in self.measurements]
 
-        if leave_two_out:
-            # a group is a source. This class provides all combinations of two sources as validation splits.
-            lpgo = LeavePGroupsOut(n_groups=2)
-            for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
-                test_measurements = list(map(lambda i: self.measurements[i], test_index))
-                if len(test_measurements)>=3:
-                    #at least one of the sources should have more than one measurement,
-                    # assuming both have more than 0
-                    yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index))),
-                           Dataset(measurements=test_measurements), ]
+        if leave_one_out:
+            # a group is a source. This class provides all combinations of one or two sources as
+            # validation splits. get_pairs should handle creating same-source or different-source pairs.
+            for n_groups in [1, 2]:
+                lpgo = LeavePGroupsOut(n_groups=n_groups)
+                for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
+                    # if one source, we need at least two measurements
+                    # if two sources, they both need at least one measurement
+                    yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
+                                   distinguish_trace_reference=self.distinguish_trace_reference),
+                           Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
+                                   distinguish_trace_reference=self.distinguish_trace_reference), ]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
-                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
+                               distinguish_trace_reference=self.distinguish_trace_reference) for split_idx in
                        split]
-
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
@@ -95,13 +103,17 @@ class Dataset(ABC):
                                     measurement.source.id in self.holdout_source_ids]
             other_measurements = [measurement for measurement in self.measurements if
                                   measurement.source.id not in self.holdout_source_ids]
-            return Dataset(measurements=holdout_measurements), Dataset(measurements=other_measurements)
+            return \
+                Dataset(measurements=holdout_measurements,
+                        distinguish_trace_reference=self.distinguish_trace_reference), \
+                Dataset(measurements=other_measurements, distinguish_trace_reference=self.distinguish_trace_reference)
         return None, self
 
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  distinguish_trace_reference: Optional[bool] = False,
+                  leave_one_out=False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -110,6 +122,19 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
+        if distinguish_trace_reference is None:
+            # allow this variable to be overwritten for this function
+            distinguish_trace_reference = self.distinguish_trace_reference
+        if leave_one_out:
+            # all same source pairs for one source, different source pairs for two sources
+            num_sources = len(self.source_ids)
+            if num_sources == 1:
+                return CartesianPairing().transform(self.measurements, seed=seed)
+            if num_sources == 2:
+                pairs = CartesianPairing().transform(self.measurements, seed=seed)
+                return [pair for pair in pairs if not pair.is_same_source]
+            raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
+                             f'sources. Found {num_sources}.')
         return pairing_function.transform(self.measurements, seed=seed,
                                           distinguish_trace_reference=distinguish_trace_reference)
 
@@ -200,13 +225,13 @@ class ASRDataset(Dataset):
                                                                       {'duration': duration})
                 is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
-                                Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
-                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
-                                       'actual_duration': duration, 'auto': info_a['auto']}))
+                    Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                    is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                    extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
+                           'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a,
-                                                'actual_duration': duration}))
+                                                                                         'actual_duration': duration}))
         self.measurements = measurements
 
     @staticmethod

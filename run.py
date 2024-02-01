@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import csv
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Mapping
 
 import confidence
 import lir.plotting
@@ -29,9 +29,8 @@ def fit_and_evaluate(dataset: Dataset,
                      pairing_function: BasePairing,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
-                     experiment_config: Configuration,
+                     splitting_strategy: Mapping,
                      selected_params: Dict[str, Any] = None,
-                     refnorm: Optional[Configuration] = None,
                      repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
@@ -40,24 +39,30 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
+    dataset.measurements = dataset.measurements[:20]
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
-        if refnorm and refnorm['refnorm_size']:
-            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
-        for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
-                                                                  **experiment_config['splitting_strategy']):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
+        if splitting_strategy['refnorm']['type'] == 'split':
+            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size']
+                                            , seed=idx))
+        for dataset_train, dataset_validate in dataset.get_splits(seed=idx, **splitting_strategy['validation']):
+
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
+
             validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
+                                                        leave_one_out=splitting_strategy['validation']['type']=='leave_one_out')
+
+            # only continue if there are validation_pairs
+            if len(validate_pairs) == 0:
+                continue
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
 
-            if refnorm:
+            if splitting_strategy['refnorm']['type'] in ('split', 'leave_one_out'):
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
                 validation_scores = perform_refnorm(validation_scores, validate_pairs, dataset_refnorm or dataset_train,
                                                     scorer)
@@ -69,12 +74,11 @@ def fit_and_evaluate(dataset: Dataset,
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
-        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
-        if refnorm:
+        if splitting_strategy['refnorm']['type'] in ('split', 'leave_one_out'):
             scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
                                              scorer)
@@ -135,8 +139,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     config_resolved = parse_config(config, config_option_dicts)
     exp_config = config_resolved['experiment']
     exp.parameter('repeats', exp_config['repeats'])
-    exp.parameter('refnorm', exp_config.get('refnorm', None))
-    exp.parameter('experiment_config', exp_config)
+    exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],

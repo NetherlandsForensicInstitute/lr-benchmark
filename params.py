@@ -58,6 +58,8 @@ PREPROCESSORS = {'dummy': DummyTransformer,
                  'rank_transformer': PercentileRankTransformer,
                  'abs_diff': AbsDiffTransformer}
 
+
+
 config_option_dicts = {'scorer': SCORERS,
                        'pairing': PAIRING,
                        'preprocessors': PREPROCESSORS,

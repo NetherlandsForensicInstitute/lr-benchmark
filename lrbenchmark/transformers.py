@@ -43,18 +43,19 @@ class PrecalculatedScorerASR(BaseScorer):
         self.scores_path = scores_path
 
     def fit(self, measurement_pairs: Iterable[MeasurementPair]):
-        with open(self.scores_path, "r") as f:
-            reader = csv.reader(f)
-            data = list(reader)
-        header_measurement_data = np.array(data[0][1:])
-        measurement_data = np.array(data)[1:, 1:]
+        if not self.scores:
+            with open(self.scores_path, "r") as f:
+                reader = csv.reader(f)
+                data = list(reader)
+            header_measurement_data = np.array(data[0][1:])
+            measurement_data = np.array(data)[1:, 1:]
 
-        for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
-            filename_a = header_measurement_data[i]
-            for j in range(i + 1, measurement_data.shape[1]):
-                filename_b = header_measurement_data[j]
-                self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
-                self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
+            for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
+                filename_a = header_measurement_data[i]
+                for j in range(i + 1, measurement_data.shape[1]):
+                    filename_b = header_measurement_data[j]
+                    self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
+                    self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
         return np.array([self.scores[(measurement_pair.measurement_a.extra['filename'],
