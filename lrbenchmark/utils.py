@@ -1,5 +1,7 @@
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Iterable
+
+from lrbenchmark.data.models import MeasurementPair
 
 
 def prepare_output_file(path: str) -> str:
@@ -29,14 +31,31 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def complies_with_filter_requirements(filter: Dict[str, str], info: Optional[Dict[str, str]],
-                                      extra: Optional[Dict[Any, Any]]) -> bool:
+def filter_pairs_on_trace_reference(measurement_pairs: Iterable[MeasurementPair]) -> Iterable[MeasurementPair]:
     """
-    Check whether the values in `info` and `extra` match the values in the `filter`.
+    Filter measurement pairs on two conditions:
+    - the pair must consist of one 'trace_like' measurement and one 'reference_like' measurement
+    - the source id's of the two measurements must differ or the id's of the measurements must differ. We also check
+    the source id because it may occur that multiple sources have the same measurement id's (for instance when
+    measurement id's are counted from 1 for every source).
+    """
+    return [mp for mp in measurement_pairs if
+            ((mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
+             (mp.measurement_a.is_like_trace and mp.measurement_b.is_like_reference)) and
+            (mp.measurement_a.id != mp.measurement_b.id or not mp.is_same_source)]
+
+
+def complies_with_filter_requirements(filter: Dict[str, Any], info: Optional[Dict[str, str]],
+                                      extra: Optional[Dict[str, Any]]) -> bool:
+    """
+    Check whether the values in `info` and `extra` match the values in the `filter`. The values in `filter` and `extra`,
+    can be any type (a list of strings, an integer, a boolean), while the values in `info` should be strings. Therefore,
+    parse the `filter` and `extra` values to strings or list of strings.
     """
     if info is None:
         info = {}
-    info.update(**extra) if extra else info
+    info.update(**parse_dict_values_to_str(extra)) if extra else info
+    filter = parse_dict_values_to_str(filter)
     for key, val in filter.items():
         if isinstance(val, list):
             if not info.get(key) in val:
@@ -45,3 +64,16 @@ def complies_with_filter_requirements(filter: Dict[str, str], info: Optional[Dic
             if not info.get(key) == val:
                 return False
     return True
+
+
+def parse_dict_values_to_str(dict: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Parse the values in the dictionary to strings or list of strings.
+    """
+    result = {}
+    for key, val in dict.items():
+        if isinstance(val, list):
+            result.update({key: list(map(str, val))})
+        else:
+            result.update({key: str(val)})
+    return result

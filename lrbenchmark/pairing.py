@@ -6,6 +6,7 @@ from typing import List, Iterable, Optional
 import sklearn.base
 
 from lrbenchmark.data.models import Measurement, MeasurementPair
+from lrbenchmark.utils import filter_pairs_on_trace_reference
 
 
 class BasePairing(sklearn.base.TransformerMixin, ABC):
@@ -42,9 +43,7 @@ class CartesianPairing(BasePairing):
                   distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         if distinguish_trace_reference:
-            all_pairs = [mp for mp in all_pairs if
-                         (mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
-                         (mp.measurement_a.is_like_trace and mp.measurement_b.is_like_reference)]
+            all_pairs = filter_pairs_on_trace_reference(all_pairs)
         return all_pairs
 
 
@@ -59,9 +58,11 @@ class BalancedPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   seed: Optional[int] = None,
-                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
+        if distinguish_trace_reference:
+            all_pairs = filter_pairs_on_trace_reference(all_pairs)
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
         different_source_pairs = [a for a in all_pairs if not a.is_same_source]
         n_pairs = min(len(same_source_pairs), len(different_source_pairs))

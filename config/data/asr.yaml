@@ -7,6 +7,9 @@ dataset:
     beller_fluistert:
       - nee
       - kort
+    languageID:
+      - 7
+      - 9
   trace_properties:
     auto: ja
     duration: 30

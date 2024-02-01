@@ -132,7 +132,7 @@ class GlassDataset(Dataset):
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
-                                                extra={'Piece': int(row['Piece'])},
+                                                extra={'Piece': int(row['Piece'])}, id=int(row['id']),
                                                 # the values consist of measurements of ten elemental compositions,
                                                 # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
@@ -175,7 +175,7 @@ class ASRDataset(Dataset):
         measurements = []
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
             filename_a = header_measurement_data[i]
-            source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
+            source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a,
@@ -183,22 +183,27 @@ class ASRDataset(Dataset):
                 is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                                id=recording_id_a,
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a,
-                                                'actual_duration': duration}))
+                is_like_reference = complies_with_filter_requirements(self.reference_properties, {},
+                                                                      {'duration': duration})
+                is_like_trace = complies_with_filter_requirements(self.trace_properties, {}, {'duration': duration})
+                measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
+                                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                                                extra={'filename': filename_a, 'actual_duration': duration}))
         self.measurements = measurements
 
     @staticmethod
-    def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
+    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, int]:
         """
         Retrieve the source id and actual duration of the recording from the file name.
         """
-        source_id, _, duration = filename.split("_")
+        source_id, recording_id, duration = filename.split("_")
         duration = duration.split("s")[0]
-        return source_id, int(duration)
+        return source_id, recording_id, int(duration)
 
     def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """
