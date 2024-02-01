@@ -20,6 +20,7 @@ from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
+from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import parse_config, config_option_dicts
 
@@ -31,7 +32,7 @@ def fit_and_evaluate(dataset: Dataset,
                      experiment_config: Configuration,
                      selected_params: Dict[str, Any] = None,
                      refnorm: Optional[Configuration] = None,
-                     repeats: int = 1) -> Dict:
+                     repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
@@ -48,8 +49,10 @@ def fit_and_evaluate(dataset: Dataset,
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
                                                                   **experiment_config['splitting_strategy']):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                  distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
+            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                        distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -66,11 +69,16 @@ def fit_and_evaluate(dataset: Dataset,
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
-        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
+                                              distinguish_trace_reference=experiment_config.get('distinguish_trace_reference'))
+        pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
+        scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
         if refnorm:
+            scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
                                              scorer)
+        calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
         holdout_lrs = calibrator.transform(holdout_scores)
 
     validate_lrs = np.concatenate(validate_lrs)
@@ -83,17 +91,38 @@ def fit_and_evaluate(dataset: Dataset,
     lir.plotting.lr_histogram(validate_lrs, validate_labels, bins=20)
     figs['lr_distribution'] = fig
 
+    fig = plt.figure()
+    lir.plotting.tippett(validate_lrs, validate_labels)
+    figs['tippett'] = fig
+
+    fig = plt.figure()
+    lir.plotting.calibrator_fit(calibrator, score_range=(min(validate_scores), max(validate_scores)))
+    figs['calibrator_fit'] = fig
+
+    fig = plt.figure()
+    lir.plotting.score_distribution(validate_scores, validate_labels)
+    figs['score distribution and calibrator fit'] = fig
+
+    descriptive_statistics = {'no of sources': len(dataset.source_ids),
+                              'no of pairs train (last repeat)': len(train_pairs),
+                              'no of pairs validate (last repeat)': len(validate_pairs)}
+
+    # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
-    results = {'desc': get_experiment_description(selected_params),
-               'figures': figs, **lr_metrics._asdict(),
-               'auc': roc_auc_score(validate_labels, validate_scores)}
+    metrics = {'desc': get_experiment_description(selected_params),
+               'cllr': lr_metrics.cllr,
+               'cllr_min': lr_metrics.cllr_min,
+               'cllr_cal': lr_metrics.cllr_cal,
+               'auc': roc_auc_score(validate_labels, validate_scores),
+               **descriptive_statistics}
 
+    holdout_results = None
     if holdout_set:
         # holdout set was specified, record LRs. Only takes those from the last repeat.
-        results['holdout_lrs'] = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
+        holdout_results = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
-    return results
+    return Result(metrics, figs, holdout_results)
 
 
 def run(exp: evaluation.Setup, config: Configuration) -> None:
@@ -127,24 +156,24 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # write results to file
     with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = ['desc', 'auc', 'acc', 'cllr', 'cllr_min', 'cllr_cal']
+        fieldnames = set(agg_result[0].metrics.keys())
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.items() if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
 
     # write LRs to file
-    if 'holdout_lrs' in agg_result[0]:
+    if agg_result[0].holdout_lrs:
         with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
             writer = csv.writer(file)
             writer.writerow(['desc', 'pair', 'LR'])
             for result_row in agg_result:
-                for pair_desc, lr in result_row['holdout_lrs'].items():
-                    writer.writerow([result_row['desc'], pair_desc, lr])
+                for pair_desc, lr in result_row.holdout_lrs.items():
+                    writer.writerow([result_row.metrics['desc'], pair_desc, lr])
 
     # save figures and results per parameter set
     for result_row, param_set in zip(agg_result, param_sets):
-        for fig_name, fig in result_row['figures'].items():
+        for fig_name, fig in result_row.figures.items():
             short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
             path = f'{folder_name}/{short_description}/{fig_name}'
             prepare_output_file(path)

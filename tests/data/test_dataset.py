@@ -1,31 +1,10 @@
-from typing import List
-
 import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.models import Measurement, Source
-from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset
+from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
-
-
-@pytest.fixture
-def measurements() -> List[Measurement]:
-    values = np.reshape(np.array(list(range(50))), (10, 5))
-    items = np.array(list(range(10, 20)))
-    return [Measurement(source=Source(id=item, extra={}), extra={}, value=value) for value, item in zip(values, items)]
-
-
-@pytest.fixture
-def measurements_set2() -> List[Measurement]:
-    values = np.reshape(np.array(list(range(250, 300))), (10, 5))
-    items = np.array(list(range(10, 15))+list(range(21, 26)))
-    return [Measurement(source=Source(id=item, extra={}), extra={}, value=value) for value, item in zip(values, items)]
-
-
-@pytest.fixture
-def dataset(measurements):
-    return Dataset(measurements=measurements)
+from tests.conftest import TEST_DIR
 
 
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
@@ -54,12 +33,12 @@ def test_get_splits_measurements(measurements, train_size, test_size):
         assert not dataset_train.source_ids.intersection(dataset_test.source_ids)
 
 
-@pytest.mark.parametrize("class_name, config_key", [  # (ASRDataset, 'asr', True),
-    (XTCDataset, 'xtc'),
-    (GlassDataset, 'glass'),
-    (SynthesizedNormalDataset, 'normal')])
+@pytest.mark.parametrize("class_name, config_key", [(ASRDataset, 'asr'),
+                                                    (XTCDataset, 'xtc'),
+                                                    (GlassDataset, 'glass'),
+                                                    (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):
-    config = confidence.load_name('tests/lrbenchmark_test')
+    config = confidence.load_name(TEST_DIR / 'lrbenchmark_test')
     if config_key in config.dataset_test:
         dataset = class_name(**config.dataset_test[config_key])
     else:

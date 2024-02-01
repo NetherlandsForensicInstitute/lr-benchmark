@@ -1,7 +1,8 @@
 experiment:
   repeats: 1
   pairing:
-    - name: balanced
+    - name: cartesian
+  distinguish_trace_reference: True
   scorer:
 #    - name: precalculated_asr
     - name: logit
@@ -19,3 +20,4 @@ experiment:
     train_size: 0.6
 #  refnorm:
 #    refnorm_size: # If empty, the trainset will be used as refnorm dataset, with the leave one out method
+
