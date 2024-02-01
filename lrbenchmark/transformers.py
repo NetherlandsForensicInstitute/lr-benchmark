@@ -62,7 +62,9 @@ class PrecalculatedScorerASR(BaseScorer):
                          for measurement_pair in measurement_pairs])
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
-        self.fit(measurement_pairs)
+        # If scores are already available, no need to fit again
+        if not self.scores:
+            self.fit(measurement_pairs)
         return self.predict(measurement_pairs)
 
 
