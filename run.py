@@ -39,7 +39,6 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
-    dataset.measurements = dataset.measurements[:20]
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
