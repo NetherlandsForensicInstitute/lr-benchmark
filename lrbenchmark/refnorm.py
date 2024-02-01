@@ -13,8 +13,8 @@ def refnorm(score: float, scores_m_a: List[float], scores_m_b: List[float]) -> f
     Performs the reference normalization on the score, based on the mean and standard deviation of the scores of
     both individual measurements with the refnorm measurements.
     """
-    norm_a = (score - (sum(scores_m_a) / len(scores_m_a))) / np.std(scores_m_a)
-    norm_b = (score - (sum(scores_m_b) / len(scores_m_b))) / np.std(scores_m_b)
+    norm_a = (score - (sum(scores_m_a) / len(scores_m_a))) / np.std(scores_m_a, ddof=1)
+    norm_b = (score - (sum(scores_m_b) / len(scores_m_b))) / np.std(scores_m_b, ddof=1)
     return round((norm_a + norm_b) / 2, 6)
 
 

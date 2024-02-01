@@ -32,4 +32,4 @@ def test_refnorm():
     normalized_scores_expected = scorer_normalized.fit_predict(pairs)
     # perform reference normalization
     normalized_scores_actual = perform_refnorm(raw_scores, pairs, dataset_refnorm, scorer_raw)
-    assert np.all(np.abs(normalized_scores_expected-normalized_scores_actual) < 0.09)
+    assert np.allclose(normalized_scores_expected, normalized_scores_actual, atol=2e-06)
