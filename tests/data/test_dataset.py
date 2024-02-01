@@ -2,7 +2,7 @@ import confidence
 import numpy as np
 import pytest
 
-from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset
+from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
 
 
@@ -32,10 +32,10 @@ def test_get_splits_measurements(measurements, train_size, test_size):
         assert not dataset_train.source_ids.intersection(dataset_test.source_ids)
 
 
-@pytest.mark.parametrize("class_name, config_key", [  # (ASRDataset, 'asr', True),
-    (XTCDataset, 'xtc'),
-    (GlassDataset, 'glass'),
-    (SynthesizedNormalDataset, 'normal')])
+@pytest.mark.parametrize("class_name, config_key", [(ASRDataset, 'asr'),
+                                                    (XTCDataset, 'xtc'),
+                                                    (GlassDataset, 'glass'),
+                                                    (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):
     config = confidence.load_name('tests/lrbenchmark_test')
     if config_key in config.dataset_test:
