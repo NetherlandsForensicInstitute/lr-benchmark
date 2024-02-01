@@ -4,6 +4,7 @@ import pytest
 
 from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
+from tests.conftest import TEST_DIR
 
 
 @pytest.mark.parametrize('train_size, test_size', [(2, 3), (0.5, 0.2), (4, None), (None, 4), (None, None)])
@@ -37,7 +38,7 @@ def test_get_splits_measurements(measurements, train_size, test_size):
                                                     (GlassDataset, 'glass'),
                                                     (SynthesizedNormalDataset, 'normal')])
 def test_dataset_basic_functions(class_name, config_key):
-    config = confidence.load_name('tests/lrbenchmark_test')
+    config = confidence.load_name(TEST_DIR / 'lrbenchmark_test')
     if config_key in config.dataset_test:
         dataset = class_name(**config.dataset_test[config_key])
     else:
