@@ -83,7 +83,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -92,8 +92,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed,
-                                          distinguish_trace_reference=distinguish_trace_reference)
+        return pairing_function.transform(self.measurements, seed, filter_on_trace_reference_properties)
 
 
 class XTCDataset(Dataset):
@@ -103,8 +102,8 @@ class XTCDataset(Dataset):
 
         with open(self.measurements_path, "r") as f:
             reader = csv.DictReader(f)
-            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
-                                        extra={'Repeat': int(row['measurement'])},
+            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}), id=int(row['measurement']),
+                                        extra={},
                                         value=np.array(list(map(float, row.values()))[2:])) for row in reader]
         self.measurements = measurements
 
@@ -132,7 +131,7 @@ class GlassDataset(Dataset):
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
-                                                extra={'Piece': int(row['Piece'])},
+                                                extra={'Piece': int(row['Piece'])}, id=int(row['id']),
                                                 # the values consist of measurements of ten elemental compositions,
                                                 # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
@@ -181,30 +180,33 @@ class ASRDataset(Dataset):
             if self.limit_n_measurements and len(measurements) >= self.limit_n_measurements:
                 return measurements
             filename_a = header_measurement_data[i]
-            source_id_a, duration = self.get_source_id_duration_from_filename(filename_a)
+            source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
+            is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
+                                                                  {'duration': duration})
+            is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
+                                                              {'duration': duration})
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
-                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a,
-                                                                      {'duration': duration})
-                is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                                id=recording_id_a,
                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id=source_id_a, extra={}), extra={'filename': filename_a,
-                                                'actual_duration': duration}))
+                measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
+                                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                                                extra={'filename': filename_a, 'actual_duration': duration}))
         return measurements
 
     @staticmethod
-    def get_source_id_duration_from_filename(filename: str) -> Tuple[str, int]:
+    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, int]:
         """
         Retrieve the source id and actual duration of the recording from the file name.
         """
-        source_id, _, duration = filename.split("_")
+        source_id, recording_id, duration = filename.split("_")
         duration = duration.split("s")[0]
-        return source_id, int(duration)
+        return source_id, recording_id, int(duration)
 
     def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """

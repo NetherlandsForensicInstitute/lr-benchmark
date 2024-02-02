@@ -2,7 +2,7 @@ experiment:
   repeats: 1
   pairing:
     - name: cartesian
-  distinguish_trace_reference: True
+  filter_on_trace_reference_properties: True
   scorer:
     - name: precalculated_asr
       scores_path: ${dataset.scores_path}
