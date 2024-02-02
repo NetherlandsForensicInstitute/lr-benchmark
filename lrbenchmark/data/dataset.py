@@ -103,8 +103,8 @@ class XTCDataset(Dataset):
 
         with open(self.measurements_path, "r") as f:
             reader = csv.DictReader(f)
-            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}),
-                                        extra={'Repeat': int(row['measurement'])},
+            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}), id=int(row['measurement']),
+                                        extra={},
                                         value=np.array(list(map(float, row.values()))[2:])) for row in reader]
         self.measurements = measurements
 
@@ -177,10 +177,11 @@ class ASRDataset(Dataset):
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
+            is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
+                                                                  {'duration': duration})
+            is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
+                                                              {'duration': duration})
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
-                is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a,
-                                                                      {'duration': duration})
-                is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a, {'duration': duration})
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 id=recording_id_a,
@@ -188,9 +189,6 @@ class ASRDataset(Dataset):
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                is_like_reference = complies_with_filter_requirements(self.reference_properties, {},
-                                                                      {'duration': duration})
-                is_like_trace = complies_with_filter_requirements(self.trace_properties, {}, {'duration': duration})
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
                                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                                 extra={'filename': filename_a, 'actual_duration': duration}))

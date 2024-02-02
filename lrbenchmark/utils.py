@@ -31,13 +31,14 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def filter_pairs_on_trace_reference(measurement_pairs: Iterable[MeasurementPair]) -> Iterable[MeasurementPair]:
+def filter_pairs_on_trace_and_reference_similarity(measurement_pairs: Iterable[MeasurementPair]) \
+        -> Iterable[MeasurementPair]:
     """
     Filter measurement pairs on two conditions:
     - the pair must consist of one 'trace_like' measurement and one 'reference_like' measurement
-    - the source id's of the two measurements must differ or the id's of the measurements must differ. We also check
-    the source id because it may occur that multiple sources have the same measurement id's (for instance when
-    measurement id's are counted from 1 for every source).
+    - the source ids of the two measurements must differ or the id's of the measurements must differ. The two
+    measurements in the pair cannot just be different variants of the same measurement. We check this by requiring
+    either the source id or measurement id to be different.
     """
     return [mp for mp in measurement_pairs if
             ((mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
@@ -45,18 +46,18 @@ def filter_pairs_on_trace_reference(measurement_pairs: Iterable[MeasurementPair]
             (mp.measurement_a.id != mp.measurement_b.id or not mp.is_same_source)]
 
 
-def complies_with_filter_requirements(filter: Dict[str, Any], info: Optional[Dict[str, str]],
+def complies_with_filter_requirements(requirements: Dict[str, Any], info: Optional[Dict[str, str]],
                                       extra: Optional[Dict[str, Any]]) -> bool:
     """
-    Check whether the values in `info` and `extra` match the values in the `filter`. The values in `filter` and `extra`,
-    can be any type (a list of strings, an integer, a boolean), while the values in `info` should be strings. Therefore,
-    parse the `filter` and `extra` values to strings or list of strings.
+    Check whether the values in `info` and `extra` match the values in the `requirements`. The values in `requirements`
+    and `extra`, can be any type (a list of strings, an integer, a boolean), while the values in `info` should be
+    strings. Therefore, parse the `requirements` and `extra` values to strings or list of strings.
     """
     if info is None:
         info = {}
     info.update(**parse_dict_values_to_str(extra)) if extra else info
-    filter = parse_dict_values_to_str(filter)
-    for key, val in filter.items():
+    requirements = parse_dict_values_to_str(requirements)
+    for key, val in requirements.items():
         if isinstance(val, list):
             if not info.get(key) in val:
                 return False
