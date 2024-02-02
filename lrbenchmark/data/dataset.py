@@ -155,24 +155,30 @@ class ASRDataset(Dataset):
                  source_filter: Optional[Mapping[str, Any]] = None,
                  reference_properties: Optional[Mapping[str, Any]] = None,
                  trace_properties: Optional[Mapping[str, Any]] = None,
+                 limit_n_measurements: Optional[int] = None,
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
         self.reference_properties = reference_properties or {}
         self.trace_properties = trace_properties or {}
+        self.limit_n_measurements = limit_n_measurements
         super().__init__(**kwargs)
 
+        self.measurements = self.get_measurements_from_file()
+
+    def get_measurements_from_file(self):
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)
         header_measurement_data = np.array(data[0][1:])
         measurement_data = np.array(data)[1:, 1:]
-
         recording_data = self.load_recording_annotations()
 
         measurements = []
         for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
+            if self.limit_n_measurements and len(measurements) >= self.limit_n_measurements:
+                return measurements
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
@@ -191,7 +197,7 @@ class ASRDataset(Dataset):
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
                                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                                 extra={'filename': filename_a, 'actual_duration': duration}))
-        self.measurements = measurements
+        return measurements
 
     @staticmethod
     def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, int]:
@@ -209,7 +215,6 @@ class ASRDataset(Dataset):
         with open(self.meta_info_path, 'r') as f:
             reader = csv.DictReader(f, delimiter='\t')
             data = list(reader)
-
         return {elt['filename']: elt for elt in data}
 
     def __repr__(self):
