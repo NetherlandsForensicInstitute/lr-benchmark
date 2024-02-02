@@ -2,7 +2,7 @@ experiment:
   repeats: 1
   pairing:
     - name: cartesian
-  distinguish_trace_reference: True
+  pair_should_have_trace_and_reference_measurements: True
   scorer:
     - name: precalculated_asr
 #    - name: logit

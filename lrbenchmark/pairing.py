@@ -18,7 +18,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     def transform(self,
                   measurements: Iterable[Measurement],
                   seed: Optional[int] = None,
-                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  pair_should_have_trace_and_reference_measurements: Optional[bool] = False) -> List[MeasurementPair]:
         raise NotImplementedError
 
 
@@ -30,8 +30,8 @@ class CartesianPairing(BasePairing):
     By default, the list of MeasurementPair contains all possible pairs of Measurement, except the combination
     of a Measurement with itself. Pairs are considered symmetric, so pairing of measurements [a,b,c] will return
     a-b, a-c, b-c but not also b-a.
-    It is possible to `distinguish_trace_reference`, meaning only measurement pairs will be created of which one
-    measurement is similar to the reference and the other measurement is similar to the trace.
+    It is possible to `pair_should_have_trace_and_reference_measurements`, meaning only measurement pairs will be
+    created of which one measurement is similar to the reference and the other measurement is similar to the trace.
     """
 
     def fit(self, measurements: Iterable[Measurement]):
@@ -40,9 +40,9 @@ class CartesianPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   seed: Optional[int] = None,
-                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  pair_should_have_trace_and_reference_measurements: Optional[bool] = False) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if distinguish_trace_reference:
+        if pair_should_have_trace_and_reference_measurements:
             all_pairs = filter_pairs_on_trace_and_reference_similarity(all_pairs)
         return all_pairs
 
@@ -58,10 +58,10 @@ class BalancedPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   seed: Optional[int] = None,
-                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  pair_should_have_trace_and_reference_measurements: Optional[bool] = False) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if distinguish_trace_reference:
+        if pair_should_have_trace_and_reference_measurements:
             all_pairs = filter_pairs_on_trace_and_reference_similarity(all_pairs)
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
         different_source_pairs = [a for a in all_pairs if not a.is_same_source]
