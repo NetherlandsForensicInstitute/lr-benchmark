@@ -5,6 +5,7 @@ experiment:
   distinguish_trace_reference: True
   scorer:
     - name: precalculated_asr
+      scores_path: ${dataset.scores_path}
 #    - name: logit
 #      preprocessors:
 #          - name: abs_diff
