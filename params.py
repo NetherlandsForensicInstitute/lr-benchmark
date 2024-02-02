@@ -12,7 +12,6 @@ from xgboost import XGBClassifier
 
 from lrbenchmark.data.dataset import XTCDataset, GlassDataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
-from lrbenchmark.load import load_data_config
 from lrbenchmark.pairing import CartesianPairing, BalancedPairing
 from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorerASR, MeasurementPairScorer
 
