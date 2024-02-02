@@ -31,7 +31,7 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def filter_pairs_on_trace_and_reference_similarity(measurement_pairs: Iterable[MeasurementPair]) \
+def apply_filter_on_trace_reference_properties(measurement_pairs: Iterable[MeasurementPair]) \
         -> Iterable[MeasurementPair]:
     """
     Filter measurement pairs on two conditions:

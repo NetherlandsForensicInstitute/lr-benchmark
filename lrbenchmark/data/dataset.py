@@ -83,7 +83,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  pair_should_have_trace_and_reference_measurements: Optional[bool] = False) -> List[MeasurementPair]:
+                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -92,7 +92,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed, pair_should_have_trace_and_reference_measurements)
+        return pairing_function.transform(self.measurements, seed, filter_on_trace_reference_properties)
 
 
 class XTCDataset(Dataset):
