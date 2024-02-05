@@ -72,9 +72,9 @@ def fit_and_evaluate(dataset: Dataset,
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              filter_on_trace_reference_properties=
-                                              experiment_config.get('filter_on_trace_reference_properties'))
-        pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
+                                              filter_on_trace_reference_properties=False)
+        pairs = dataset.get_pairs(pairing_function=pairing_function, filter_on_trace_reference_properties=
+                                              experiment_config.get('filter_on_trace_reference_properties'), seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
         if refnorm:

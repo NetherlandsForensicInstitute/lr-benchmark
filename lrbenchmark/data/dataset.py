@@ -194,8 +194,8 @@ class ASRDataset(Dataset):
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
-                                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                measurements.append(Measurement(Source(id="Case", extra={}), id=recording_id_a,
+                                                is_like_reference=True, is_like_trace=True,
                                                 extra={'filename': filename_a, 'actual_duration': duration}))
         return measurements
 
