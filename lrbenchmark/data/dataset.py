@@ -80,8 +80,9 @@ class Dataset(ABC):
                 for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
                     # if one source, we need at least two measurements
                     # if two sources, they both need at least one measurement
-                    # if fewer than this there is no validation, and for computational reasons we do not return the split
-                    if (n_groups == 1 and len(test_index)>1) or \
+                    # if fewer than this there is no validation, and for
+                    # computational reasons we do not return the split
+                    if (n_groups == 1 and len(test_index) > 1) or \
                             (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
                                        distinguish_trace_reference=self.distinguish_trace_reference),

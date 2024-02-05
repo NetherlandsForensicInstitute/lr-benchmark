@@ -1,7 +1,6 @@
 from typing import List
 
 import numpy as np
-from tqdm import tqdm
 
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import MeasurementPair
