@@ -119,8 +119,8 @@ class Setup:
         """
         # Run the experiments
         for param_set in experiments:
-            # try:
-            yield self.run_experiment(param_set, default_values)
-            # except Exception as e:
-            #     LOG.fatal(f"experiment aborted: {e}; params: {param_set}")
-            #     raise
+            try:
+                yield self.run_experiment(param_set, default_values)
+            except Exception as e:
+                LOG.fatal(f"experiment aborted: {e}; params: {param_set}")
+                raise

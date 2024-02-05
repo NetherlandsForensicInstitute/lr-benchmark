@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import csv
+import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, Mapping
 
@@ -17,12 +18,14 @@ from tqdm import tqdm
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.pairing import BasePairing, CartesianPairing
+from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import parse_config, config_option_dicts
+
+LOG = logging.getLogger(__name__)
 
 
 def fit_and_evaluate(dataset: Dataset,
@@ -39,29 +42,37 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
+    if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
+            and isinstance(pairing_function, CartesianPairing):
+        LOG.warning(f"Leave one out validation will give you cartesion pairing, not {pairing_function}")
+
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
-        if splitting_strategy['refnorm']['type'] == 'split':
-            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size']
-                                            , seed=idx))
-        for dataset_train, dataset_validate in dataset.get_splits(seed=idx, **splitting_strategy['validation']):
+        if splitting_strategy['refnorm']['split_type'] == 'simple':
+            dataset, dataset_refnorm = \
+                next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
+        splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
+        if repeats == 1:
+            splits = tqdm(list(splits), 'train - validate splits')
+        for dataset_train, dataset_validate in splits:
 
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
 
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        leave_one_out=splitting_strategy['validation']['type']=='leave_one_out')
+            # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
+            if splitting_strategy['validation']['split_type']=='leave_one_out':
+                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+            else:
+                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
 
-            # only continue if there are validation_pairs
-            if len(validate_pairs) == 0:
-                continue
+
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
 
-            if splitting_strategy['refnorm']['type'] in ('split', 'leave_one_out'):
+            if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
                 validation_scores = perform_refnorm(validation_scores, validate_pairs, dataset_refnorm or dataset_train,
                                                     scorer)
@@ -77,7 +88,7 @@ def fit_and_evaluate(dataset: Dataset,
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
-        if splitting_strategy['refnorm']['type'] in ('split', 'leave_one_out'):
+        if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
             scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
                                              scorer)

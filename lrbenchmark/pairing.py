@@ -1,6 +1,6 @@
 import itertools
-from abc import ABC, abstractmethod
 import random
+from abc import ABC, abstractmethod
 from typing import List, Iterable, Optional
 
 import sklearn.base
@@ -48,6 +48,35 @@ class CartesianPairing(BasePairing):
         return all_pairs
 
 
+class LeaveOneTwoOutPairing(BasePairing):
+    """
+    Specific pairing used to make leave one/two out possible.
+    Should be provided the measurements of exactly one or two sources.
+    On transform, returns all same source pairs for one source, different source pairs for two sources.
+    """
+
+    def fit(self, measurements: Iterable[Measurement]):
+        return self
+
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+        # all same source pairs for one source, different source pairs for two sources
+        num_sources = len(set(m.source.id for m in measurements))
+        if num_sources == 1:
+            return CartesianPairing().transform(measurements,
+                                                distinguish_trace_reference=distinguish_trace_reference,
+                                                seed=seed)
+        if num_sources == 2:
+            pairs = CartesianPairing().transform(measurements,
+                                                 distinguish_trace_reference=distinguish_trace_reference,
+                                                 seed=seed)
+            return [pair for pair in pairs if not pair.is_same_source]
+        raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
+                         f'sources. Found {num_sources}.')
+
+
 class BalancedPairing(BasePairing):
     """
     Creates pairs of instances, with an equal amount of same source and different source pairs.
@@ -59,7 +88,7 @@ class BalancedPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   seed: Optional[int] = None,
-                  split_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
+                  distinguish_trace_reference: Optional[bool] = False) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]

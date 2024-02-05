@@ -24,7 +24,7 @@ class Dataset(ABC):
                  distinguish_trace_reference: bool = False):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
-        :param distinguish_trace_reference: whether or not measurements consists of two types that should be mixed
+        :param distinguish_trace_reference: whether or not measurements consisting of two types should be mixed
                 in pairing
         """
         super().__init__()
@@ -43,7 +43,7 @@ class Dataset(ABC):
         return np.array([m.get_y() for m in self.measurements])
 
     def get_splits(self,
-                   type: Optional[str] = 'single',  # 'single' or 'leave_one_out'
+                   split_type: Optional[str] = 'simple',  # 'simple' or 'leave_one_out'
                    train_size: Optional[Union[float, int]] = None,
                    validate_size: Optional[Union[float, int]] = None,
                    seed: int = None) -> Iterator['Dataset']:
@@ -52,7 +52,7 @@ class Dataset(ABC):
         This function splits the measurements in a dataset into two splits, as specified by the
         provided parameters. Every source is in exactly one split. Either the size parameters or leave_two_out
         scheme should be used
-        :param type: are we doing a single 'split', or using the 'leave_one_out' method?
+        :param split_type: split type can be a single 'simple' split, or the 'leave_one_out' method
                     In the latter case, for computational efficiency, this is implemented by making all pairs with
                     1 or 2 sources as validation, and selecting same source or different source pairs in
                     the get_pairs() function.
@@ -65,7 +65,7 @@ class Dataset(ABC):
         :param seed: seed to ensure repeatability of the split
 
         """
-        leave_one_out = type == 'leave_one_out'
+        leave_one_out = split_type == 'leave_one_out'
         if (train_size or validate_size) and leave_one_out:
             raise ValueError('Either the size parameters or leave_two_out scheme should be used')
 
@@ -73,16 +73,20 @@ class Dataset(ABC):
 
         if leave_one_out:
             # a group is a source. This class provides all combinations of one or two sources as
-            # validation splits. get_pairs should handle creating same-source or different-source pairs.
+            # validation splits. get_pairs should handle creating same-source (1-group) or different-source (2-groups)
+            # pairs.
             for n_groups in [1, 2]:
                 lpgo = LeavePGroupsOut(n_groups=n_groups)
                 for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
                     # if one source, we need at least two measurements
                     # if two sources, they both need at least one measurement
-                    yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
-                                   distinguish_trace_reference=self.distinguish_trace_reference),
-                           Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                   distinguish_trace_reference=self.distinguish_trace_reference), ]
+                    # if fewer than this there is no validation, and for computational reasons we do not return the split
+                    if (n_groups == 1 and len(test_index)>1) or \
+                            (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
+                        yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
+                                       distinguish_trace_reference=self.distinguish_trace_reference),
+                               Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
+                                       distinguish_trace_reference=self.distinguish_trace_reference), ]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
@@ -112,8 +116,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  distinguish_trace_reference: Optional[bool] = False,
-                  leave_one_out=False) -> List[MeasurementPair]:
+                  distinguish_trace_reference: Optional[bool] = None) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -125,16 +128,7 @@ class Dataset(ABC):
         if distinguish_trace_reference is None:
             # allow this variable to be overwritten for this function
             distinguish_trace_reference = self.distinguish_trace_reference
-        if leave_one_out:
-            # all same source pairs for one source, different source pairs for two sources
-            num_sources = len(self.source_ids)
-            if num_sources == 1:
-                return CartesianPairing().transform(self.measurements, seed=seed)
-            if num_sources == 2:
-                pairs = CartesianPairing().transform(self.measurements, seed=seed)
-                return [pair for pair in pairs if not pair.is_same_source]
-            raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
-                             f'sources. Found {num_sources}.')
+
         return pairing_function.transform(self.measurements, seed=seed,
                                           distinguish_trace_reference=distinguish_trace_reference)
 
