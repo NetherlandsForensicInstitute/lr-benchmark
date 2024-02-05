@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import csv
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Mapping
 
 import confidence
 import lir.plotting
@@ -30,6 +30,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      experiment_config: Configuration,
+                     properties: Mapping = None,
                      selected_params: Dict[str, Any] = None,
                      refnorm: Optional[Configuration] = None,
                      repeats: int = 1) -> Result:
@@ -50,8 +51,8 @@ def fit_and_evaluate(dataset: Dataset,
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
                                                                   **experiment_config['splitting_strategy']):
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  filter_on_trace_reference_properties=
-                                                  experiment_config.get('filter_on_trace_reference_properties'))
+                                                  filter_on_trace_reference_properties=properties or {})
+                                                  # experiment_config.get('filter_on_trace_reference_properties'))
             validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
                                                         filter_on_trace_reference_properties=
                                                         experiment_config.get('filter_on_trace_reference_properties'))
@@ -143,6 +144,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
+                  'properties': exp_config['properties'],
                   'calibrator': exp_config['calibrator']}
 
     if [] in parameters.values():

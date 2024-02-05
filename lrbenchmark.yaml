@@ -5,7 +5,7 @@ experiment:
   filter_on_trace_reference_properties: True
   scorer:
     - name: precalculated_asr
-      scores_path: ${dataset.scores_path}
+      scores_path: /tralala
 #    - name: logit
 #      preprocessors:
 #          - name: abs_diff
@@ -22,3 +22,4 @@ experiment:
     n_splits: 1
   refnorm:
     refnorm_size: 20 # If empty, the trainset will be used as refnorm dataset, with the LOO method
+

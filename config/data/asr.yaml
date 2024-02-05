@@ -11,9 +11,13 @@ dataset:
     languageID:
       - 7
       - 9
-  trace_properties:
-    auto: ja
-    duration: 30
-  reference_properties:
-    auto: nee
-    duration: 30
+experiment:
+  properties:
+    - trace:
+        duration: 5
+      reference:
+        duration: 10
+    - trace:
+        duration: 15
+      reference:
+        duration: 20
