@@ -60,7 +60,7 @@ def fit_and_evaluate(dataset: Dataset,
         for dataset_train, dataset_validate in splits:
 
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
-            if splitting_strategy['validation']['split_type']=='leave_one_out':
+            if splitting_strategy['validation']['split_type'] == 'leave_one_out':
                 validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validate_pairs:
