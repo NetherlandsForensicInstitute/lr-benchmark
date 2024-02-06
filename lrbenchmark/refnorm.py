@@ -1,7 +1,6 @@
 from typing import List
 
 import numpy as np
-from tqdm import tqdm
 
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import MeasurementPair
@@ -35,7 +34,7 @@ def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair]
     dataset and one of the train pair
     """
     normalized_scores = []
-    for (score, mp) in tqdm(zip(train_scores, train_pairs), desc="Performing reference normalization", position=0):
+    for (score, mp) in zip(train_scores, train_pairs):
         refnorm_measurements = [measurement for measurement in refnorm_dataset.measurements if
                                 measurement.source not in [mp.measurement_a.source, mp.measurement_b.source]]
         scores_m_a = scorer.predict([MeasurementPair(mp.measurement_a, other_measurement) for other_measurement

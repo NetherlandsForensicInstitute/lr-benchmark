@@ -6,7 +6,7 @@ from abc import ABC
 from typing import Optional, List, Set, Union, Mapping, Iterator, Iterable, Tuple, Dict, Any
 
 import numpy as np
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupShuffleSplit, LeavePGroupsOut
 from tqdm import tqdm
 
 from lrbenchmark.data.models import Measurement, Source, MeasurementPair
@@ -20,13 +20,17 @@ LOG = logging.getLogger(__name__)
 class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
-                 holdout_source_ids: Optional[Iterable[Union[int, str]]] = None):
+                 holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
+                 filter_on_trace_reference_properties: bool = False):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
+        :param filter_on_trace_reference_properties: whether or not measurements consisting of two types should be mixed
+                in pairing
         """
         super().__init__()
         self.measurements = measurements
         self.holdout_source_ids = holdout_source_ids
+        self.filter_on_trace_reference_properties = filter_on_trace_reference_properties
 
     @property
     def source_ids(self) -> Set[int]:
@@ -39,32 +43,60 @@ class Dataset(ABC):
         return np.array([m.get_y() for m in self.measurements])
 
     def get_splits(self,
+                   split_type: Optional[str] = 'simple',  # 'simple' or 'leave_one_out'
                    train_size: Optional[Union[float, int]] = None,
                    validate_size: Optional[Union[float, int]] = None,
-                   n_splits: Optional[int] = 1,
                    seed: int = None) -> Iterator['Dataset']:
         # TODO: allow specific source splits
         """
         This function splits the measurements in a dataset into two splits, as specified by the
-        provided parameters. Every source is in exactly one split.
+        provided parameters. Every source is in exactly one split. Either the size parameters or leave_two_out
+        scheme should be used
+        :param split_type: split type can be a single 'simple' split, or the 'leave_one_out' method
+                    In the latter case, for computational efficiency, this is implemented by making all pairs with
+                    1 or 2 sources as validation, and selecting same source or different source pairs in
+                    the get_pairs() function.
         :param train_size: size of the train set. Can be a float, to indicate a fraction, or an integer to indicate an
                            absolute number of sources in each
                            split. If not specified, is the complement of the validate_size if provided, else 0.8.
         :param validate_size: size of the validation set. Can be a float, to indicate a fraction, or an integer to
                           indicate an absolute number of sources
                           in each split. If not specified, is the complement of the train_size if provided, else 0.2.
-
-        :param n_splits: number of splits to ...
         :param seed: seed to ensure repeatability of the split
 
         """
+        leave_one_out = split_type == 'leave_one_out'
+        if (train_size or validate_size) and leave_one_out:
+            raise ValueError('Either the size parameters or leave_two_out scheme should be used')
+
         source_ids = [m.source.id for m in self.measurements]
 
-        s = GroupShuffleSplit(n_splits=n_splits, random_state=seed, train_size=train_size, test_size=validate_size)
+        if leave_one_out:
+            # a group is a source. This class provides all combinations of one or two sources as
+            # validation splits. get_pairs should handle creating same-source (1-group) or different-source (2-groups)
+            # pairs.
+            for n_groups in [1, 2]:
+                lpgo = LeavePGroupsOut(n_groups=n_groups)
+                for i, (train_index, test_index) in enumerate(lpgo.split(self.measurements, groups=source_ids)):
+                    # if one source, we need at least two measurements
+                    # if two sources, they both need at least one measurement
+                    # if fewer than this there is no validation, and for
+                    # computational reasons we do not return the split
+                    if (n_groups == 1 and len(test_index) > 1) or \
+                            (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
+                        yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
+                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),
+                               Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
+                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),]
+        else:
+            # set n_splits to 1 as we already have repeats in the outer experimental loop
+            s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
-        for split in s.split(self.measurements, groups=source_ids):
-            yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
-                   split]
+            for split in s.split(self.measurements, groups=source_ids):
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
+                               filter_on_trace_reference_properties=self.filter_on_trace_reference_properties) for
+                       split_idx in
+                       split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
@@ -77,13 +109,17 @@ class Dataset(ABC):
                                     measurement.source.id in self.holdout_source_ids]
             other_measurements = [measurement for measurement in self.measurements if
                                   measurement.source.id not in self.holdout_source_ids]
-            return Dataset(measurements=holdout_measurements), Dataset(measurements=other_measurements)
+            return \
+                Dataset(measurements=holdout_measurements,
+                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties), \
+                Dataset(measurements=other_measurements,
+                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties)
         return None, self
 
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  filter_on_trace_reference_properties: Optional[bool] = None) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -92,7 +128,12 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed, filter_on_trace_reference_properties)
+        if filter_on_trace_reference_properties is None:
+            # allow this variable to be overwritten for this function
+            filter_on_trace_reference_properties = self.filter_on_trace_reference_properties
+
+        return pairing_function.transform(self.measurements, seed=seed,
+                                          filter_on_trace_reference_properties=filter_on_trace_reference_properties)
 
 
 class XTCDataset(Dataset):
@@ -181,7 +222,10 @@ class ASRDataset(Dataset):
                 return measurements
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
-            info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
+            filename_in_recording_data = filename_a.replace('_' + str(duration) + 's', '') if duration else filename_a
+            info_a = recording_data.get(filename_in_recording_data)
+            if not duration and info_a:
+                duration = info_a['net_duration']
             is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
                                                                   {'duration': duration})
             is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
@@ -189,13 +233,13 @@ class ASRDataset(Dataset):
             extra = {'filename': filename_a, 'actual_duration': duration}
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 measurements.append(Measurement(
-                                Source(id=source_id_a, extra=self.get_extra_information(info_a, 'source')),
-                                id=recording_id_a,
-                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
-                                extra={**extra, **self.get_extra_information(info_a, 'measurement')}))
+                    Source(id=source_id_a, extra=self.get_extra_information(info_a, 'source')),
+                    id=recording_id_a,
+                    is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                    extra={**extra, **self.get_extra_information(info_a, 'measurement')}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
-                                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a,
+                                                is_like_reference=True, is_like_trace=True,
                                                 extra=extra))
         return measurements
 
@@ -213,13 +257,20 @@ class ASRDataset(Dataset):
         return {key: info.get(key) for key in all_property_keys}
 
     @staticmethod
-    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, int]:
+    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, Optional[int]]:
         """
-        Retrieve the source id and actual duration of the recording from the file name.
+        Retrieve the source id, recording id and actual duration (if possible) of the recording from the filename.
         """
-        source_id, recording_id, duration = filename.split("_")
-        duration = duration.split("s")[0]
-        return source_id, recording_id, int(duration)
+        split = filename.split("_")
+        if len(split) == 3:
+            source_id, recording_id, duration = split
+            duration = int(duration.split("s")[0])
+        elif len(split) == 2:
+            source_id, recording_id = split
+            duration = None
+        else:
+            raise ValueError(f"Invalid filename found: {filename}")
+        return source_id, recording_id, duration
 
     def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """

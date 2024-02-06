@@ -30,17 +30,18 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
         :param n_diff_source: number of different source measurements to generate
         :return: list of all generated measurements
         """
-        real_value = self.generator.normal(self.mean, self.sigma, n_same_source)
-        other_value = self.generator.normal(self.mean, self.sigma, n_diff_source)
-        measurement_error = self.generator.normal(0, self.trace_measurement_stdev, n_same_source)
-        measured_value = real_value + measurement_error
+        n_dimensions = 3
+        real_value = self.generator.normal(self.mean, self.sigma, (n_same_source, n_dimensions))
+        other_value = self.generator.normal(self.mean, self.sigma, (n_diff_source, n_dimensions))
+        measurement_error = self.generator.normal(0, self.trace_measurement_stdev, (n_same_source, n_dimensions))
+        obs_value = real_value + measurement_error
         measurements = []
         for i in range(n_same_source):
-            measurements.append(Measurement(source=Source(id=i, extra={}), value=real_value[i], extra={}))
-            measurements.append(Measurement(source=Source(id=i, extra={}), value=measured_value[i], extra={}))
+            measurements.append(Measurement(source=Source(id=i, extra={}), value=np.array([real_value[i]]), extra={}))
+            measurements.append(Measurement(source=Source(id=i, extra={}), value=np.array([obs_value[i]]), extra={}))
         for i in range(min(n_same_source, n_diff_source)):
             measurements.append(Measurement(source=Source(id=n_same_source + i, extra={}),
-                                            value=other_value[i], extra={}))
+                                            value=np.array([other_value[i]]), extra={}))
         return measurements
 
     def __repr__(self):
