@@ -24,12 +24,15 @@ class Measurement:
 
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
+    :param id: the identifier of the measurement
     :param is_like_reference: indication of whether the measurement is similar to reference measurements
     :param is_like_trace: indication of whether the measurement is similar to trace measurements
     :param value: the value of the measurement
     """
+
     source: Source
     extra: Mapping[str, Any]
+    id: Optional[Union[int, str]] = None
     is_like_reference: Optional[bool] = None
     is_like_trace: Optional[bool] = None
     value: Optional[Any] = None

@@ -67,8 +67,6 @@ def fit_and_evaluate(dataset: Dataset,
             else:
                 validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
 
-
-
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
 

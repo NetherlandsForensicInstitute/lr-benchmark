@@ -12,14 +12,12 @@ from xgboost import XGBClassifier
 
 from lrbenchmark.data.dataset import XTCDataset, GlassDataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
-from lrbenchmark.load import load_data_config
 from lrbenchmark.pairing import CartesianPairing, BalancedPairing
 from lrbenchmark.transformers import DummyTransformer, PrecalculatedScorerASR, MeasurementPairScorer
 
 PAIRING = {'cartesian': CartesianPairing, 'balanced': BalancedPairing}
 
-SCORERS = {'precalculated_asr': partial(PrecalculatedScorerASR,
-                                        scores_path=load_data_config('asr').dataset['scores_path']),
+SCORERS = {'precalculated_asr': PrecalculatedScorerASR,
            'lda': partial(MeasurementPairScorer, LDA),
            'qda': partial(MeasurementPairScorer, QDA),
            'gb': partial(MeasurementPairScorer, GradientBoostingClassifier),
