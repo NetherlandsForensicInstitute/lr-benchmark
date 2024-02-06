@@ -1,7 +1,7 @@
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.pairing import CartesianPairing
 
-
+# TODO: change/remove
 def test_split_by_reference(measurements, measurements_set2):
     dataset = Dataset(measurements=measurements + measurements_set2)
     pairing_function = CartesianPairing()

@@ -1,12 +1,12 @@
 import itertools
 from abc import ABC, abstractmethod
 import random
-from typing import List, Iterable, Optional
+from typing import List, Iterable, Optional, Mapping
 
 import sklearn.base
 
 from lrbenchmark.data.models import Measurement, MeasurementPair
-from lrbenchmark.utils import apply_filter_on_trace_reference_properties
+from lrbenchmark.utils import pair_complies_with_trace_or_reference_properties
 
 
 class BasePairing(sklearn.base.TransformerMixin, ABC):
@@ -17,8 +17,8 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     @abstractmethod
     def transform(self,
                   measurements: Iterable[Measurement],
-                  seed: Optional[int] = None,
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
 
@@ -39,11 +39,14 @@ class CartesianPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  seed: Optional[int] = None,
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  seed: Optional[int] = None
+                  ) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if filter_on_trace_reference_properties:
-            all_pairs = apply_filter_on_trace_reference_properties(all_pairs)
+        if trace_reference_properties:
+            all_pairs = [mp for mp in all_pairs if
+                         pair_complies_with_trace_or_reference_properties(mp, trace_reference_properties)]
+            # all_pairs = apply_filter_on_trace_reference_properties(all_pairs)
         return all_pairs
 
 
@@ -57,12 +60,13 @@ class BalancedPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  seed: Optional[int] = None,
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if filter_on_trace_reference_properties:
-            all_pairs = apply_filter_on_trace_reference_properties(all_pairs)
+        if trace_reference_properties:
+            all_pairs = [mp for mp in all_pairs if
+                         pair_complies_with_trace_or_reference_properties(mp, trace_reference_properties)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
         different_source_pairs = [a for a in all_pairs if not a.is_same_source]
         n_pairs = min(len(same_source_pairs), len(different_source_pairs))

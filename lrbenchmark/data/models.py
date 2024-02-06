@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union, Optional, List, Tuple
+from typing import Mapping, Any, Union, Optional, List, Tuple, Dict
 
 import numpy as np
 
@@ -31,7 +31,7 @@ class Measurement:
     """
 
     source: Source
-    extra: Mapping[str, Any]
+    extra: Dict[str, Any]
     id: Optional[Union[int, str]] = None
     is_like_reference: Optional[bool] = None
     is_like_trace: Optional[bool] = None
@@ -58,7 +58,7 @@ class MeasurementPair:
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    extra: Mapping[str, Any] = None
+    extra: Dict[str, Any] = None
 
     @property
     def is_same_source(self) -> bool:

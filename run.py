@@ -30,7 +30,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      experiment_config: Configuration,
-                     properties: Mapping = None,
+                     properties: Mapping[str, Mapping[str, Any]] = None,
                      selected_params: Dict[str, Any] = None,
                      refnorm: Optional[Configuration] = None,
                      repeats: int = 1) -> Result:
@@ -54,8 +54,8 @@ def fit_and_evaluate(dataset: Dataset,
                                                   filter_on_trace_reference_properties=properties or {})
                                                   # experiment_config.get('filter_on_trace_reference_properties'))
             validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        filter_on_trace_reference_properties=
-                                                        experiment_config.get('filter_on_trace_reference_properties'))
+                                                        filter_on_trace_reference_properties=properties or {})
+                                                        # experiment_config.get('filter_on_trace_reference_properties'))
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)

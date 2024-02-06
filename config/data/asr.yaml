@@ -14,9 +14,9 @@ dataset:
 experiment:
   properties:
     - trace:
-        duration: 5
+        auto: ja
       reference:
-        duration: 10
+        auto: nee
     - trace:
         duration: 15
       reference:

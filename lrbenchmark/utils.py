@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Any, Optional, Iterable
+from typing import Dict, Any, Optional, Iterable, Mapping
 
 from lrbenchmark.data.models import MeasurementPair
 
@@ -46,8 +46,18 @@ def apply_filter_on_trace_reference_properties(measurement_pairs: Iterable[Measu
             (mp.measurement_a.id != mp.measurement_b.id or not mp.is_same_source)]
 
 
-def complies_with_filter_requirements(requirements: Dict[str, Any], info: Optional[Dict[str, str]],
-                                      extra: Optional[Dict[str, Any]]) -> bool:
+def pair_complies_with_trace_or_reference_properties(measurement_pair: MeasurementPair,
+                                                     properties: Mapping[str, Mapping[str, Any]] = None) -> bool:
+        m_a, m_b = measurement_pair.measurement_a, measurement_pair.measurement_b
+        return ((complies_with_filter_requirements(properties['reference'], m_a.extra, None) and
+                 complies_with_filter_requirements(properties['trace'], m_b.extra, None)) or
+                complies_with_filter_requirements(properties['trace'], m_a.extra, None) and
+                complies_with_filter_requirements(properties['reference'], m_b.extra, None)) and (
+                m_a.id != m_b.id or not measurement_pair.is_same_source)
+
+
+def complies_with_filter_requirements(requirements: Mapping[str, Any], info: Optional[Mapping[str, str]] = None,
+                                      extra: Optional[Mapping[str, Any]] = None) -> bool:
     """
     Check whether the values in `info` and `extra` match the values in the `requirements`. The values in `requirements`
     and `extra`, can be any type (a list of strings, an integer, a boolean), while the values in `info` should be
@@ -67,12 +77,12 @@ def complies_with_filter_requirements(requirements: Dict[str, Any], info: Option
     return True
 
 
-def parse_dict_values_to_str(dict: Dict[str, Any]) -> Dict[str, str]:
+def parse_dict_values_to_str(mapping_to_parse: Mapping[str, Any]) -> Mapping[str, str]:
     """
-    Parse the values in the dictionary to strings or list of strings.
+    Parse the values in the mapping to strings or list of strings.
     """
     result = {}
-    for key, val in dict.items():
+    for key, val in mapping_to_parse.items():
         if isinstance(val, list):
             result.update({key: list(map(str, val))})
         else:

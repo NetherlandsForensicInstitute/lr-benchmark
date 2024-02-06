@@ -83,7 +83,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  properties: Mapping[str, Mapping[str, Any]] = None) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -92,7 +92,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed, filter_on_trace_reference_properties)
+        return pairing_function.transform(self.measurements, properties, seed)
 
 
 class XTCDataset(Dataset):
@@ -182,20 +182,20 @@ class ASRDataset(Dataset):
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
-            is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
-                                                                  {'duration': duration})
-            is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
-                                                              {'duration': duration})
+            # is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
+            #                                                       {'duration': duration})
+            # is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
+            #                                                   {'duration': duration})
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 measurements.append(Measurement(
                                 Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
                                 id=recording_id_a,
-                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                                # is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                 extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
                                        'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
-                                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                                                # is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                                                 extra={'filename': filename_a, 'actual_duration': duration}))
         return measurements
 
