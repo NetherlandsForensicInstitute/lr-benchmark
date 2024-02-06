@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import csv
+import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, Mapping
+from typing import Dict, Any, Mapping
 
 import confidence
 import lir.plotting
@@ -17,22 +18,23 @@ from tqdm import tqdm
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.load import get_parser, load_data_config
-from lrbenchmark.pairing import BasePairing, CartesianPairing
+from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
 from params import parse_config, config_option_dicts
 
+LOG = logging.getLogger(__name__)
+
 
 def fit_and_evaluate(dataset: Dataset,
                      pairing_function: BasePairing,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
-                     experiment_config: Configuration,
+                     splitting_strategy: Mapping,
                      properties: Mapping[str, Mapping[str, Any]] = None,
                      selected_params: Dict[str, Any] = None,
-                     refnorm: Optional[Configuration] = None,
                      repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
@@ -41,26 +43,38 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
+    if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
+            and not isinstance(pairing_function, CartesianPairing):
+        LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
+
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
-        if refnorm and refnorm['refnorm_size']:
-            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=refnorm['refnorm_size'], seed=idx))
-        for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
-                                                                  **experiment_config['splitting_strategy']):
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  properties=properties or {})
-                                                  # experiment_config.get('filter_on_trace_reference_properties'))
-            validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        properties=properties or {})
-                                                        # experiment_config.get('filter_on_trace_reference_properties'))
+        if splitting_strategy['refnorm']['split_type'] == 'simple':
+            dataset, dataset_refnorm = \
+                next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
+        splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
+        if repeats == 1:
+            splits = tqdm(list(splits), 'train - validate splits')
+        for dataset_train, dataset_validate in splits:
+
+            # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
+            if splitting_strategy['validation']['split_type'] == 'leave_one_out':
+                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+                # there may be no viable pairs for these sources. If so, go to the next
+                if not validate_pairs:
+                    continue
+            else:
+                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
 
-            if refnorm:
+            if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
                 validation_scores = perform_refnorm(validation_scores, validate_pairs, dataset_refnorm or dataset_train,
                                                     scorer)
@@ -73,11 +87,11 @@ def fit_and_evaluate(dataset: Dataset,
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              properties=properties or {}, seed=idx)
+                                              properties=properties or {})
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
-        if refnorm:
+        if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
             scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
                                              scorer)
@@ -138,7 +152,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     config_resolved = parse_config(config, config_option_dicts)
     exp_config = config_resolved['experiment']
     exp.parameter('repeats', exp_config['repeats'])
-    exp.parameter('refnorm', exp_config.get('refnorm', None))
+    exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('experiment_config', exp_config)
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],

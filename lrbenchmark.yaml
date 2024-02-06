@@ -2,7 +2,6 @@ experiment:
   repeats: 1
   pairing:
     - name: cartesian
-  filter_on_trace_reference_properties: True
   scorer:
     - name: precalculated_asr
       scores_path: ${dataset.scores_path}
@@ -17,9 +16,9 @@ experiment:
   calibrator:
     - name: elub_logit
   splitting_strategy:
-    train_size: 0.8
-    validate_size: .2
-    n_splits: 1
-  refnorm:
-    refnorm_size: 20 # If empty, the trainset will be used as refnorm dataset, with the LOO method
-
+    validation:
+      split_type: leave_one_out # leave_one_out or simple.
+      validate_size:  # size is only used for 'simple'. Can be fraction or number
+    refnorm:
+      split_type: simple # none, leave_one_out or simple
+      size: .2 # size is only used for 'simple'

@@ -3,6 +3,7 @@ dataset:
   limit_n_measurements:
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
+  filter_on_trace_reference_properties: True
   holdout_source_ids:
     109051
     114844
