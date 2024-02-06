@@ -42,13 +42,18 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
+    # for descriptive statistics. Set as we want unique pairs
+    all_validate_pairs = []
+    all_train_pairs = []
+
     if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
-            and isinstance(pairing_function, CartesianPairing):
-        LOG.warning(f"Leave one out validation will give you cartesion pairing, not {pairing_function}")
+            and not isinstance(pairing_function, CartesianPairing):
+        LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
         if splitting_strategy['refnorm']['split_type'] == 'simple':
@@ -56,7 +61,7 @@ def fit_and_evaluate(dataset: Dataset,
                 next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
-            splits = tqdm(list(splits), 'train - validate splits')
+            splits = tqdm(list(splits), 'train - validate splits', position=0)
         for dataset_train, dataset_validate in splits:
 
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
@@ -79,6 +84,11 @@ def fit_and_evaluate(dataset: Dataset,
             validate_lrs.append(calibrator.transform(validation_scores))
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
+            if idx == 0:
+                # in the first repeat loop, save information on descriptive statistics
+                all_validate_pairs+=validate_pairs
+                # for training, this is the entire set, so count once
+                all_train_pairs=train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
@@ -115,9 +125,26 @@ def fit_and_evaluate(dataset: Dataset,
     lir.plotting.score_distribution(validate_scores, validate_labels)
     figs['score distribution and calibrator fit'] = fig
 
+    # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
+    no_ss_validate = len([pair for pair in all_validate_pairs if pair.is_same_source])
+    no_ds_validate = len(all_validate_pairs) - no_ss_validate
+    no_sources_validate = len(set([pair.measurement_a.source.id for pair in all_validate_pairs] +
+                                  [pair.measurement_b.source.id for pair in all_validate_pairs]))
+    no_ss_train = len([pair for pair in all_train_pairs if pair.is_same_source])
+    no_ds_train = len(all_train_pairs) - no_ss_train
+    no_sources_train = len(set([pair.measurement_a.source.id for pair in all_train_pairs] +
+                                  [pair.measurement_b.source.id for pair in all_train_pairs]))
+    no_sources_holdout = 0
+    if holdout_set:
+        no_sources_holdout = len(holdout_set.source_ids)
     descriptive_statistics = {'no of sources': len(dataset.source_ids),
-                              'no of pairs train (last repeat)': len(train_pairs),
-                              'no of pairs validate (last repeat)': len(validate_pairs)}
+                              'no of sources train': no_sources_train,
+                              'no of sources validate': no_sources_validate,
+                              'no of sources holdout': no_sources_holdout,
+                              'no of train SS pairs': no_ss_train,
+                              'no of train DS pairs': no_ds_train,
+                              'no of validate SS pairs': no_ss_validate,
+                              'no of validate DS pairs': no_ds_validate,}
 
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
@@ -167,11 +194,11 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # write results to file
     with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = set(agg_result[0].metrics.keys())
+        fieldnames = sorted(set(agg_result[0].metrics.keys()))
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in sorted(result_row.metrics.items())  if fieldname in fieldnames})
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
