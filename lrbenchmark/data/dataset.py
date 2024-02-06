@@ -230,18 +230,31 @@ class ASRDataset(Dataset):
                                                                   {'duration': duration})
             is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
                                                               {'duration': duration})
+            extra = {'filename': filename_a, 'actual_duration': duration}
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 measurements.append(Measurement(
-                    Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                    Source(id=source_id_a, extra=self.get_extra_information(info_a, 'source')),
                     id=recording_id_a,
                     is_like_reference=is_like_reference, is_like_trace=is_like_trace,
-                    extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
-                           'actual_duration': duration, 'auto': info_a['auto']}))
+                    extra={**extra, **self.get_extra_information(info_a, 'measurement')}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id="Case", extra={}), id=recording_id_a,
+                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a,
                                                 is_like_reference=True, is_like_trace=True,
-                                                extra={'filename': filename_a, 'actual_duration': duration}))
+                                                extra=extra))
         return measurements
+
+    def get_extra_information(self, info: Dict[str, str], object_type: str) -> Dict[str, str]:
+        """
+        Retrieve the values in `info` for the either keys in the trace and reference properties (if
+        'object_type' is `measurement`) or for the keys in the source filter (if 'object_type' is 'source').
+        """
+        if object_type == 'measurement':
+            all_property_keys = {**self.trace_properties, **self.reference_properties}.keys()
+        elif object_type == 'source':
+            all_property_keys = self.source_filter.keys()
+        else:
+            raise ValueError(f"Unknown object {object_type} found. Possible object types are measurement or source.")
+        return {key: info.get(key) for key in all_property_keys}
 
     @staticmethod
     def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, Optional[int]]:
