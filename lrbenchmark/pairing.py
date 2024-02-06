@@ -17,7 +17,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     @abstractmethod
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
@@ -39,7 +39,7 @@ class CartesianPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
                   seed: Optional[int] = None
                   ) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
@@ -60,7 +60,7 @@ class BalancedPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Mapping[str, Mapping[str, str]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]

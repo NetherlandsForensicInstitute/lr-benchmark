@@ -51,10 +51,10 @@ def fit_and_evaluate(dataset: Dataset,
         for dataset_train, dataset_validate in dataset.get_splits(seed=idx,
                                                                   **experiment_config['splitting_strategy']):
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  filter_on_trace_reference_properties=properties or {})
+                                                  properties=properties or {})
                                                   # experiment_config.get('filter_on_trace_reference_properties'))
             validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                        filter_on_trace_reference_properties=properties or {})
+                                                        properties=properties or {})
                                                         # experiment_config.get('filter_on_trace_reference_properties'))
 
             train_scores = scorer.fit_predict(train_pairs)
@@ -73,8 +73,7 @@ def fit_and_evaluate(dataset: Dataset,
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              filter_on_trace_reference_properties=
-                                              experiment_config.get('filter_on_trace_reference_properties'))
+                                              properties=properties or {}, seed=idx)
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
