@@ -167,7 +167,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
-        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
+        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['desc', 'pair', 'LR'])
             for result_row in agg_result:
