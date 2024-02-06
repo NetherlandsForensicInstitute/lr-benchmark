@@ -222,7 +222,10 @@ class ASRDataset(Dataset):
                 return measurements
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
-            info_a = recording_data.get(filename_a.replace('_' + str(duration) + 's', ''))
+            filename_in_recording_data = filename_a.replace('_' + str(duration) + 's', '') if duration else filename_a
+            info_a = recording_data.get(filename_in_recording_data)
+            if not duration and info_a:
+                duration = info_a['net_duration']
             is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
                                                                   {'duration': duration})
             is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
@@ -241,13 +244,20 @@ class ASRDataset(Dataset):
         return measurements
 
     @staticmethod
-    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, int]:
+    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, Optional[int]]:
         """
-        Retrieve the source id and actual duration of the recording from the file name.
+        Retrieve the source id, recording id and actual duration (if possible) of the recording from the filename.
         """
-        source_id, recording_id, duration = filename.split("_")
-        duration = duration.split("s")[0]
-        return source_id, recording_id, int(duration)
+        split = filename.split("_")
+        if len(split) == 3:
+            source_id, recording_id, duration = split
+            duration = int(duration.split("s")[0])
+        elif len(split) == 2:
+            source_id, recording_id = split
+            duration = None
+        else:
+            raise ValueError(f"Invalid filename found: {filename}")
+        return source_id, recording_id, duration
 
     def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """
