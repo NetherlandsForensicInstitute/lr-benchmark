@@ -1,6 +1,6 @@
 import itertools
-from abc import ABC, abstractmethod
 import random
+from abc import ABC, abstractmethod
 from typing import List, Iterable, Optional
 
 import sklearn.base
@@ -45,6 +45,37 @@ class CartesianPairing(BasePairing):
         if filter_on_trace_reference_properties:
             all_pairs = apply_filter_on_trace_reference_properties(all_pairs)
         return all_pairs
+
+
+class LeaveOneTwoOutPairing(BasePairing):
+    """
+    Specific pairing used to make leave one/two out possible.
+    Should be provided the measurements of exactly one or two sources.
+    On transform, returns all same source pairs for one source, different source pairs for two sources.
+    """
+
+    def fit(self, measurements: Iterable[Measurement]):
+        return self
+
+    def transform(self,
+                  measurements: Iterable[Measurement],
+                  seed: Optional[int] = None,
+                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+        # all same source pairs for one source, different source pairs for two sources
+        num_sources = len(set(m.source.id for m in measurements))
+        if num_sources == 1:
+            return CartesianPairing().transform(
+                measurements,
+                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                seed=seed)
+        if num_sources == 2:
+            pairs = CartesianPairing().transform(
+                measurements,
+                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                seed=seed)
+            return [pair for pair in pairs if not pair.is_same_source]
+        raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
+                         f'sources. Found {num_sources}.')
 
 
 class BalancedPairing(BasePairing):

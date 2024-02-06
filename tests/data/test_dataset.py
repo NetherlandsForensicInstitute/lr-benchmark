@@ -4,6 +4,7 @@ import pytest
 
 from lrbenchmark.data.dataset import GlassDataset, XTCDataset, Dataset, ASRDataset
 from lrbenchmark.data.simulation import SynthesizedNormalDataset
+from lrbenchmark.pairing import CartesianPairing, LeaveOneTwoOutPairing
 from tests.conftest import TEST_DIR
 
 
@@ -31,6 +32,22 @@ def test_get_splits_measurements(measurements, train_size, test_size):
             measurements) if isinstance(train_size, float) else len(measurements) > len(y_test) > 0
 
         assert not dataset_train.source_ids.intersection(dataset_test.source_ids)
+
+
+def test_get_splits_loo(measurements, measurements_set2):
+    meas = measurements[:5] + measurements_set2[:5]
+    dataset = Dataset(measurements=meas)
+    n_sources = len(dataset.source_ids)
+    # 5 sources each with 2 measurements
+    n_single_groups = n_sources
+    n_double_groups = n_sources * (n_sources - 1) / 2
+    assert len(list(dataset.get_splits(seed=0, split_type='leave_one_out'))) == n_single_groups + n_double_groups
+    pairing_function = CartesianPairing()
+    validate_pairs = []
+    for dataset_train, dataset_validate in dataset.get_splits(seed=0, split_type='leave_one_out'):
+        validate_pairs += dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing())
+    all_pairs = dataset.get_pairs(pairing_function=pairing_function)
+    assert len(validate_pairs) == len(all_pairs), 'should see all pairs in validation'
 
 
 @pytest.mark.parametrize("class_name, config_key", [(ASRDataset, 'asr'),
