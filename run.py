@@ -64,13 +64,16 @@ def fit_and_evaluate(dataset: Dataset,
             splits = tqdm(list(splits), 'train - validate splits', position=0)
         for dataset_train, dataset_validate in splits:
 
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
-
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type']=='leave_one_out':
                 validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+                # there may be no viable pairs for these sources. If so, go to the next
+                if not validate_pairs:
+                    continue
             else:
                 validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -92,7 +95,8 @@ def fit_and_evaluate(dataset: Dataset,
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
-        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing())
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
+                                              filter_on_trace_reference_properties=False)
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
