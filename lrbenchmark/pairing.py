@@ -64,13 +64,15 @@ class LeaveOneTwoOutPairing(BasePairing):
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
         if num_sources == 1:
-            return CartesianPairing().transform(measurements,
-                                                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
-                                                seed=seed)
+            return CartesianPairing().transform(
+                measurements,
+                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                seed=seed)
         if num_sources == 2:
-            pairs = CartesianPairing().transform(measurements,
-                                                 filter_on_trace_reference_properties=filter_on_trace_reference_properties,
-                                                 seed=seed)
+            pairs = CartesianPairing().transform(
+                measurements,
+                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                seed=seed)
             return [pair for pair in pairs if not pair.is_same_source]
         raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
                          f'sources. Found {num_sources}.')

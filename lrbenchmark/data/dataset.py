@@ -87,14 +87,15 @@ class Dataset(ABC):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
                                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),
                                Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties), ]
+                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
                 yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
-                               filter_on_trace_reference_properties=self.filter_on_trace_reference_properties) for split_idx in
+                               filter_on_trace_reference_properties=self.filter_on_trace_reference_properties) for
+                       split_idx in
                        split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
@@ -111,7 +112,8 @@ class Dataset(ABC):
             return \
                 Dataset(measurements=holdout_measurements,
                         filter_on_trace_reference_properties=self.filter_on_trace_reference_properties), \
-                Dataset(measurements=other_measurements, filter_on_trace_reference_properties=self.filter_on_trace_reference_properties)
+                Dataset(measurements=other_measurements,
+                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties)
         return None, self
 
     def get_pairs(self,
@@ -227,11 +229,11 @@ class ASRDataset(Dataset):
                                                               {'duration': duration})
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 measurements.append(Measurement(
-                                Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
-                                id=recording_id_a,
-                                is_like_reference=is_like_reference, is_like_trace=is_like_trace,
-                                extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
-                                       'actual_duration': duration, 'auto': info_a['auto']}))
+                    Source(id=source_id_a, extra={'sex': info_a['sex'], 'age': info_a['beller_leeftijd']}),
+                    id=recording_id_a,
+                    is_like_reference=is_like_reference, is_like_trace=is_like_trace,
+                    extra={'filename': filename_a, 'net_duration': float(info_a['net duration']),
+                           'actual_duration': duration, 'auto': info_a['auto']}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id=source_id_a, extra={}), id=recording_id_a,
                                                 is_like_reference=is_like_reference, is_like_trace=is_like_trace,
