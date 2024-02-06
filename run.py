@@ -43,8 +43,8 @@ def fit_and_evaluate(dataset: Dataset,
     validate_scores = []
 
     if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
-            and isinstance(pairing_function, CartesianPairing):
-        LOG.warning(f"Leave one out validation will give you cartesion pairing, not {pairing_function}")
+            and not isinstance(pairing_function, CartesianPairing):
+        LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
     holdout_set = None
@@ -59,13 +59,16 @@ def fit_and_evaluate(dataset: Dataset,
             splits = tqdm(list(splits), 'train - validate splits')
         for dataset_train, dataset_validate in splits:
 
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
-
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type']=='leave_one_out':
                 validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+                # there may be no viable pairs for these sources. If so, go to the next
+                if not validate_pairs:
+                    continue
             else:
                 validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
