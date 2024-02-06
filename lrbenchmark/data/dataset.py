@@ -199,17 +199,17 @@ class ASRDataset(Dataset):
                                                 extra=extra))
         return measurements
 
-    def get_extra_information(self, info: Dict[str, str], object: str) -> Dict[str, str]:
+    def get_extra_information(self, info: Dict[str, str], object_type: str) -> Dict[str, str]:
         """
-        Retrieve the values in the `info` mapping for the either keys in the trace and reference properties (if
-        object is `measurement`) or for the keys in the source filter (if object is 'source').
+        Retrieve the values in `info` for the either keys in the trace and reference properties (if
+        'object_type' is `measurement`) or for the keys in the source filter (if 'object_type' is 'source').
         """
-        if object == 'measurement':
+        if object_type == 'measurement':
             all_property_keys = {**self.trace_properties, **self.reference_properties}.keys()
-        elif object == 'source':
+        elif object_type == 'source':
             all_property_keys = self.source_filter.keys()
         else:
-            raise ValueError(f"Unknown object {object} found.")
+            raise ValueError(f"Unknown object {object_type} found. Possible object types are measurement or source.")
         return {key: info.get(key) for key in all_property_keys}
 
     @staticmethod
