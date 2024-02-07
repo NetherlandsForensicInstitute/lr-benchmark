@@ -32,7 +32,7 @@ class Measurement:
 
     source: Source
     extra: Dict[str, Any]
-    id: Optional[Union[int, str]] = None
+    id: Union[int, str]
     is_like_reference: Optional[bool] = None
     is_like_trace: Optional[bool] = None
     value: Optional[Any] = None
@@ -47,6 +47,9 @@ class Measurement:
 
     def __str__(self):
         return f'source_id: {self.source.id}, {self.extra}'
+
+    def __eq__(self, other):
+        return self.id == other.id
 
 
 @dataclass
@@ -82,3 +85,8 @@ class MeasurementPair:
 
     def __str__(self):
         return f'[{self.measurement_a} - {self.measurement_b}]'
+
+    def __eq__(self, other):
+        # equality is symmetric. we ignore extras
+        return (other.measurement_a == self.measurement_a and other.measurement_b == self.measurement_b) or \
+               (other.measurement_a == self.measurement_b and other.measurement_b == self.measurement_a)

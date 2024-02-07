@@ -5,9 +5,6 @@ from datetime import datetime
 from typing import Dict, Any, Mapping
 
 import confidence
-import lir.plotting
-import lir.util
-import matplotlib.pyplot as plt
 import numpy as np
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
@@ -23,6 +20,7 @@ from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
+from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
 LOG = logging.getLogger(__name__)
@@ -43,6 +41,10 @@ def fit_and_evaluate(dataset: Dataset,
     validate_labels = []
     validate_scores = []
 
+    # for descriptive statistics. Set as we want unique pairs
+    all_validate_pairs = []
+    all_train_pairs = []
+
     if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
             and not isinstance(pairing_function, CartesianPairing):
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
@@ -50,6 +52,7 @@ def fit_and_evaluate(dataset: Dataset,
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
         if splitting_strategy['refnorm']['split_type'] == 'simple':
@@ -57,7 +60,7 @@ def fit_and_evaluate(dataset: Dataset,
                 next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
-            splits = tqdm(list(splits), 'train - validate splits')
+            splits = tqdm(list(splits), 'train - validate splits', position=0)
         for dataset_train, dataset_validate in splits:
 
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
@@ -83,6 +86,11 @@ def fit_and_evaluate(dataset: Dataset,
             validate_lrs.append(calibrator.transform(validation_scores))
             validate_labels.append([mp.is_same_source for mp in validate_pairs])
             validate_scores.append(validation_scores)
+            if idx == 0:
+                # in the first repeat loop, save information on descriptive statistics
+                all_validate_pairs+=validate_pairs
+                # for training, this is the entire set, so count once
+                all_train_pairs=train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
@@ -103,26 +111,11 @@ def fit_and_evaluate(dataset: Dataset,
     validate_scores = np.concatenate(validate_scores)
 
     # plotting results for a single experiment
-    figs = {}
-    fig = plt.figure()
-    lir.plotting.lr_histogram(validate_lrs, validate_labels, bins=20)
-    figs['lr_distribution'] = fig
+    figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
 
-    fig = plt.figure()
-    lir.plotting.tippett(validate_lrs, validate_labels)
-    figs['tippett'] = fig
+    # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
+    descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
 
-    fig = plt.figure()
-    lir.plotting.calibrator_fit(calibrator, score_range=(min(validate_scores), max(validate_scores)))
-    figs['calibrator_fit'] = fig
-
-    fig = plt.figure()
-    lir.plotting.score_distribution(validate_scores, validate_labels)
-    figs['score distribution and calibrator fit'] = fig
-
-    descriptive_statistics = {'no of sources': len(dataset.source_ids),
-                              'no of pairs train (last repeat)': len(train_pairs),
-                              'no of pairs validate (last repeat)': len(validate_pairs)}
 
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
@@ -174,15 +167,15 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # write results to file
     with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = set(agg_result[0].metrics.keys())
+        fieldnames = sorted(set(agg_result[0].metrics.keys()))
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items()  if fieldname in fieldnames})
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
-        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w') as file:
+        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['desc', 'pair', 'LR'])
             for result_row in agg_result:
@@ -197,6 +190,8 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
             prepare_output_file(path)
             fig.savefig(path)
 
+    # save yaml configuration file
+    confidence.dumpf(config, f'{folder_name}/config.yaml')
 
 if __name__ == '__main__':
     parser = get_parser()
