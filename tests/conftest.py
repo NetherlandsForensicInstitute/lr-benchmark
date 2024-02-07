@@ -32,18 +32,16 @@ def measurements() -> List[Measurement]:
     values = np.reshape(np.array(list(range(50))), (10, 5))
     items = np.array(list(range(10, 20)))
     return [Measurement(source=Source(id=item, extra={}),
-                        id = i,
-                        is_like_reference=True, is_like_trace=False,
-                        extra={}, value=value) for i, (value, item) in enumerate(zip(values, items))]
+                        id=i,
+                        extra={'property': 'trace'}, value=value) for i, (value, item) in enumerate(zip(values, items))]
 
 
 @pytest.fixture
 def measurements_set2() -> List[Measurement]:
     values = np.reshape(np.array(list(range(250, 300))), (10, 5))
     items = np.array(list(range(10, 15))+list(range(21, 26)))
-    return [Measurement(source=Source(id=item, extra={}), extra={},
-                        is_like_reference=False, is_like_trace=True,
-                        value=value, id = i+9999) for i, (value, item) in enumerate(zip(values, items))]
+    return [Measurement(source=Source(id=item, extra={}), extra={'property': 'reference'},
+                        value=value, id=i+9999) for i, (value, item) in enumerate(zip(values, items))]
 
 
 @pytest.fixture

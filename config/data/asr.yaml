@@ -13,10 +13,10 @@ dataset:
       - 9
 experiment:
   properties:
-#    - trace:
-#        auto: ja
-#      reference:
-#        auto: nee
+    - trace:
+        auto: ja
+      reference:
+        auto: nee
 #    - trace:
 #        actual_duration: 15
 #      reference:

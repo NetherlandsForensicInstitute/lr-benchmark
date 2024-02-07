@@ -17,7 +17,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     @abstractmethod
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
@@ -39,7 +39,7 @@ class CartesianPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         if trace_reference_properties:
@@ -60,7 +60,7 @@ class LeaveOneTwoOutPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
@@ -89,7 +89,7 @@ class BalancedPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]

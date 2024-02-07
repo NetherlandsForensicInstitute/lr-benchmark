@@ -65,14 +65,17 @@ def fit_and_evaluate(dataset: Dataset,
 
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type'] == 'leave_one_out':
-                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
+                                                            trace_reference_properties=properties or {})
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validate_pairs:
                     continue
             else:
-                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                            trace_reference_properties=properties or {})
 
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                  trace_reference_properties=properties or {})
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -150,8 +153,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
                   'calibrator': exp_config['calibrator'],
-                  'properties': exp_config.get('properties', [None])}
-                  # 'properties': exp_config['properties'] or [None],}
+                  'properties': exp_config['properties'] or [None]}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '

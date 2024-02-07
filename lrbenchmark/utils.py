@@ -31,24 +31,16 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def apply_filter_on_trace_reference_properties(measurement_pairs: Iterable[MeasurementPair]) \
-        -> Iterable[MeasurementPair]:
+def pair_complies_with_trace_or_reference_properties(measurement_pair: MeasurementPair,
+                                                     properties: Mapping[str, Mapping[str, Any]]) -> bool:
     """
-    Filter measurement pairs on two conditions:
+    Check a measurement pair on two conditions:
     - the pair must consist of one 'trace_like' measurement and one 'reference_like' measurement
     - the source ids of the two measurements must differ or the id's of the measurements must differ. The two
     measurements in the pair cannot just be different variants of the same measurement. We check this by requiring
     either the source id or measurement id to be different.
     """
-    return [mp for mp in measurement_pairs if
-            ((mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
-             (mp.measurement_a.is_like_trace and mp.measurement_b.is_like_reference)) and
-            (mp.measurement_a.id != mp.measurement_b.id or not mp.is_same_source)]
-
-
-def pair_complies_with_trace_or_reference_properties(measurement_pair: MeasurementPair,
-                                                     properties: Mapping[str, Mapping[str, Any]]) -> bool:
-    m_a, m_b = measurement_pair.measurement_a, measurement_pair.measurement_b
+    m_a, m_b = measurement_pair.measurements
     return ((complies_with_filter_requirements(properties['reference'], m_a.extra) and
              complies_with_filter_requirements(properties['trace'], m_b.extra)) or
             complies_with_filter_requirements(properties['trace'], m_a.extra) and
