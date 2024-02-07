@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Any, Optional, Iterable, Mapping
+from typing import Dict, Any, Optional,  Mapping
 
 from lrbenchmark.data.models import MeasurementPair
 
