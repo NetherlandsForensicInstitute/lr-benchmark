@@ -32,7 +32,7 @@ class Measurement:
 
     source: Source
     extra: Mapping[str, Any]
-    id: Optional[Union[int, str]] = None
+    id: Union[int, str]
     is_like_reference: Optional[bool] = None
     is_like_trace: Optional[bool] = None
     value: Optional[Any] = None

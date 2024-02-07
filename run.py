@@ -2,12 +2,9 @@
 import csv
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, Mapping
+from typing import Dict, Any, Mapping
 
 import confidence
-import lir.plotting
-import lir.util
-import matplotlib.pyplot as plt
 import numpy as np
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
@@ -23,6 +20,7 @@ from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
+from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
 LOG = logging.getLogger(__name__)
@@ -112,43 +110,11 @@ def fit_and_evaluate(dataset: Dataset,
     validate_scores = np.concatenate(validate_scores)
 
     # plotting results for a single experiment
-    figs = {}
-    fig = plt.figure()
-    lir.plotting.lr_histogram(validate_lrs, validate_labels, bins=20)
-    figs['lr_distribution'] = fig
-
-    fig = plt.figure()
-    lir.plotting.tippett(validate_lrs, validate_labels)
-    figs['tippett'] = fig
-
-    fig = plt.figure()
-    lir.plotting.calibrator_fit(calibrator, score_range=(min(validate_scores), max(validate_scores)))
-    figs['calibrator_fit'] = fig
-
-    fig = plt.figure()
-    lir.plotting.score_distribution(validate_scores, validate_labels)
-    figs['score distribution and calibrator fit'] = fig
+    figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
 
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
-    no_ss_validate = len([pair for pair in all_validate_pairs if pair.is_same_source])
-    no_ds_validate = len(all_validate_pairs) - no_ss_validate
-    no_sources_validate = len(set([pair.measurement_a.source.id for pair in all_validate_pairs] +
-                                  [pair.measurement_b.source.id for pair in all_validate_pairs]))
-    no_ss_train = len([pair for pair in all_train_pairs if pair.is_same_source])
-    no_ds_train = len(all_train_pairs) - no_ss_train
-    no_sources_train = len(set([pair.measurement_a.source.id for pair in all_train_pairs] +
-                                  [pair.measurement_b.source.id for pair in all_train_pairs]))
-    no_sources_holdout = 0
-    if holdout_set:
-        no_sources_holdout = len(holdout_set.source_ids)
-    descriptive_statistics = {'no of sources': len(dataset.source_ids),
-                              'no of sources train': no_sources_train,
-                              'no of sources validate': no_sources_validate,
-                              'no of sources holdout': no_sources_holdout,
-                              'no of train SS pairs': no_ss_train,
-                              'no of train DS pairs': no_ds_train,
-                              'no of validate SS pairs': no_ss_validate,
-                              'no of validate DS pairs': no_ds_validate,}
+    descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
+
 
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
@@ -202,7 +168,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in sorted(result_row.metrics.items())  if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items()  if fieldname in fieldnames})
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
