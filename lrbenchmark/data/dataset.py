@@ -21,16 +21,15 @@ class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
                  holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
-                 filter_on_trace_reference_properties: bool = False):
+                 trace_reference_properties: Optional[Mapping[str, Mapping[str, Any]]] = None):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
-        :param filter_on_trace_reference_properties: whether or not measurements consisting of two types should be mixed
-                in pairing
+        :param trace_reference_properties: properties of trace and reference measurements
         """
         super().__init__()
         self.measurements = measurements
         self.holdout_source_ids = holdout_source_ids
-        self.filter_on_trace_reference_properties = filter_on_trace_reference_properties
+        self.trace_reference_properties = trace_reference_properties or {}
 
     @property
     def source_ids(self) -> Set[int]:
@@ -85,23 +84,20 @@ class Dataset(ABC):
                     if (n_groups == 1 and len(test_index) > 1) or \
                             (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
-                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),
+                                       trace_reference_properties=self.trace_reference_properties),
                                Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),]
+                                       trace_reference_properties=self.trace_reference_properties),]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
                 yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
-                               filter_on_trace_reference_properties=self.filter_on_trace_reference_properties) for
-                       split_idx in
-                       split]
+                               trace_reference_properties=self.trace_reference_properties) for split_idx in split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
         if holdout source ids were provided, returns the dataset with those sources, and the dataset of the complement
-
         if no hold source ids were provided, returns None and this set itself
         """
         if self.holdout_source_ids:
@@ -111,16 +107,15 @@ class Dataset(ABC):
                                   measurement.source.id not in self.holdout_source_ids]
             return \
                 Dataset(measurements=holdout_measurements,
-                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties), \
+                        trace_reference_properties=self.trace_reference_properties), \
                 Dataset(measurements=other_measurements,
-                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties)
+                        trace_reference_properties=self.trace_reference_properties)
         return None, self
 
     def get_pairs(self,
                   seed: Optional[int] = None,
-                  pairing_function: BasePairing = CartesianPairing(), properties: Mapping[str, Mapping[str, Any]] = None)-> List[MeasurementPair]:
-                  # filter_on_trace_reference_properties: Optional[bool] = None)
-
+                  pairing_function: BasePairing = CartesianPairing(),
+                  trace_reference_properties: Mapping[str, Mapping[str, Any]] = None) -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -129,12 +124,12 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        if properties is None:
+        if not trace_reference_properties:
             # allow this variable to be overwritten for this function
-            filter_on_trace_reference_properties = self.filter_on_trace_reference_properties
+            trace_reference_properties = self.trace_reference_properties
 
-        return pairing_function.transform(self.measurements, seed=seed, properties=properties)
-                                          # filter_on_trace_reference_properties=filter_on_trace_reference_properties)
+        return pairing_function.transform(self.measurements, seed=seed,
+                                          trace_reference_properties=trace_reference_properties)
 
 
 class XTCDataset(Dataset):
@@ -195,15 +190,11 @@ class ASRDataset(Dataset):
                  scores_path: PathLike,
                  meta_info_path: PathLike,
                  source_filter: Optional[Mapping[str, Any]] = None,
-                 reference_properties: Optional[Mapping[str, Any]] = None,
-                 trace_properties: Optional[Mapping[str, Any]] = None,
                  limit_n_measurements: Optional[int] = None,
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
-        self.reference_properties = reference_properties or {}
-        self.trace_properties = trace_properties or {}
         self.limit_n_measurements = limit_n_measurements
         super().__init__(**kwargs)
 
@@ -227,21 +218,13 @@ class ASRDataset(Dataset):
             info_a = recording_data.get(filename_in_recording_data)
             if not duration and info_a:
                 duration = info_a['net_duration']
-            # is_like_reference = complies_with_filter_requirements(self.reference_properties, info_a or {},
-            #                                                       {'duration': duration})
-            # is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
-            #                                                   {'duration': duration})
             extra = {'filename': filename_a, 'actual_duration': duration}
-            if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
+            if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'actual_duration': duration}):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra=self.get_extra_information(info_a, 'source')),
-                    id=recording_id_a,
-                    is_like_reference=is_like_reference, is_like_trace=is_like_trace,
-                    extra={**extra, **self.get_extra_information(info_a, 'measurement')}))
+                    id=recording_id_a, extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a,
-                                                # is_like_reference=True, is_like_trace=True,
-                                                extra=True))
+                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a, extra=extra))
         return measurements
 
     def get_extra_information(self, info: Dict[str, str], object_type: str) -> Dict[str, str]:
@@ -250,7 +233,11 @@ class ASRDataset(Dataset):
         'object_type' is `measurement`) or for the keys in the source filter (if 'object_type' is 'source').
         """
         if object_type == 'measurement':
-            all_property_keys = {**self.trace_properties, **self.reference_properties}.keys()
+            if self.trace_reference_properties:
+                all_property_keys = {**self.trace_reference_properties['trace'],
+                                     **self.trace_reference_properties['reference']}.keys()
+            else:
+                all_property_keys = []
         elif object_type == 'source':
             all_property_keys = self.source_filter.keys()
         else:

@@ -1,8 +1,7 @@
 import itertools
 import random
-from typing import List, Iterable, Optional, Mapping
 from abc import ABC, abstractmethod
-from typing import List, Iterable, Optional
+from typing import List, Iterable, Optional, Mapping
 
 import sklearn.base
 
@@ -31,7 +30,7 @@ class CartesianPairing(BasePairing):
     By default, the list of MeasurementPair contains all possible pairs of Measurement, except the combination
     of a Measurement with itself. Pairs are considered symmetric, so pairing of measurements [a,b,c] will return
     a-b, a-c, b-c but not also b-a.
-    It is possible to `pair_should_have_trace_and_reference_measurements`, meaning only measurement pairs will be
+    It is possible to consider 'trace_reference_properties', meaning only measurement pairs will be
     created of which one measurement is similar to the reference and the other measurement is similar to the trace.
     """
 
@@ -41,13 +40,11 @@ class CartesianPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
-                  seed: Optional[int] = None
-                  ) -> List[MeasurementPair]:
+                  seed: Optional[int] = None) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         if trace_reference_properties:
             all_pairs = [mp for mp in all_pairs if
                          pair_complies_with_trace_or_reference_properties(mp, trace_reference_properties)]
-            # all_pairs = apply_filter_on_trace_reference_properties(all_pairs)
         return all_pairs
 
 
@@ -63,19 +60,19 @@ class LeaveOneTwoOutPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  seed: Optional[int] = None,
-                  filter_on_trace_reference_properties: Optional[bool] = False) -> List[MeasurementPair]:
+                  trace_reference_properties: Optional[Mapping[str, Mapping[str, str]]],
+                  seed: Optional[int] = None) -> List[MeasurementPair]:
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
         if num_sources == 1:
             return CartesianPairing().transform(
                 measurements,
-                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                trace_reference_properties=trace_reference_properties,
                 seed=seed)
         if num_sources == 2:
             pairs = CartesianPairing().transform(
                 measurements,
-                filter_on_trace_reference_properties=filter_on_trace_reference_properties,
+                trace_reference_properties=trace_reference_properties,
                 seed=seed)
             return [pair for pair in pairs if not pair.is_same_source]
         raise ValueError(f'When pairing and leave one out, there should be 1 or 2'

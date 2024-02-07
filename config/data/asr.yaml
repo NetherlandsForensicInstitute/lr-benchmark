@@ -3,7 +3,6 @@ dataset:
   limit_n_measurements:
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
-  filter_on_trace_reference_properties: True
   source_filter:
     sex: M
     beller_fluistert:
@@ -14,11 +13,11 @@ dataset:
       - 9
 experiment:
   properties:
-    - trace:
-        auto: ja
-      reference:
-        auto: nee
 #    - trace:
-#        duration: 15
+#        auto: ja
 #      reference:
-#        duration: 20
+#        auto: nee
+#    - trace:
+#        actual_duration: 15
+#      reference:
+#        actual_duration: 20

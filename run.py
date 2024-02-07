@@ -87,7 +87,7 @@ def fit_and_evaluate(dataset: Dataset,
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              properties=properties or {})
+                                              trace_reference_properties=properties or {})
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
@@ -153,12 +153,12 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp_config = config_resolved['experiment']
     exp.parameter('repeats', exp_config['repeats'])
     exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
-    exp.parameter('experiment_config', exp_config)
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
-                  'properties': exp_config['properties'],
-                  'calibrator': exp_config['calibrator']}
+                  'calibrator': exp_config['calibrator'],
+                  'properties': exp_config.get('properties', [None])}
+                  # 'properties': exp_config['properties'] or [None],}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '

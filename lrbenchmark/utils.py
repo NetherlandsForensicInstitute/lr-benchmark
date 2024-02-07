@@ -47,12 +47,12 @@ def apply_filter_on_trace_reference_properties(measurement_pairs: Iterable[Measu
 
 
 def pair_complies_with_trace_or_reference_properties(measurement_pair: MeasurementPair,
-                                                     properties: Mapping[str, Mapping[str, Any]] = None) -> bool:
+                                                     properties: Mapping[str, Mapping[str, Any]]) -> bool:
     m_a, m_b = measurement_pair.measurement_a, measurement_pair.measurement_b
-    return ((complies_with_filter_requirements(properties['reference'], m_a.extra, None) and
-             complies_with_filter_requirements(properties['trace'], m_b.extra, None)) or
-            complies_with_filter_requirements(properties['trace'], m_a.extra, None) and
-            complies_with_filter_requirements(properties['reference'], m_b.extra, None)) and (
+    return ((complies_with_filter_requirements(properties['reference'], m_a.extra) and
+             complies_with_filter_requirements(properties['trace'], m_b.extra)) or
+            complies_with_filter_requirements(properties['trace'], m_a.extra) and
+            complies_with_filter_requirements(properties['reference'], m_b.extra)) and (
             m_a.id != m_b.id or not measurement_pair.is_same_source)
 
 
