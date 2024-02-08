@@ -1,8 +1,8 @@
 dataset:
   name: synthesized_normal
-  mean: 180
-  sigma: 10
-  trace_measurement_stdev: 3
-  n_diff_source: 10
-  n_same_source: 10
+  population_mean: 180
+  population_std: 10
+  source_std: 1
+  n_measurements_per_source: 3
+  n_sources: 5
   seed: 42

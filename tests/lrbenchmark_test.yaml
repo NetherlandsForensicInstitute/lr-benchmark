@@ -3,11 +3,11 @@ dataset_test:
     scores_path: resources/asr/scorematrix.csv
     meta_info_path: resources/asr/recordings_anon.txt
   normal:
-    mean: 1
-    sigma: 0.5
-    trace_measurement_stdev: 0.1
-    n_same_source: 100
-    n_diff_source: 100
+    population_mean: 1
+    population_std: 0.5
+    source_std: 0.1
+    n_sources: 10
+    n_measurements_per_source: 3
     seed: 42
   xtc:
     measurements_path: resources/drugs_xtc/xtc_data.csv
