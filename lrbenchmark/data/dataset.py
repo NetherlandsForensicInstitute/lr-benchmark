@@ -86,7 +86,7 @@ class Dataset(ABC):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
                                        trace_reference_properties=self.trace_reference_properties),
                                Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       trace_reference_properties=self.trace_reference_properties),]
+                                       trace_reference_properties=self.trace_reference_properties)]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)

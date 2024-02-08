@@ -12,7 +12,7 @@ dataset:
       - 7
       - 9
 experiment:
-  properties:
+  trace_reference_properties:
     - trace:
         auto: ja
       reference:

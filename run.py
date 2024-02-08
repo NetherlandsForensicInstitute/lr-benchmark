@@ -31,7 +31,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
-                     properties: Mapping[str, Mapping[str, Any]] = None,
+                     trace_reference_properties: Mapping[str, Mapping[str, Any]] = None,
                      selected_params: Dict[str, Any] = None,
                      repeats: int = 1) -> Result:
     """
@@ -66,16 +66,16 @@ def fit_and_evaluate(dataset: Dataset,
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type'] == 'leave_one_out':
                 validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
-                                                            trace_reference_properties=properties or {})
+                                                            trace_reference_properties=trace_reference_properties)
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validate_pairs:
                     continue
             else:
                 validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                            trace_reference_properties=properties or {})
+                                                            trace_reference_properties=trace_reference_properties)
 
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  trace_reference_properties=properties or {})
+                                                  trace_reference_properties=trace_reference_properties)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -98,7 +98,7 @@ def fit_and_evaluate(dataset: Dataset,
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              trace_reference_properties=properties or {})
+                                              trace_reference_properties=trace_reference_properties)
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
@@ -153,7 +153,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
                   'calibrator': exp_config['calibrator'],
-                  'properties': exp_config['properties'] or [None]}
+                  'trace_reference_properties': exp_config['trace_reference_properties'] or [None]}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '
@@ -173,7 +173,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items()  if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
