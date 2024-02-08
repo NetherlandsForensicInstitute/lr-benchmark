@@ -162,18 +162,15 @@ class GlassDataset(Dataset):
             self.measurements_folder = glass_folder
 
         measurements = []
-        max_item = 0
         for i, file in enumerate(glass_files):
             path = os.path.join(self.measurements_folder, file)
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
-                measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
+                measurements_tmp = [Measurement(source=Source(id=int(row['Item']), extra={}),
                                                 sample=Sample(int(row['Piece'])), extra={}, id=i,
                                                 # the values consist of measurements of ten elemental compositions,
                                                 # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
-                # The item values start with 1 in each file, this is making it ascending across different files
-                max_item = measurements_tmp[-1].source.id
                 measurements.extend(measurements_tmp)
         self.measurements = measurements
 
@@ -191,11 +188,13 @@ class ASRDataset(Dataset):
                  meta_info_path: PathLike,
                  source_filter: Optional[Mapping[str, Any]] = None,
                  limit_n_measurements: Optional[int] = None,
+                 properties: Optional[List[str]] = None,
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
         self.limit_n_measurements = limit_n_measurements
+        self.properties = properties
         super().__init__(**kwargs)
 
         self.measurements = self.get_measurements_from_file()
@@ -223,10 +222,10 @@ class ASRDataset(Dataset):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={key: info_a.get(key) for key in self.source_filter.keys()}),
                     sample=Sample(recording_id_a),
-                    id=recording_id_a + '_' + str(duration), extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
+                    id=duration, extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id='Case', extra={}), sample=Sample(recording_id_a),
-                                                id=recording_id_a + '_' + str(duration), extra=extra))
+                                                id=duration, extra=extra))
         return measurements
 
     @staticmethod

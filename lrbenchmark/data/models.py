@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Mapping, Any, Union, Optional, List, Tuple, Dict
+from typing import Mapping, Any, Union, Optional, List, Tuple
 
 import numpy as np
 
@@ -18,12 +18,14 @@ class Source:
     def __eq__(self, other):
         return self.id == other.id
 
+
 @dataclass
 class Sample:
     """
-    A sample that may lead to multiple measurements
+    A sample from a single source that could encompass one or multiple measurements. For example, for ASR
+    a sample could be a single recording.
     :param id: the identifier of the sample
-    :param extra: additional metadata related to the source
+    :param extra: additional metadata related to the sample
     """
 
     id: Union[int, str]
@@ -46,7 +48,7 @@ class Measurement:
     """
 
     source: Source
-    extra: Dict[str, Any]
+    extra: Mapping[str, Any]
     id: Union[int, str]
     sample: Sample
     value: Optional[Any] = None
@@ -75,7 +77,7 @@ class MeasurementPair:
     """
     measurement_a: Measurement
     measurement_b: Measurement
-    extra: Dict[str, Any] = None
+    extra: Mapping[str, Any] = None
 
     @property
     def is_same_source(self) -> bool:

@@ -41,10 +41,10 @@ def pair_complies_with_trace_or_reference_properties(measurement_pair: Measureme
     either the source id or measurement id to be different.
     """
     m_a, m_b = measurement_pair.measurements
-    return ((complies_with_filter_requirements(properties['reference'], m_a.extra) and
-             complies_with_filter_requirements(properties['trace'], m_b.extra)) or
-            complies_with_filter_requirements(properties['trace'], m_a.extra) and
-            complies_with_filter_requirements(properties['reference'], m_b.extra)) and m_a != m_b
+    return ((complies_with_filter_requirements(properties[0], m_a.extra) and
+             complies_with_filter_requirements(properties[1], m_b.extra)) or
+            complies_with_filter_requirements(properties[1], m_a.extra) and
+            complies_with_filter_requirements(properties[0], m_b.extra)) and m_a != m_b
 
 
 def complies_with_filter_requirements(requirements: Mapping[str, Any], info: Optional[Mapping[str, str]] = None,
