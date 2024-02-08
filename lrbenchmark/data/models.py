@@ -23,7 +23,7 @@ class Sample:
     """
     A sample that may lead to multiple measurements
     :param id: the identifier of the sample
-    :param extra: additional metadata related to the source 
+    :param extra: additional metadata related to the source
     """
 
     id: Union[int, str]
