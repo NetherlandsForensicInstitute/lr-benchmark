@@ -14,51 +14,48 @@ class MeasurementPairsSimulator(ABC):
 
 
 class NormalPairsSimulator(MeasurementPairsSimulator):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, seed: int = None):
+    def __init__(self, population_mean: float, population_std: float, source_std: float, seed: int = None):
         super().__init__()
-        self.mean = mean
-        self.sigma = sigma
-        self.trace_measurement_stdev = trace_measurement_stdev
+        self.population_mean = population_mean
+        self.population_std = population_std
+        self.source_std = source_std
         self.generator = np.random.default_rng(seed=seed)
 
-    def get_measurements(self, n_same_source: int, n_diff_source: int) -> List[Measurement]:
+    def get_measurements(self, n_sources: int, n_measurements_per_source: int) -> List[Measurement]:
         """
         Generates measurements with the values of the same source measurements differing by the measurement error, and
         the values of the different source measurements drawn randomly from the distribution.
 
-        :param n_same_source: number of same source measurements to generate
-        :param n_diff_source: number of different source measurements to generate
+        :param n_sources: number of sources to generate
+        :param n_measurements_per_source: number of measurements per source to generate
         :return: list of all generated measurements
         """
         n_dimensions = 3
-        real_value = self.generator.normal(self.mean, self.sigma, (n_same_source, n_dimensions))
-        other_value = self.generator.normal(self.mean, self.sigma, (n_diff_source, n_dimensions))
-        measurement_error = self.generator.normal(0, self.trace_measurement_stdev, (n_same_source, n_dimensions))
-        obs_value = real_value + measurement_error
+        n_measurements = n_measurements_per_source * n_sources
+        source_means = self.generator.normal(self.population_mean, self.population_std, (n_sources, n_dimensions))
         measurements = []
-        for i in range(n_same_source):
-            measurements.append(Measurement(source=Source(id=i, extra={}),
-                                            value=np.array([real_value[i]]), extra={}, id=1, sample=Sample(i)))
-            measurements.append(Measurement(source=Source(id=i, extra={}),
-                                            value=np.array([obs_value[i]]), extra={}, id=1,
-                                            sample=Sample(i+n_same_source)))
-        for i in range(min(n_same_source, n_diff_source)):
-            measurements.append(Measurement(source=Source(id=n_same_source + i, extra={}),
-                                            value=np.array([other_value[i]]), extra={}, id=1,
-                                            sample=Sample(i + n_same_source * 2)))
+        for i, mean in enumerate(source_means):
+            source = Source(id=i, extra={})
+            measurement_errors = self.generator.normal(0, self.source_std, (n_measurements, n_dimensions))
+            for j, error in enumerate(measurement_errors):
+                measurements.append(Measurement(source=source, sample=Sample(id=j),
+                                                value=mean+error, extra={}, id=1))
         return measurements
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(mean={self.mean}, sigma={self.sigma}, "
-                f"trace_measurement_stdev={self.trace_measurement_stdev})")
+        return (f"{self.__class__.__name__}(mean={self.population_mean}, sigma={self.population_std}, "
+                f"trace_measurement_stdev={self.source_std})")
 
 
 class SynthesizedNormalDataset(Dataset):
-    def __init__(self, mean: float, sigma: float, trace_measurement_stdev: float, n_same_source: int,
-                 n_diff_source: int, seed: int):
+    def __init__(self, population_mean: float,
+                 population_std: float,
+                 source_std: float,
+                 n_sources: int,
+                 n_measurements_per_source: int, seed: int):
         super().__init__()
-        self.simulator = NormalPairsSimulator(mean=mean,
-                                              sigma=sigma,
-                                              trace_measurement_stdev=trace_measurement_stdev,
+        self.simulator = NormalPairsSimulator(population_mean=population_mean,
+                                              population_std=population_std,
+                                              source_std=source_std,
                                               seed=seed)
-        self.measurements = self.simulator.get_measurements(n_same_source, n_diff_source)
+        self.measurements = self.simulator.get_measurements(n_sources, n_measurements_per_source)
