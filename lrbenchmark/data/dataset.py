@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.model_selection import GroupShuffleSplit, LeavePGroupsOut
 from tqdm import tqdm
 
-from lrbenchmark.data.models import Measurement, Source, MeasurementPair
+from lrbenchmark.data.models import Measurement, Source, MeasurementPair, Sample
 from lrbenchmark.pairing import CartesianPairing, BasePairing
 from lrbenchmark.typing import PathLike
 from lrbenchmark.utils import complies_with_filter_requirements
@@ -139,8 +139,8 @@ class XTCDataset(Dataset):
 
         with open(self.measurements_path, "r") as f:
             reader = csv.DictReader(f)
-            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}), id=int(row['measurement']),
-                                        extra={},
+            measurements = [Measurement(source=Source(id=int(row['batchnumber']), extra={}), id=1,
+                                        sample=Sample(int(row['measurement'])), extra={},
                                         value=np.array(list(map(float, row.values()))[2:])) for row in reader]
         self.measurements = measurements
 
@@ -163,12 +163,12 @@ class GlassDataset(Dataset):
 
         measurements = []
         max_item = 0
-        for file in glass_files:
+        for i, file in enumerate(glass_files):
             path = os.path.join(self.measurements_folder, file)
             with open(path, "r") as f:
                 reader = csv.DictReader(f)
                 measurements_tmp = [Measurement(source=Source(id=int(row['Item']) + max_item, extra={}),
-                                                extra={'Piece': int(row['Piece'])}, id=int(row['id']),
+                                                sample=Sample(int(row['Piece'])), extra={}, id=i,
                                                 # the values consist of measurements of ten elemental compositions,
                                                 # which start at the fourth position of each row
                                                 value=np.array(list(map(float, row.values()))[3:])) for row in reader]
@@ -222,9 +222,11 @@ class ASRDataset(Dataset):
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'actual_duration': duration}):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={key: info_a.get(key) for key in self.source_filter.keys()}),
-                    id=recording_id_a, extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
+                    sample=Sample(recording_id_a),
+                    id=recording_id_a + '_' + str(duration), extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a, extra=extra))
+                measurements.append(Measurement(Source(id='Case', extra={}), sample=Sample(recording_id_a),
+                                                id=recording_id_a + '_' + str(duration), extra=extra))
         return measurements
 
     @staticmethod

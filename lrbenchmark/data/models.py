@@ -15,6 +15,22 @@ class Source:
     id: Union[int, str]
     extra: Mapping[str, Any]
 
+    def __eq__(self, other):
+        return self.id == other.id
+
+@dataclass
+class Sample:
+    """
+    A sample that may lead to multiple measurements
+    :param id: the identifier of the sample
+    :param extra: additional metadata related to the source 
+    """
+
+    id: Union[int, str]
+    extra: Mapping[str, Any] = None
+
+    def __eq__(self, other):
+        return self.id == other.id
 
 @dataclass
 class Measurement:
@@ -25,12 +41,14 @@ class Measurement:
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
     :param id: the identifier of the measurement
+    :param sample: the original sample the measurement belongs to
     :param value: the value of the measurement
     """
 
     source: Source
     extra: Dict[str, Any]
     id: Union[int, str]
+    sample: Sample
     value: Optional[Any] = None
 
     def get_x(self) -> np.ndarray:
@@ -45,7 +63,7 @@ class Measurement:
         return f'source_id: {self.source.id}, {self.extra}'
 
     def __eq__(self, other):
-        return self.id == other.id
+        return self.id == other.id and self.sample == other.sample and self.source == other.source
 
 
 @dataclass
