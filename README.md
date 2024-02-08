@@ -27,7 +27,7 @@ Dataset properties are given as follows:
 ```
 dataset:
   name: <dataset_name>
-  limit_n_measurements: <int that limits how many measurements to use (typically to reduce computation times during development)
+  limit_n_measurements: <int that limits how many measurements to use (typically to reduce computation times during development)>
   scores_path: <optionally provide the location of a file with pre-computed scores>
   meta_info_path: <optionally provide the location of a file with additional information on the measurements>
   filter_on_trace_reference_properties: <Boolean, indicating whether there are two types of measurements A and B, such
@@ -35,7 +35,7 @@ dataset:
   source_filter:
     <optional list of properties on which to filter sources. Typically used to select a relevant population.>
   trace_properties:
-    <optional list of properties that defines `trace` measurements></list>
+    <optional list of properties that defines `trace` measurements>
   reference_properties:
     <optional list of properties that defines `reference` measurements>
   holdout_source_ids: 
@@ -61,8 +61,8 @@ experiment:
   splitting_strategy:
     validation:
       split_type: [leave_one_out simple]
-      train_size: <int for a specific number of sources in the training set, float for a fraction, None to be complementary to the test_size>
-      validate_size: <int for a specific number of sources in the test set, float for a fraction, None to be complementary to the train_size>
+      train_size: <int for a specific number of sources in the training set, float for a fraction, None to be complementary to the validate_size>
+      validate_size: <int for a specific number of sources in the validation set, float for a fraction, None to be complementary to the train_size>
     refnorm:
       split_type: [leave_one_out simple None]
       size: <int for a specific number of sources in the refnorm set, float for a fraction, None to use the Leave-One-Out method>    
