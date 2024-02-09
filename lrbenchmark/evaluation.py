@@ -37,7 +37,6 @@ from matplotlib import pyplot as plt
 from sklearn.base import TransformerMixin
 
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.data.models import MeasurementPair
 
 LOG = logging.getLogger(__name__)
 

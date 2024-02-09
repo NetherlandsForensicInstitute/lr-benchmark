@@ -32,7 +32,7 @@ def test_refnorm():
     normalized_scores_expected = scorer_normalized.fit_predict(pairs)
     # perform reference normalization
     normalized_scores_actual = perform_refnorm(raw_scores, pairs, dataset_refnorm, scorer_raw)
-    normalized_scores_actual_matrix = perform_refnorm_from_matrix(raw_scores, pairs, dataset_refnorm,
-                                                                  ROOT_DIR / asr_config.scores_path)
+    measurement_info = (dataset_refnorm.measurement_header, dataset_refnorm.measurement_data)
+    normalized_scores_actual_matrix = perform_refnorm_from_matrix(raw_scores, pairs, dataset_refnorm, measurement_info)
     assert np.allclose(normalized_scores_expected, normalized_scores_actual, atol=2e-06)
     assert np.allclose(normalized_scores_actual_matrix, normalized_scores_actual)
