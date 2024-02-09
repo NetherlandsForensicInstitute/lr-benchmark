@@ -19,7 +19,8 @@ from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPai
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
-from lrbenchmark.utils import get_experiment_description, prepare_output_file
+from lrbenchmark.utils import get_experiment_description
+from lrbenchmark.write_output import prepare_output_file, write_metrics, write_lrs, write_refnorm_stats
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
@@ -49,6 +50,7 @@ def fit_and_evaluate(dataset: Dataset,
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
+    refnorm_source_ids = {}
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
 
@@ -57,6 +59,7 @@ def fit_and_evaluate(dataset: Dataset,
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = \
                 next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
+            refnorm_source_ids.update({f'run {idx}': dataset_refnorm.source_ids})
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
             splits = tqdm(list(splits), 'train - validate splits', position=0)
@@ -87,9 +90,9 @@ def fit_and_evaluate(dataset: Dataset,
             validate_scores.append(validation_scores)
             if idx == 0:
                 # in the first repeat loop, save information on descriptive statistics
-                all_validate_pairs+=validate_pairs
+                all_validate_pairs += validate_pairs
                 # for training, this is the entire set, so count once
-                all_train_pairs=train_pairs
+                all_train_pairs = train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
@@ -115,7 +118,6 @@ def fit_and_evaluate(dataset: Dataset,
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
 
-
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
@@ -131,7 +133,7 @@ def fit_and_evaluate(dataset: Dataset,
         # holdout set was specified, record LRs. Only takes those from the last repeat.
         holdout_results = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
-    return Result(metrics, figs, holdout_results)
+    return Result(metrics, figs, holdout_results, refnorm_source_ids)
 
 
 def run(exp: evaluation.Setup, config: Configuration) -> None:
@@ -163,21 +165,14 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write results to file
-    with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = sorted(set(agg_result[0].metrics.keys()))
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items()  if fieldname in fieldnames})
+    write_metrics(agg_result, folder_name)
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
-        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['desc', 'pair', 'LR'])
-            for result_row in agg_result:
-                for pair_desc, lr in result_row.holdout_lrs.items():
-                    writer.writerow([result_row.metrics['desc'], pair_desc, lr])
+        write_lrs(agg_result, folder_name)
+
+    if agg_result[0].refnorm_stats:
+        write_refnorm_stats(agg_result, folder_name)
 
     # save figures and results per parameter set
     for result_row, param_set in zip(agg_result, param_sets):
@@ -189,6 +184,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # save yaml configuration file
     confidence.dumpf(config, f'{folder_name}/config.yaml')
+
 
 if __name__ == '__main__':
     parser = get_parser()
