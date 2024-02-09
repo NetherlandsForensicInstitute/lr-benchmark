@@ -1,5 +1,5 @@
 experiment:
-  repeats: 2
+  repeats: 1
   pairing:
     - name: cartesian
   scorer:

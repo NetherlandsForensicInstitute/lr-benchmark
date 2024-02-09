@@ -44,4 +44,3 @@ def write_refnorm_stats(agg_result: List[Result], folder_name: str):
         for result_row in agg_result:
             for run, sources in result_row.refnorm_stats.items():
                 writer.writerow([run, *sources])
-                
