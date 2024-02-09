@@ -21,15 +21,15 @@ class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
                  holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
-                 trace_reference_properties: Optional[Mapping[str, Mapping[str, Any]]] = None):
+                 relevant_properties: Optional[List[str]] = None,):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
-        :param trace_reference_properties: properties of trace and reference measurements
+        :param relevant_properties: relevant properties of the measurements to be used for filtering
         """
         super().__init__()
         self.measurements = measurements
         self.holdout_source_ids = holdout_source_ids
-        self.trace_reference_properties = trace_reference_properties or {}
+        self.relevant_properties = relevant_properties
 
     @property
     def source_ids(self) -> Set[int]:
@@ -84,16 +84,16 @@ class Dataset(ABC):
                     if (n_groups == 1 and len(test_index) > 1) or \
                             (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
-                                       trace_reference_properties=self.trace_reference_properties),
+                                       relevant_properties=self.relevant_properties),
                                Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       trace_reference_properties=self.trace_reference_properties)]
+                                       relevant_properties=self.relevant_properties)]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
                 yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
-                               trace_reference_properties=self.trace_reference_properties) for split_idx in split]
+                               relevant_properties=self.relevant_properties) for split_idx in split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
@@ -107,15 +107,16 @@ class Dataset(ABC):
                                   measurement.source.id not in self.holdout_source_ids]
             return \
                 Dataset(measurements=holdout_measurements,
-                        trace_reference_properties=self.trace_reference_properties), \
+                        relevant_properties=self.relevant_properties), \
                 Dataset(measurements=other_measurements,
-                        trace_reference_properties=self.trace_reference_properties)
+                        relevant_properties=self.relevant_properties)
         return None, self
 
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  trace_reference_properties: Mapping[str, Mapping[str, Any]] = None) -> List[MeasurementPair]:
+                  trace_reference_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None) \
+            -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
         returns two arrays of X_pairs and y_pairs where the X_pairs are by
@@ -124,10 +125,6 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        if not trace_reference_properties:
-            # allow this variable to be overwritten for this function
-            trace_reference_properties = self.trace_reference_properties
-
         return pairing_function.transform(self.measurements, seed=seed,
                                           trace_reference_properties=trace_reference_properties)
 
@@ -188,13 +185,11 @@ class ASRDataset(Dataset):
                  meta_info_path: PathLike,
                  source_filter: Optional[Mapping[str, Any]] = None,
                  limit_n_measurements: Optional[int] = None,
-                 properties: Optional[List[str]] = None,
                  **kwargs):
         self.scores_path = scores_path
         self.meta_info_path = meta_info_path
         self.source_filter = source_filter or {}
         self.limit_n_measurements = limit_n_measurements
-        self.properties = properties
         super().__init__(**kwargs)
 
         self.measurements = self.get_measurements_from_file()

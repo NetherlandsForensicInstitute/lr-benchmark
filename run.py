@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import csv
-import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, Mapping
@@ -12,11 +11,10 @@ from lir import calculate_lr_statistics, Xy_to_Xn
 from sklearn.base import BaseEstimator
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
-import itertools
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.load import get_parser, load_data_config
+from lrbenchmark.load import get_parser, load_data_config, get_trace_reference_properties
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
@@ -121,7 +119,6 @@ def fit_and_evaluate(dataset: Dataset,
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
 
-
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
@@ -152,7 +149,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp.parameter('repeats', exp_config['repeats'])
     exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('dataset', config_resolved['dataset'])
-    trace_reference_properties = get_trace_reference_properties(config_resolved['dataset'])
+    trace_reference_properties = [get_trace_reference_properties(config_resolved['dataset'])[0]]
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
                   'calibrator': exp_config['calibrator'],
@@ -197,16 +194,6 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # save yaml configuration file
     confidence.dumpf(config, f'{folder_name}/config.yaml')
-
-
-def get_trace_reference_properties(dataset):
-    if not dataset.holdout_source_ids or not dataset.properties:
-        return [None]
-    ps = [m.extra for m in dataset.measurements if m.source.id in dataset.holdout_source_ids]
-    holdout_properties = set([json.dumps({prop: p.get(prop) for prop in dataset.properties}) for p in ps])
-    holdout_properties = [json.loads(p) for p in holdout_properties]
-    trace_reference_properties = list(itertools.combinations_with_replacement(holdout_properties, 2))
-    return trace_reference_properties
 
 
 if __name__ == '__main__':

@@ -25,8 +25,8 @@ def test_get_y_measurement_pair(test_measurement_pair):
 
 def test_measurements_equal(test_measurement):
     other_measurement = Measurement(source=Source(id=1, extra={'test': True}), extra={'test': True},
-                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A1'), id='A1_test')
+                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A1'), id='test')
     assert test_measurement == other_measurement
     other_measurement = Measurement(source=Source(id=1, extra={'test': True}), extra={'test': True},
-                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A2'), id='A1_test')
+                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A2'), id='test')
     assert not test_measurement == other_measurement

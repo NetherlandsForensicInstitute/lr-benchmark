@@ -4,9 +4,16 @@ dataset:
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
   source_filter:
-  properties:
+    sex: M
+    beller_fluistert:
+      - nee
+      - kort
+    languageID:
+      - 4
+      - 9
+  relevant_properties:
     - auto
     - beller_fluistert
   holdout_source_ids:
-    - '109051'
-    - '114844'
+    - '114846'
+    - '114845'

@@ -2,12 +2,11 @@ from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.pairing import CartesianPairing, LeaveOneTwoOutPairing
 
 
-def test_split_by_reference(measurements, measurements_set2):
+def test_split_by_properties(measurements, measurements_set2):
     dataset = Dataset(measurements=measurements + measurements_set2)
     pairing_function = CartesianPairing()
     pairs = dataset.get_pairs(pairing_function=pairing_function, seed=0,
-                              trace_reference_properties={'trace': {'property': 'trace'},
-                                                          'reference': {'property': 'reference'}})
+                              trace_reference_properties=({'property': 'trace'}, {'property': 'reference'}))
     for pair in pairs:
         m_a, m_b = pair.measurements
         assert (m_a.extra['property'] == 'trace' and m_b.extra['property'] == 'reference') or \

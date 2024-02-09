@@ -15,7 +15,7 @@ TEST_DIR = ROOT_DIR / 'tests'
 @pytest.fixture
 def test_measurement() -> Measurement:
     return Measurement(source=Source(id=1, extra={}), extra={}, value=np.array([1, 1, 1, 1]), sample=Sample(id='A1'),
-                       id='A1_test')
+                       id='test')
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
                            measurement_b=Measurement(source=Source(id=2, extra={}),
                                                      extra={},
                                                      value=np.array([0, 0, 0, 0]), sample=Sample(id='B1'),
-                                                     id='B1_test'),
+                                                     id='test'),
                            extra={'score': 0.8})
 
 

@@ -1,9 +1,14 @@
 import argparse
+import json
 import os
 from pathlib import Path
 
 from confidence import Configuration, loadf
-from typing import Optional
+from typing import Optional, Mapping, Tuple, List
+
+import itertools
+
+from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.typing import PathLike
 
 
@@ -44,3 +49,23 @@ def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> Path
             elements.append('data')
     elements.append(path)
     return Path(os.path.join(*elements))
+
+
+def get_trace_reference_properties(dataset: Dataset) -> \
+        List[Optional[Tuple[Mapping[str, str], Mapping[str, str]]]]:
+    """
+    For the 'relevant_properties' provided in the Dataset, find the values of the hold out measurements belonging
+    to those properties. Then return all combinations of two-sided properties to be used in pairing, where one side has
+    trace properties and the other side has reference properties.
+    """
+    if not dataset.holdout_source_ids or not dataset.relevant_properties:
+        return [None]
+    # retrieve all info of the measurements whose source id is a holdout source id
+    all_holdout_properties = [m.extra for m in dataset.measurements if m.source.id in dataset.holdout_source_ids]
+    # find all unique values corresponding to the relevant properties
+    holdout_properties = set(
+        [json.dumps({relevant_prop: prop.get(relevant_prop) for relevant_prop in dataset.relevant_properties})
+         for prop in all_holdout_properties])
+    holdout_properties = [json.loads(p) for p in holdout_properties]
+    trace_reference_properties = list(itertools.combinations_with_replacement(holdout_properties, 2))
+    return trace_reference_properties
