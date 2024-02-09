@@ -20,7 +20,8 @@ from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description
-from lrbenchmark.write_output import prepare_output_file, write_metrics, write_lrs, write_refnorm_stats
+from lrbenchmark.write_output import prepare_output_file, write_metrics, write_lrs, write_refnorm_stats, \
+    write_calibration_results
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
@@ -93,6 +94,7 @@ def fit_and_evaluate(dataset: Dataset,
                 all_validate_pairs += validate_pairs
                 # for training, this is the entire set, so count once
                 all_train_pairs = train_pairs
+                all_train_scores = train_scores
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
@@ -118,7 +120,7 @@ def fit_and_evaluate(dataset: Dataset,
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
 
-    # elub bounds
+    # compute lr statistics
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
     metrics = {'desc': get_experiment_description(selected_params),
@@ -128,12 +130,14 @@ def fit_and_evaluate(dataset: Dataset,
                'auc': roc_auc_score(validate_labels, validate_scores),
                **descriptive_statistics}
 
+    calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(all_train_pairs, all_train_scores)]
+
     holdout_results = None
     if holdout_set:
         # holdout set was specified, record LRs. Only takes those from the last repeat.
         holdout_results = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
-    return Result(metrics, figs, holdout_results, refnorm_source_ids)
+    return Result(metrics, figs, holdout_results, calibration_results, refnorm_source_ids)
 
 
 def run(exp: evaluation.Setup, config: Configuration) -> None:
@@ -161,11 +165,12 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         agg_result.append(result)
         param_sets.append(param_set)
 
-    # create foldername for this run
+    # create folder name for this run
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
-    # write results to file
+    # write metrics and calibration results to file
     write_metrics(agg_result, folder_name)
+    write_calibration_results(agg_result, folder_name)
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
@@ -183,7 +188,8 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
             fig.savefig(path)
 
     # save yaml configuration file
-    confidence.dumpf(config, f'{folder_name}/config.yaml')
+    path = f'{folder_name}/config.yaml'
+    confidence.dumpf(config, prepare_output_file(path))
 
 
 if __name__ == '__main__':
