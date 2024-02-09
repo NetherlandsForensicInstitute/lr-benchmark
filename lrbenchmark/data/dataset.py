@@ -206,21 +206,23 @@ class ASRDataset(Dataset):
         self.limit_n_measurements = limit_n_measurements
         super().__init__(**kwargs)
 
+        self.measurement_header = None
+        self.measurement_data = None
         self.measurements = self.get_measurements_from_file()
 
     def get_measurements_from_file(self):
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
             data = list(reader)
-        header_measurement_data = np.array(data[0][1:])
-        measurement_data = np.array(data)[1:, 1:]
+        self.measurement_header = np.array(data[0][1:])
+        self.measurement_data = np.array(data)[1:, 1:].astype(float)
         recording_data = self.load_recording_annotations()
 
         measurements = []
-        for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
+        for i in tqdm(range(self.measurement_data.shape[0]), desc='Reading recording measurement data'):
             if self.limit_n_measurements and len(measurements) >= self.limit_n_measurements:
                 return measurements
-            filename_a = header_measurement_data[i]
+            filename_a = self.measurement_header[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
             filename_in_recording_data = filename_a.replace('_' + str(duration) + 's', '') if duration else filename_a
             info_a = recording_data.get(filename_in_recording_data)

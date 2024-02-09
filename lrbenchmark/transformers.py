@@ -82,8 +82,9 @@ class MeasurementPairScorer(BaseScorer):
         self.scorer.fit(X, y)
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
+        X = np.array([mp.get_x() for mp in measurement_pairs])
         if self.transformer:
-            X = self.transformer.transform(np.array([mp.get_x() for mp in measurement_pairs]))
+            X = self.transformer.transform(X)
         return self.scorer.predict_proba(X)[:, 1]
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
