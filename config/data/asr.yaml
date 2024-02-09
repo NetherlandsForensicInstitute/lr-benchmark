@@ -1,6 +1,6 @@
 dataset:
   name: asr
-  limit_n_measurements:
+  limit_n_measurements: 500
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
   filter_on_trace_reference_properties: True

@@ -161,6 +161,14 @@ def compute_descriptive_statistics(dataset: Dataset,
             'no of validate SS pairs': no_ss_validate,
             'no of validate DS pairs': no_ds_validate, }
 
+def plot_scores_to_lrs(validate_scores: np.ndarray,
+                       validate_lrs: np.ndarray):
+    fig = plt.figure()
+    plt.scatter(validate_scores, np.log10(validate_lrs), marker='.')
+    plt.xlabel('scores')
+    plt.ylabel('log$_{10}$(LR)')
+    return {'scores_to_lrs': fig}
+
 
 def create_figures(calibrator: TransformerMixin,
                    validate_labels: np.ndarray,
@@ -181,5 +189,10 @@ def create_figures(calibrator: TransformerMixin,
     figs['calibrator_fit'] = fig
     fig = plt.figure()
     lir.plotting.score_distribution(validate_scores, validate_labels)
-    figs['score distribution and calibrator fit'] = fig
+    figs['score_distribution_and_calibrator_fit'] = fig
+    fig = plt.figure()
+    plt.scatter(validate_scores, np.log10(validate_lrs), marker='.')
+    plt.xlabel('scores')
+    plt.ylabel('log$_{10}$(LR)')
+    figs['scores_to_lrs'] = fig
     return figs
