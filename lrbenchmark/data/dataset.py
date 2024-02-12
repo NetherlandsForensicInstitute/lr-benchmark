@@ -103,9 +103,7 @@ class Dataset(ABC):
                                     measurement.source.id in self.holdout_source_ids]
             other_measurements = [measurement for measurement in self.measurements if
                                   measurement.source.id not in self.holdout_source_ids]
-            return \
-                Dataset(measurements=holdout_measurements), \
-                Dataset(measurements=other_measurements)
+            return Dataset(measurements=holdout_measurements), Dataset(measurements=other_measurements)
         return None, self
 
     def get_pairs(self,
