@@ -90,7 +90,8 @@ class Dataset(ABC):
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
-                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in
+                       split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
