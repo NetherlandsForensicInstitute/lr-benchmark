@@ -48,6 +48,10 @@ class PrecalculatedScorerASR(BaseScorer):
                 reader = csv.reader(f)
                 data = list(reader)
             header_measurement_data = np.array(data[0][1:])
+            row_header_measurement_data = np.array(data)[0, 1:]
+            if not all(header_measurement_data == row_header_measurement_data):
+                raise ValueError("Column names and row names in matrix are not identical")
+
             measurement_data = np.array(data)[1:, 1:]
 
             for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
