@@ -50,6 +50,10 @@ class PrecalculatedScorerASR(BaseScorer):
             header_measurement_data = np.array(data[0][1:])
             measurement_data = np.array(data)[1:, 1:]
 
+            row_header_measurement_data = np.array(data)[1:, 0]
+            if not np.array_equal(header_measurement_data, row_header_measurement_data):
+                raise ValueError("Column headers and row headers not equal.")
+
             for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
                 filename_a = header_measurement_data[i]
                 for j in range(i + 1, measurement_data.shape[1]):
