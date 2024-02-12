@@ -149,7 +149,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp.parameter('repeats', exp_config['repeats'])
     exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('dataset', config_resolved['dataset'])
-    trace_reference_properties = [get_trace_reference_properties(config_resolved['dataset'])[0]]
+    trace_reference_properties = get_trace_reference_properties(config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
                   'calibrator': exp_config['calibrator'],

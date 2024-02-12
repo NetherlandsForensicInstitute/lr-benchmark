@@ -22,7 +22,7 @@ class Source:
 @dataclass
 class Sample:
     """
-    A sample from a single source that could encompass one or multiple measurements. For example, for ASR
+    A sample from one or more sources that could encompass one or multiple measurements. For example, for ASR
     a sample could be a single recording.
     :param id: the identifier of the sample
     :param extra: additional metadata related to the sample

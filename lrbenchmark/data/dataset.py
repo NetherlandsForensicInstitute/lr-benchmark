@@ -83,17 +83,14 @@ class Dataset(ABC):
                     # computational reasons we do not return the split
                     if (n_groups == 1 and len(test_index) > 1) or \
                             (n_groups == 2 and len(set(map(lambda i: source_ids[i], test_index))) == 2):
-                        yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
-                                       relevant_properties=self.relevant_properties),
-                               Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       relevant_properties=self.relevant_properties)]
+                        yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index))),
+                               Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)))]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
 
             for split in s.split(self.measurements, groups=source_ids):
-                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx)),
-                               relevant_properties=self.relevant_properties) for split_idx in split]
+                yield [Dataset(measurements=list(map(lambda i: self.measurements[i], split_idx))) for split_idx in split]
 
     def split_off_holdout_set(self) -> Tuple[Optional['Dataset'], 'Dataset']:
         """
@@ -106,10 +103,8 @@ class Dataset(ABC):
             other_measurements = [measurement for measurement in self.measurements if
                                   measurement.source.id not in self.holdout_source_ids]
             return \
-                Dataset(measurements=holdout_measurements,
-                        relevant_properties=self.relevant_properties), \
-                Dataset(measurements=other_measurements,
-                        relevant_properties=self.relevant_properties)
+                Dataset(measurements=holdout_measurements), \
+                Dataset(measurements=other_measurements)
         return None, self
 
     def get_pairs(self,
@@ -217,7 +212,7 @@ class ASRDataset(Dataset):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={key: info_a.get(key) for key in self.source_filter.keys()}),
                     sample=Sample(recording_id_a),
-                    id=duration, extra={**info_a, **extra}))  # TODO: only relevant measurement properties?
+                    id=duration, extra={**info_a, **extra}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id='Case', extra={}), sample=Sample(recording_id_a),
                                                 id=duration, extra=extra))

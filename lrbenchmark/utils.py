@@ -37,13 +37,14 @@ def pair_complies_with_trace_or_reference_properties(measurement_pair: Measureme
     Check a measurement pair on two conditions:
     - one of the measurements of the pair must have properties equal to the first properties and the other measurement
     must have properties equal to the second properties
-    - the measurements must be entirely different
+    - the sample id or the source id of the measurements must differ
     """
     m_a, m_b = measurement_pair.measurements
     return ((complies_with_filter_requirements(properties[0], m_a.extra) and
              complies_with_filter_requirements(properties[1], m_b.extra)) or
             complies_with_filter_requirements(properties[1], m_a.extra) and
-            complies_with_filter_requirements(properties[0], m_b.extra)) and m_a != m_b
+            complies_with_filter_requirements(properties[0], m_b.extra)) and \
+           (m_a.source.id != m_b.source.id or m_a.sample.id != m_b.sample.id)
 
 
 def complies_with_filter_requirements(requirements: Mapping[str, Any], info: Optional[Mapping[str, str]] = None,
