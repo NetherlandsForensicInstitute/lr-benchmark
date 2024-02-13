@@ -30,9 +30,8 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def pair_complies_with_trace_or_reference_properties(measurement_pair: MeasurementPair,
-                                                     properties: Tuple[Mapping[str, str], Mapping[str, str]]) \
-        -> bool:
+def pair_complies_with_properties(measurement_pair: MeasurementPair,
+                                  properties: Tuple[Mapping[str, str], Mapping[str, str]]) -> bool:
     """
     Check a measurement pair on two conditions:
     - one of the measurements of the pair must have properties equal to the first properties and the other measurement
@@ -42,8 +41,8 @@ def pair_complies_with_trace_or_reference_properties(measurement_pair: Measureme
     m_a, m_b = measurement_pair.measurements
     return ((complies_with_filter_requirements(properties[0], m_a.extra) and
              complies_with_filter_requirements(properties[1], m_b.extra)) or
-            complies_with_filter_requirements(properties[1], m_a.extra) and
-            complies_with_filter_requirements(properties[0], m_b.extra)) and \
+            (complies_with_filter_requirements(properties[1], m_a.extra) and
+            complies_with_filter_requirements(properties[0], m_b.extra))) and \
            (m_a.source.id != m_b.source.id or m_a.sample.id != m_b.sample.id)
 
 

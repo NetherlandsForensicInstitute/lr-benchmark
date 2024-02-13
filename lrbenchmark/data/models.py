@@ -43,7 +43,7 @@ class Measurement:
 
     :param source: the source of the measurement
     :param extra: additional metadata related to the measurement
-    :param id: the identifier of the measurement
+    :param id: the identifier of the measurement, this id is unique is within sample and source
     :param sample: the original sample the measurement belongs to
     :param value: the value of the measurement
     """

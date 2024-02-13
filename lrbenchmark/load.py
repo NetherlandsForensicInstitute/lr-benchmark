@@ -51,21 +51,19 @@ def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> Path
     return Path(os.path.join(*elements))
 
 
-def get_trace_reference_properties(dataset: Dataset) -> \
+def get_filter_combination_values(dataset: Dataset) -> \
         List[Optional[Tuple[Mapping[str, str], Mapping[str, str]]]]:
     """
-    For the 'relevant_properties' provided in the Dataset, find the values of the hold out measurements belonging
-    to those properties. Then return all combinations of two-sided properties to be used in pairing, where one side has
-    trace properties and the other side has reference properties.
+    For the 'filtering_properties' provided in the Dataset, find the values of the hold out measurements belonging
+    to those properties. Then return all combinations of two-sided properties to be used in pairing.
     """
-    if not dataset.holdout_source_ids or not dataset.relevant_properties:
+    if not dataset.holdout_source_ids or not dataset.filtering_properties:
         return [None]
     # retrieve all info of the measurements whose source id is a holdout source id
     all_holdout_properties = [m.extra for m in dataset.measurements if m.source.id in dataset.holdout_source_ids]
-    # find all unique values corresponding to the relevant properties
-    holdout_properties = set(
-        [json.dumps({relevant_prop: prop.get(relevant_prop) for relevant_prop in dataset.relevant_properties})
+    # find all unique values corresponding to the filtering properties
+    filtering_values = set(
+        [json.dumps({filter_prop: prop.get(filter_prop) for filter_prop in dataset.filtering_properties})
          for prop in all_holdout_properties])
-    holdout_properties = [json.loads(p) for p in holdout_properties]
-    trace_reference_properties = list(itertools.combinations_with_replacement(holdout_properties, 2))
-    return trace_reference_properties
+    filtering_values = [json.loads(p) for p in filtering_values]
+    return list(itertools.combinations_with_replacement(filtering_values, 2))

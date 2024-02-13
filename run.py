@@ -2,7 +2,7 @@
 import csv
 import logging
 from datetime import datetime
-from typing import Dict, Any, Mapping
+from typing import Dict, Any, Mapping, Tuple
 
 import confidence
 import numpy as np
@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.load import get_parser, load_data_config, get_trace_reference_properties
+from lrbenchmark.load import get_parser, load_data_config, get_filter_combination_values
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
@@ -31,7 +31,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
-                     trace_reference_properties: Mapping[str, Mapping[str, Any]] = None,
+                     pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None,
                      selected_params: Dict[str, Any] = None,
                      repeats: int = 1) -> Result:
     """
@@ -66,16 +66,16 @@ def fit_and_evaluate(dataset: Dataset,
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type'] == 'leave_one_out':
                 validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
-                                                            trace_reference_properties=trace_reference_properties)
+                                                            pairing_properties=pairing_properties)
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validate_pairs:
                     continue
             else:
                 validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                            trace_reference_properties=trace_reference_properties)
+                                                            pairing_properties=pairing_properties)
 
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  trace_reference_properties=trace_reference_properties)
+                                                  pairing_properties=pairing_properties)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -91,14 +91,14 @@ def fit_and_evaluate(dataset: Dataset,
             validate_scores.append(validation_scores)
             if idx == 0:
                 # in the first repeat loop, save information on descriptive statistics
-                all_validate_pairs+=validate_pairs
+                all_validate_pairs += validate_pairs
                 # for training, this is the entire set, so count once
-                all_train_pairs=train_pairs
+                all_train_pairs = train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              trace_reference_properties=trace_reference_properties)
+                                              pairing_properties=pairing_properties)
         pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
@@ -149,11 +149,10 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp.parameter('repeats', exp_config['repeats'])
     exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('dataset', config_resolved['dataset'])
-    trace_reference_properties = get_trace_reference_properties(config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
                   'calibrator': exp_config['calibrator'],
-                  'trace_reference_properties': trace_reference_properties}
+                  'pairing_properties': get_filter_combination_values(config_resolved['dataset'])}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '

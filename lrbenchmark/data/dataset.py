@@ -21,15 +21,15 @@ class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
                  holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
-                 relevant_properties: Optional[List[str]] = None,):
+                 filtering_properties: Optional[List[str]] = None, ):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
-        :param relevant_properties: relevant properties of the measurements to be used for filtering
+        :param filtering_properties: properties of the measurements to be used for filtering
         """
         super().__init__()
         self.measurements = measurements
         self.holdout_source_ids = holdout_source_ids
-        self.relevant_properties = relevant_properties
+        self.filtering_properties = filtering_properties
 
     @property
     def source_ids(self) -> Set[int]:
@@ -109,7 +109,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  trace_reference_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None) \
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None) \
             -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
@@ -119,8 +119,7 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed,
-                                          trace_reference_properties=trace_reference_properties)
+        return pairing_function.transform(self.measurements, seed=seed, pairing_properties=pairing_properties)
 
 
 class XTCDataset(Dataset):
