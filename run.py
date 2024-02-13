@@ -49,11 +49,11 @@ def fit_and_evaluate(dataset: Dataset,
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
-    holdout_set = None
+    holdout_set, dataset = dataset.split_off_holdout_set()
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
 
         # split off the sources that should only be evaluated
-        holdout_set, dataset = dataset.split_off_holdout_set()
+
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = \
                 next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
