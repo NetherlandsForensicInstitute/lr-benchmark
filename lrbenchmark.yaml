@@ -1,13 +1,13 @@
 experiment:
-  repeats: 2
+  repeats: 1
   pairing:
     - name: cartesian
   scorer:
-    - name: precalculated_asr
-      scores_path: ${dataset.scores_path}
-#    - name: logit
-#      preprocessors:
-#          - name: abs_diff
+#    - name: precalculated_asr
+#      scores_path: ${dataset.scores_path}
+    - name: logit
+      preprocessors:
+          - name: abs_diff
 #          - name: rank_transformer
 #    - name: lda
 #      preprocessors:
@@ -17,8 +17,8 @@ experiment:
     - name: elub_logit
   splitting_strategy:
     validation:
-      split_type: simple # leave_one_out or simple.
-      validate_size: 0.2 # size is only used for 'simple'. Can be fraction or number
+      split_type: leave_one_out # leave_one_out or simple.
+      validate_size:  # size is only used for 'simple'. Can be fraction or number
     refnorm:
       split_type: simple # none, leave_one_out or simple
-      size: 0.2 # size is only used for 'simple'
+      size: .2 # size is only used for 'simple'

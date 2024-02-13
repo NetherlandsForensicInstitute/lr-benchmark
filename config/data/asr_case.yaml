@@ -1,14 +1,9 @@
 dataset:
   name: asr
   limit_n_measurements:
-  scores_path: \\fbda-prj.projects.holmes.nl\PROJECTS\Profi_ASR\data\scorematrix_Apollo76.csv
+  scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
   filter_on_trace_reference_properties: True
   holdout_source_ids:
-    Case
-  source_filter:
-    sex: M
-  trace_properties:
-    duration: 10
-  reference_properties:
-    duration: 17
+    109051
+    114844
