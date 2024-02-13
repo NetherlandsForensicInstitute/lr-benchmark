@@ -59,7 +59,7 @@ class PrecalculatedScorerASR(BaseScorer):
             header_measurement_data = data[0, 1:]
             row_header_measurement_data = data[1:, 0]
             if not np.array_equal(header_measurement_data, row_header_measurement_data):
-                raise ValueError("Column headers and row headers not equal.")
+                raise ValueError("Column names and row names in matrix are not identical")
 
             self.scores = data[1:, 1:].astype(float)
 
