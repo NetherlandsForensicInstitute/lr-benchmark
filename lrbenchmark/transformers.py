@@ -5,7 +5,6 @@ from typing import Iterable, Optional, Sequence
 import numpy as np
 from sklearn.base import TransformerMixin, BaseEstimator, ClassifierMixin
 from sklearn.pipeline import Pipeline
-from tqdm import tqdm
 
 from lrbenchmark.data.models import MeasurementPair
 from lrbenchmark.typing import PathLike
@@ -39,37 +38,44 @@ class BaseScorer(BaseEstimator, ClassifierMixin, ABC):
 
 class PrecalculatedScorerASR(BaseScorer):
     def __init__(self, scores_path: PathLike):
-        self.scores = {}
+        """
+        Scorer specifically for ASR that retrieved the predictions from a precalculated matrix of scores.
+        The scores are in a symmetrical matrix, read from the csv file in scores_path. The source_indices is a mapping
+        of each source_id and the indices of its instances in the scores matrix. The measurement_indices is a mapping of
+        each measurement_id to its index in the scores matrix.
+
+        :param scores_path: the path to a csv to read the scores from
+        """
         self.scores_path = scores_path
+        self.scores = None
+        self.source_indices = None
+        self.measurement_indices = None
 
     def fit(self, measurement_pairs: Iterable[MeasurementPair]):
         if not self.scores:
             with open(self.scores_path, "r") as f:
                 reader = csv.reader(f)
-                data = list(reader)
-            header_measurement_data = np.array(data[0][1:])
-            row_header_measurement_data = np.array(data)[0, 1:]
-            if not all(header_measurement_data == row_header_measurement_data):
+                data = np.array(list(reader))
+            header_measurement_data = data[0, 1:]
+            row_header_measurement_data = data[1:, 0]
+            if not np.array_equal(header_measurement_data, row_header_measurement_data):
                 raise ValueError("Column names and row names in matrix are not identical")
 
-            measurement_data = np.array(data)[1:, 1:]
+            self.scores = data[1:, 1:].astype(float)
 
-            for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
-                filename_a = header_measurement_data[i]
-                for j in range(i + 1, measurement_data.shape[1]):
-                    filename_b = header_measurement_data[j]
-                    self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
-                    self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
+            sources_list = [s.split('_')[0] for s in header_measurement_data]
+            self.source_indices = {x: np.where(np.array(sources_list) == x)[0] for x in set(sources_list)}
+            self.measurement_indices = {x: np.where(np.array(header_measurement_data) == x)[0][0] for x in
+                                        set(header_measurement_data)}
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
-        return np.array([self.scores[(measurement_pair.measurement_a.extra['filename'],
-                                      measurement_pair.measurement_b.extra['filename'])]
+        return np.array([self.scores[self.measurement_indices.get(measurement_pair.measurement_a.id),
+                                     self.measurement_indices.get(measurement_pair.measurement_b.id)]
                          for measurement_pair in measurement_pairs])
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
         # If scores are already available, no need to fit again
-        if not self.scores:
-            self.fit(measurement_pairs)
+        self.fit(measurement_pairs)
         return self.predict(measurement_pairs)
 
 
@@ -86,8 +92,9 @@ class MeasurementPairScorer(BaseScorer):
         self.scorer.fit(X, y)
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
+        X = np.array([mp.get_x() for mp in measurement_pairs])
         if self.transformer:
-            X = self.transformer.transform(np.array([mp.get_x() for mp in measurement_pairs]))
+            X = self.transformer.transform(X)
         return self.scorer.predict_proba(X)[:, 1]
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:

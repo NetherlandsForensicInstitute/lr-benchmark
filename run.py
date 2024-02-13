@@ -14,13 +14,13 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
+from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
-from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
 LOG = logging.getLogger(__name__)
@@ -44,19 +44,18 @@ def fit_and_evaluate(dataset: Dataset,
     all_validate_pairs = []
     all_train_pairs = []
 
-    if splitting_strategy['validation']['split_type'] == 'leave_one_out' \
-            and not isinstance(pairing_function, CartesianPairing):
+    if splitting_strategy['validation']['split_type'] == 'leave_one_out' and not isinstance(pairing_function,
+                                                                                            CartesianPairing):
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
     holdout_set, dataset = dataset.split_off_holdout_set()
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-
         # split off the sources that should only be evaluated
 
         if splitting_strategy['refnorm']['split_type'] == 'simple':
-            dataset, dataset_refnorm = \
-                next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
+            dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
+                                                               seed=idx))
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
             splits = tqdm(list(splits), 'train - validate splits', position=0)
@@ -78,8 +77,8 @@ def fit_and_evaluate(dataset: Dataset,
 
             if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
                 train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
-                validation_scores = perform_refnorm(validation_scores, validate_pairs, dataset_refnorm or dataset_train,
-                                                    scorer)
+                validation_scores = perform_refnorm(validation_scores, validate_pairs,
+                                                    dataset_refnorm or dataset_train, scorer)
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
             validate_lrs.append(calibrator.transform(validation_scores))
@@ -87,9 +86,9 @@ def fit_and_evaluate(dataset: Dataset,
             validate_scores.append(validation_scores)
             if idx == 0:
                 # in the first repeat loop, save information on descriptive statistics
-                all_validate_pairs+=validate_pairs
+                all_validate_pairs += validate_pairs
                 # for training, this is the entire set, so count once
-                all_train_pairs=train_pairs
+                all_train_pairs = train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
     if holdout_set:
@@ -100,8 +99,7 @@ def fit_and_evaluate(dataset: Dataset,
         holdout_scores = scorer.predict(holdout_pairs)
         if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
             scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
-            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset,
-                                             scorer)
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
         calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
         holdout_lrs = calibrator.transform(holdout_scores)
 
@@ -114,7 +112,6 @@ def fit_and_evaluate(dataset: Dataset,
 
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
-
 
     # elub bounds
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
@@ -168,7 +165,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items()  if fieldname in fieldnames})
+            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
@@ -189,6 +186,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # save yaml configuration file
     confidence.dumpf(config, f'{folder_name}/config.yaml')
+
 
 if __name__ == '__main__':
     parser = get_parser()

@@ -87,7 +87,7 @@ class Dataset(ABC):
                         yield [Dataset(measurements=list(map(lambda i: self.measurements[i], train_index)),
                                        filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),
                                Dataset(measurements=list(map(lambda i: self.measurements[i], test_index)),
-                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties),]
+                                       filter_on_trace_reference_properties=self.filter_on_trace_reference_properties)]
         else:
             # set n_splits to 1 as we already have repeats in the outer experimental loop
             s = GroupShuffleSplit(n_splits=1, random_state=seed, train_size=train_size, test_size=validate_size)
@@ -211,13 +211,11 @@ class ASRDataset(Dataset):
     def get_measurements_from_file(self):
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
-            data = list(reader)
-        header_measurement_data = np.array(data[0][1:])
-        measurement_data = np.array(data)[1:, 1:]
+            header_measurement_data = next(reader)[1:]
         recording_data = self.load_recording_annotations()
 
         measurements = []
-        for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
+        for i in tqdm(range(len(header_measurement_data)), desc='Reading recording measurement data'):
             if self.limit_n_measurements and len(measurements) >= self.limit_n_measurements:
                 return measurements
             filename_a = header_measurement_data[i]
@@ -230,15 +228,15 @@ class ASRDataset(Dataset):
                                                                   {'duration': duration})
             is_like_trace = complies_with_filter_requirements(self.trace_properties, info_a or {},
                                                               {'duration': duration})
-            extra = {'filename': filename_a, 'actual_duration': duration}
+            extra = {'actual_duration': duration}
             if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'duration': duration}):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra=self.get_extra_information(info_a, 'source')),
-                    id=recording_id_a,
+                    id=filename_a,
                     is_like_reference=is_like_reference, is_like_trace=is_like_trace,
                     extra={**extra, **self.get_extra_information(info_a, 'measurement')}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id='Case', extra={}), id=recording_id_a,
+                measurements.append(Measurement(Source(id='Case', extra={}), id=filename_a,
                                                 is_like_reference=True, is_like_trace=True,
                                                 extra=extra))
         return measurements
