@@ -17,7 +17,7 @@ from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
-from lrbenchmark.refnorm import perform_refnorm, perform_refnorm_from_matrix
+from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description, prepare_output_file
@@ -46,9 +46,6 @@ def fit_and_evaluate(dataset: Dataset, pairing_function: BasePairing, calibrator
     dataset_refnorm = None
     holdout_set = None
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        measurement_info = (dataset.measurement_header,
-                            dataset.measurement_data) if (hasattr(dataset, 'measurement_header') and
-                                                          hasattr(dataset, 'measurement_data')) else None
         # split off the sources that should only be evaluated
         holdout_set, dataset = dataset.split_off_holdout_set()
         if splitting_strategy['refnorm']['split_type'] == 'simple':
@@ -74,15 +71,9 @@ def fit_and_evaluate(dataset: Dataset, pairing_function: BasePairing, calibrator
             validation_scores = scorer.predict(validate_pairs)
 
             if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-                if measurement_info:
-                    train_scores = perform_refnorm_from_matrix(train_scores, train_pairs,
-                                                               dataset_refnorm or dataset_train, measurement_info)
-                    validation_scores = perform_refnorm_from_matrix(validation_scores, validate_pairs,
-                                                                    dataset_refnorm or dataset_train, measurement_info)
-                else:
-                    train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
-                    validation_scores = perform_refnorm(validation_scores, validate_pairs,
-                                                        dataset_refnorm or dataset_train, scorer)
+                train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
+                validation_scores = perform_refnorm(validation_scores, validate_pairs,
+                                                    dataset_refnorm or dataset_train, scorer)
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
             validate_lrs.append(calibrator.transform(validation_scores))

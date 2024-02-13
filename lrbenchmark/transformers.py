@@ -5,7 +5,6 @@ from typing import Iterable, Optional, Sequence
 import numpy as np
 from sklearn.base import TransformerMixin, BaseEstimator, ClassifierMixin
 from sklearn.pipeline import Pipeline
-from tqdm import tqdm
 
 from lrbenchmark.data.models import MeasurementPair
 from lrbenchmark.typing import PathLike
@@ -39,37 +38,36 @@ class BaseScorer(BaseEstimator, ClassifierMixin, ABC):
 
 class PrecalculatedScorerASR(BaseScorer):
     def __init__(self, scores_path: PathLike):
-        self.scores = {}
         self.scores_path = scores_path
+        self.scores = None
+        self.source_indices = None
+        self.measurement_indices = None
 
     def fit(self, measurement_pairs: Iterable[MeasurementPair]):
         if not self.scores:
             with open(self.scores_path, "r") as f:
                 reader = csv.reader(f)
-                data = list(reader)
-            header_measurement_data = np.array(data[0][1:])
-            measurement_data = np.array(data)[1:, 1:]
-
-            row_header_measurement_data = np.array(data)[1:, 0]
+                data = np.array(list(reader))
+            header_measurement_data = data[0, 1:]
+            row_header_measurement_data = data[1:, 0]
             if not np.array_equal(header_measurement_data, row_header_measurement_data):
                 raise ValueError("Column headers and row headers not equal.")
 
-            for i in tqdm(range(measurement_data.shape[0]), desc='Reading scores from file', position=0):
-                filename_a = header_measurement_data[i]
-                for j in range(i + 1, measurement_data.shape[1]):
-                    filename_b = header_measurement_data[j]
-                    self.scores[(filename_a, filename_b)] = float(measurement_data[i, j])
-                    self.scores[(filename_b, filename_a)] = float(measurement_data[i, j])
+            self.scores = np.array(data)[1:, 1:].astype(float)
+
+            sources_list = [s.split('_')[0] for s in header_measurement_data]
+            self.source_indices = {x: np.where(np.array(sources_list) == x)[0] for x in set(sources_list)}
+            self.measurement_indices = {x: np.where(np.array(header_measurement_data) == x)[0][0] for x in
+                                        set(header_measurement_data)}
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
-        return np.array([self.scores[(measurement_pair.measurement_a.extra['filename'],
-                                      measurement_pair.measurement_b.extra['filename'])]
+        return np.array([self.scores[self.measurement_indices.get(measurement_pair.measurement_a.extra['filename']),
+                                     self.measurement_indices.get(measurement_pair.measurement_b.extra['filename'])]
                          for measurement_pair in measurement_pairs])
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
         # If scores are already available, no need to fit again
-        if not self.scores:
-            self.fit(measurement_pairs)
+        self.fit(measurement_pairs)
         return self.predict(measurement_pairs)
 
 

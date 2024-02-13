@@ -3,7 +3,7 @@ import numpy as np
 
 from lrbenchmark.data.dataset import ASRDataset
 from lrbenchmark.pairing import CartesianPairing
-from lrbenchmark.refnorm import perform_refnorm, perform_refnorm_from_matrix
+from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import PrecalculatedScorerASR
 from tests.conftest import TEST_DIR, ROOT_DIR
 
@@ -32,7 +32,4 @@ def test_refnorm():
     normalized_scores_expected = scorer_normalized.fit_predict(pairs)
     # perform reference normalization
     normalized_scores_actual = perform_refnorm(raw_scores, pairs, dataset_refnorm, scorer_raw)
-    measurement_info = (dataset_refnorm.measurement_header, dataset_refnorm.measurement_data)
-    normalized_scores_actual_matrix = perform_refnorm_from_matrix(raw_scores, pairs, dataset_refnorm, measurement_info)
     assert np.allclose(normalized_scores_expected, normalized_scores_actual, atol=2e-06)
-    assert np.allclose(normalized_scores_actual_matrix, normalized_scores_actual)
