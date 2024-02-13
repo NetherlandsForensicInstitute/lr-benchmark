@@ -26,8 +26,8 @@ def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair]
     measurement pair, the appropriate refnorm measurement pairs are selected (i.e. all pairs of which one of the
     measurements is equal to the measurement that has to be normalized, and the other measurement has a source_id not
     equal to the source ids in the measurement pair).
-    Once the refnorm pairs are selected, their scores are retrieved by applying a scorer and used for the
-    transformation. The normalized scores are returned.
+    Once the refnorm pairs are selected, their scores are retrieved by either applying a scorer or directly from the
+    matrix of scores in the scorer. The normalized scores are returned.
 
     :param train_scores: the scores of the training pairs that are to be normalized
     :param train_pairs: the training pairs containing necessary information on the sources.
@@ -54,9 +54,9 @@ def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair]
                      scorer.source_indices[mp.measurement_b.source.id])))
 
             # Slice the measurement data to retrieve the scores
-            scores_a = scorer.scores[scorer.measurement_indices[mp.measurement_a.extra['filename']],
+            scores_a = scorer.scores[scorer.measurement_indices[mp.measurement_a.id],
                                      list(indices_to_keep_pair)]
-            scores_b = scorer.scores[scorer.measurement_indices[mp.measurement_b.extra['filename']],
+            scores_b = scorer.scores[scorer.measurement_indices[mp.measurement_b.id],
                                      list(indices_to_keep_pair)]
 
             # Perform refnorm

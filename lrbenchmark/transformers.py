@@ -38,6 +38,14 @@ class BaseScorer(BaseEstimator, ClassifierMixin, ABC):
 
 class PrecalculatedScorerASR(BaseScorer):
     def __init__(self, scores_path: PathLike):
+        """
+        Scorer specifically for ASR that retrieved the predictions from a precalculated matrix of scores.
+        The scores are in a symmetrical matrix, read from the csv file in scores_path. The source_indices is a mapping
+        of each source_id and the indices of its instances in the scores matrix. The measurement_indices is a mapping of
+        each measurement_id to its index in the scores matrix.
+
+        :param scores_path: the path to a csv to read the scores from
+        """
         self.scores_path = scores_path
         self.scores = None
         self.source_indices = None
@@ -53,7 +61,7 @@ class PrecalculatedScorerASR(BaseScorer):
             if not np.array_equal(header_measurement_data, row_header_measurement_data):
                 raise ValueError("Column headers and row headers not equal.")
 
-            self.scores = np.array(data)[1:, 1:].astype(float)
+            self.scores = data[1:, 1:].astype(float)
 
             sources_list = [s.split('_')[0] for s in header_measurement_data]
             self.source_indices = {x: np.where(np.array(sources_list) == x)[0] for x in set(sources_list)}
@@ -61,8 +69,8 @@ class PrecalculatedScorerASR(BaseScorer):
                                         set(header_measurement_data)}
 
     def predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:
-        return np.array([self.scores[self.measurement_indices.get(measurement_pair.measurement_a.extra['filename']),
-                                     self.measurement_indices.get(measurement_pair.measurement_b.extra['filename'])]
+        return np.array([self.scores[self.measurement_indices.get(measurement_pair.measurement_a.id),
+                                     self.measurement_indices.get(measurement_pair.measurement_b.id)]
                          for measurement_pair in measurement_pairs])
 
     def fit_predict(self, measurement_pairs: Iterable[MeasurementPair]) -> np.ndarray:

@@ -26,8 +26,13 @@ from params import parse_config, config_option_dicts
 LOG = logging.getLogger(__name__)
 
 
-def fit_and_evaluate(dataset: Dataset, pairing_function: BasePairing, calibrator: BaseEstimator, scorer: BaseScorer,
-                     splitting_strategy: Mapping, selected_params: Dict[str, Any] = None, repeats: int = 1) -> Result:
+def fit_and_evaluate(dataset: Dataset,
+                     pairing_function: BasePairing,
+                     calibrator: BaseEstimator,
+                     scorer: BaseScorer,
+                     splitting_strategy: Mapping,
+                     selected_params: Dict[str, Any] = None,
+                     repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
