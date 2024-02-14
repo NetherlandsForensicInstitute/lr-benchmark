@@ -208,10 +208,10 @@ class ASRDataset(Dataset):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={key: info_a.get(key) for key in self.source_filter.keys()}),
                     sample=Sample(recording_id_a),
-                    id=duration, extra={**info_a, **extra}))
+                    id=filename_a, extra={**info_a, **extra}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
                 measurements.append(Measurement(Source(id='Case', extra={}), sample=Sample(recording_id_a),
-                                                id=duration, extra=extra))
+                                                id=filename_a, extra=extra))
         return measurements
 
     @staticmethod
