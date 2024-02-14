@@ -14,13 +14,15 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
-from lrbenchmark.load import get_parser, load_data_config
+\from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
-from lrbenchmark.utils import get_experiment_description, prepare_output_file
+from lrbenchmark.io import write_metrics, write_lrs, write_refnorm_stats, \
+    write_calibration_results, save_figures_per_param_set
+from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
+from lrbenchmark.utils import get_experiment_description
 from params import parse_config, config_option_dicts
 
 LOG = logging.getLogger(__name__)
@@ -50,12 +52,14 @@ def fit_and_evaluate(dataset: Dataset,
 
     dataset_refnorm = None
     holdout_set, dataset = dataset.split_off_holdout_set()
+    refnorm_source_ids = {}
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
         # split off the sources that should only be evaluated
 
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
                                                                seed=idx))
+            refnorm_source_ids.update({idx: dataset_refnorm.source_ids})
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
             splits = tqdm(list(splits), 'train - validate splits', position=0)
@@ -91,6 +95,7 @@ def fit_and_evaluate(dataset: Dataset,
                 all_train_pairs = train_pairs
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
+    calibration_results = None
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
                                               filter_on_trace_reference_properties=False)
@@ -102,6 +107,7 @@ def fit_and_evaluate(dataset: Dataset,
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
         calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
         holdout_lrs = calibrator.transform(holdout_scores)
+        calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(pairs, scores)]
 
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
@@ -113,7 +119,7 @@ def fit_and_evaluate(dataset: Dataset,
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
 
-    # elub bounds
+    # compute lr statistics
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
     metrics = {'desc': get_experiment_description(selected_params),
@@ -128,7 +134,7 @@ def fit_and_evaluate(dataset: Dataset,
         # holdout set was specified, record LRs. Only takes those from the last repeat.
         holdout_results = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
-    return Result(metrics, figs, holdout_results)
+    return Result(metrics, figs, holdout_results, calibration_results, refnorm_source_ids)
 
 
 def run(exp: evaluation.Setup, config: Configuration) -> None:
@@ -156,33 +162,26 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         agg_result.append(result)
         param_sets.append(param_set)
 
-    # create foldername for this run
+    # create folder name for this run
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
-    # write results to file
-    with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = sorted(set(agg_result[0].metrics.keys()))
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        for result_row in agg_result:
-            writer.writerow({fieldname: value for fieldname, value in result_row.metrics.items() if fieldname in fieldnames})
+    # write metrics to file
+    write_metrics(agg_result, folder_name)
+
+    # write calibration pairs to file
+    if agg_result[0].calibration_results:
+        write_calibration_results(agg_result, folder_name)
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
-        with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['desc', 'pair', 'LR'])
-            for result_row in agg_result:
-                for pair_desc, lr in result_row.holdout_lrs.items():
-                    writer.writerow([result_row.metrics['desc'], pair_desc, lr])
+        write_lrs(agg_result, folder_name)
 
-    # save figures and results per parameter set
-    for result_row, param_set in zip(agg_result, param_sets):
-        for fig_name, fig in result_row.figures.items():
-            short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
-            path = f'{folder_name}/{short_description}/{fig_name}'
-            prepare_output_file(path)
-            fig.savefig(path)
+    # write refnorm source ids to file
+    if agg_result[0].refnorm_stats:
+        write_refnorm_stats(agg_result, folder_name)
+
+    # save figures
+    save_figures_per_param_set(agg_result, param_sets, folder_name)
 
     # save yaml configuration file
     confidence.dumpf(config, f'{folder_name}/config.yaml')

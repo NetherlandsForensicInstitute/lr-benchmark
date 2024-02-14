@@ -1,12 +1,6 @@
-from pathlib import Path
 from typing import Dict, Any, Optional, Iterable
 
 from lrbenchmark.data.models import MeasurementPair
-
-
-def prepare_output_file(path: str) -> str:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str:
