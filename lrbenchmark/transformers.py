@@ -52,7 +52,7 @@ class PrecalculatedScorerASR(BaseScorer):
         self.measurement_indices = None
 
     def fit(self, measurement_pairs: Iterable[MeasurementPair]):
-        if not self.scores:
+        if self.scores is None:
             with open(self.scores_path, "r") as f:
                 reader = csv.reader(f)
                 data = np.array(list(reader))
