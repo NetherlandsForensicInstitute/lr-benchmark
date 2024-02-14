@@ -135,8 +135,8 @@ class Setup:
 
 def compute_descriptive_statistics(dataset: Dataset,
                                    holdout_set: Dataset,
-                                   all_train_pairs: List['MeasurementPair'],
-                                   all_validate_pairs: List['MeasurementPair'], ) -> Dict[str, int]:
+                                   all_train_pairs: List[MeasurementPair],
+                                   all_validate_pairs: List[MeasurementPair], ) -> Dict[str, int]:
     """
     computes some simple statistics, such as number of sources.
     """
