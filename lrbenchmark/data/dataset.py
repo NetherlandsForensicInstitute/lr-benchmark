@@ -190,13 +190,11 @@ class ASRDataset(Dataset):
     def get_measurements_from_file(self):
         with open(self.scores_path, "r") as f:
             reader = csv.reader(f)
-            data = list(reader)
-        header_measurement_data = np.array(data[0][1:])
-        measurement_data = np.array(data)[1:, 1:]
+            header_measurement_data = next(reader)[1:]
         recording_data = self.load_recording_annotations()
 
         measurements = []
-        for i in tqdm(range(measurement_data.shape[0]), desc='Reading recording measurement data'):
+        for i in tqdm(range(len(header_measurement_data)), desc='Reading recording measurement data'):
             if self.limit_n_measurements and len(measurements) >= self.limit_n_measurements:
                 return measurements
             filename_a = header_measurement_data[i]
