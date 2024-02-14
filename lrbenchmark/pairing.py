@@ -17,7 +17,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     @abstractmethod
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
@@ -40,7 +40,7 @@ class CartesianPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
@@ -59,7 +59,7 @@ class LeaveOneTwoOutPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
@@ -88,7 +88,7 @@ class BalancedPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]

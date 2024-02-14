@@ -109,7 +109,7 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None) \
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {})) \
             -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
