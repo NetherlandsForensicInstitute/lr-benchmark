@@ -21,7 +21,7 @@ class Dataset(ABC):
     def __init__(self,
                  measurements: Optional[List[Measurement]] = None,
                  holdout_source_ids: Optional[Iterable[Union[int, str]]] = None,
-                 filtering_properties: Optional[List[str]] = None, ):
+                 filtering_properties: Optional[List[str]] = None):
         """
         :param holdout_source_ids: provide the precise sources to include in the holdout data.
         :param filtering_properties: properties of the measurements to be used for filtering

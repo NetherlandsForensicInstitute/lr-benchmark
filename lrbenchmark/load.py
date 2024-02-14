@@ -52,13 +52,13 @@ def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> Path
 
 
 def get_filter_combination_values(dataset: Dataset) -> \
-        List[Optional[Tuple[Mapping[str, str], Mapping[str, str]]]]:
+        List[Tuple[Mapping[str, str], Mapping[str, str]]]:
     """
     For the 'filtering_properties' provided in the Dataset, find the values of the hold out measurements belonging
     to those properties. Then return all combinations of two-sided properties to be used in pairing.
     """
     if not dataset.holdout_source_ids or not dataset.filtering_properties:
-        return [None]
+        return [({}, {})]
     # retrieve all info of the measurements whose source id is a holdout source id
     all_holdout_properties = [m.extra for m in dataset.measurements if m.source.id in dataset.holdout_source_ids]
     # find all unique values corresponding to the filtering properties

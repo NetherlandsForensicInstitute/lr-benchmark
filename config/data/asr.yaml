@@ -1,6 +1,6 @@
 dataset:
   name: asr
-  limit_n_measurements:
+  limit_n_measurements: 200
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
   source_filter:
@@ -11,7 +11,7 @@ dataset:
     languageID:
       - 4
       - 9
-  relevant_properties:
+  filtering_properties:
     - auto
     - beller_fluistert
   holdout_source_ids:

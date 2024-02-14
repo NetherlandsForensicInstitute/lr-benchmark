@@ -17,7 +17,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     @abstractmethod
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Optional[Tuple[Mapping[str, str], Mapping[str, str]]] = None,
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
@@ -40,11 +40,10 @@ class CartesianPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Optional[Tuple[Mapping[str, str], Mapping[str, str]]] = None,
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if pairing_properties:
-            all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
+        all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         return all_pairs
 
 
@@ -60,7 +59,7 @@ class LeaveOneTwoOutPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Optional[Tuple[Mapping[str, str], Mapping[str, str]]] = None,
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
@@ -89,13 +88,11 @@ class BalancedPairing(BasePairing):
 
     def transform(self,
                   measurements: Iterable[Measurement],
-                  pairing_properties: Optional[Tuple[Mapping[str, str], Mapping[str, str]]] = None,
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
-        if pairing_properties:
-            all_pairs = [mp for mp in all_pairs if
-                         pair_complies_with_properties(mp, pairing_properties)]
+        all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
         different_source_pairs = [a for a in all_pairs if not a.is_same_source]
         n_pairs = min(len(same_source_pairs), len(different_source_pairs))

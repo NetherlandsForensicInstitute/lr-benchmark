@@ -1,5 +1,3 @@
-from itertools import combinations_with_replacement
-
 import numpy as np
 from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.data.models import Measurement, Source, Sample
@@ -20,9 +18,9 @@ def test_get_filter_combination_values():
                       filtering_properties=['property1', 'property2'])
 
     actual_properties = get_filter_combination_values(dataset)
-    properties_of_holdout_set = [{'property1': property1[0], 'property2': property2[0]},
-                                 {'property1': property1[-1], 'property2': property2[-1]}]
-    expected_properties = list(combinations_with_replacement(properties_of_holdout_set, r=2))
+    expected_properties = [({'property1': 'yes', 'property2': 'no'}, {'property1': 'yes', 'property2': 'no'}),
+                           ({'property1': 'yes', 'property2': 'no'}, {'property1': 'no', 'property2': 'yes'}),
+                           ({'property1': 'no', 'property2': 'yes'}, {'property1': 'no', 'property2': 'yes'})]
 
     assert len(expected_properties) == len(actual_properties)
     for p1, p2 in actual_properties:

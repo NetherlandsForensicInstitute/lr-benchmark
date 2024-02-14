@@ -31,7 +31,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
-                     pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = None,
+                     pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                      selected_params: Dict[str, Any] = None,
                      repeats: int = 1) -> Result:
     """
