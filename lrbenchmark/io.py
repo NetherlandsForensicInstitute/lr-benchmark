@@ -1,6 +1,6 @@
 import csv
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from lrbenchmark.typing import Result
 
@@ -43,4 +43,13 @@ def write_refnorm_stats(agg_result: List[Result], folder_name: str):
         writer.writerow(['run', 'source_ids'])
         for result_row in agg_result:
             for run, sources in result_row.refnorm_stats.items():
-                writer.writerow([run, *sources])
+                writer.writerow([f'run_{run}', *sources])
+
+
+def save_figures_per_param_set(agg_result: List[Result], param_sets: List[Dict], folder_name: str):
+    for result_row, param_set in zip(agg_result, param_sets):
+        for fig_name, fig in result_row.figures.items():
+            short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
+            path = f'{folder_name}/{short_description}/{fig_name}'
+            prepare_output_file(path)
+            fig.savefig(path)

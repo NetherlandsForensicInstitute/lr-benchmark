@@ -183,8 +183,14 @@ def create_figures(calibrator: TransformerMixin,
     lir.plotting.score_distribution(validate_scores, validate_labels)
     figs['score_distribution_and_calibrator_fit'] = fig
     fig = plt.figure()
-    plt.scatter(validate_scores, np.log10(validate_lrs), marker='.')
-    plt.xlabel('scores')
-    plt.ylabel('log$_{10}$(LR)')
+    plot_scores_lrs(calibrator, validate_scores)
     figs['scores_to_lrs'] = fig
     return figs
+
+
+def plot_scores_lrs(calibrator: TransformerMixin, scores: np.ndarray):
+    score_range = np.linspace(min(scores), max(scores), 100)
+    lrs = calibrator.transform(score_range)
+    plt.scatter(score_range, np.log10(lrs), marker='.')
+    plt.xlabel('scores')
+    plt.ylabel('log$_{10}$(LR)')

@@ -20,8 +20,8 @@ from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.utils import get_experiment_description
-from lrbenchmark.write_output import prepare_output_file, write_metrics, write_lrs, write_refnorm_stats, \
-    write_calibration_results
+from lrbenchmark.io import prepare_output_file, write_metrics, write_lrs, write_refnorm_stats, \
+    write_calibration_results, save_figures_per_param_set
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
 
@@ -60,7 +60,7 @@ def fit_and_evaluate(dataset: Dataset,
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = \
                 next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'], seed=idx))
-            refnorm_source_ids.update({f'run {idx}': dataset_refnorm.source_ids})
+            refnorm_source_ids.update({idx: dataset_refnorm.source_ids})
         splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
         if repeats == 1:
             splits = tqdm(list(splits), 'train - validate splits', position=0)
@@ -97,6 +97,7 @@ def fit_and_evaluate(dataset: Dataset,
                 all_train_scores = train_scores
 
     # retrain with everything, and apply to the holdout (after the repeat loop)
+    calibration_results = None
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
                                               filter_on_trace_reference_properties=False)
@@ -109,6 +110,7 @@ def fit_and_evaluate(dataset: Dataset,
                                              scorer)
         calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
         holdout_lrs = calibrator.transform(holdout_scores)
+        calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(pairs, scores)]
 
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
@@ -129,8 +131,6 @@ def fit_and_evaluate(dataset: Dataset,
                'cllr_cal': lr_metrics.cllr_cal,
                'auc': roc_auc_score(validate_labels, validate_scores),
                **descriptive_statistics}
-
-    calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(all_train_pairs, all_train_scores)]
 
     holdout_results = None
     if holdout_set:
@@ -168,28 +168,26 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     # create folder name for this run
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
-    # write metrics and calibration results to file
+    # write metrics to file
     write_metrics(agg_result, folder_name)
-    write_calibration_results(agg_result, folder_name)
+
+    # write calibration pairs to file
+    if agg_result[0].calibration_results:
+        write_calibration_results(agg_result, folder_name)
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
         write_lrs(agg_result, folder_name)
 
+    # write refnorm source ids to file
     if agg_result[0].refnorm_stats:
         write_refnorm_stats(agg_result, folder_name)
 
-    # save figures and results per parameter set
-    for result_row, param_set in zip(agg_result, param_sets):
-        for fig_name, fig in result_row.figures.items():
-            short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
-            path = f'{folder_name}/{short_description}/{fig_name}'
-            prepare_output_file(path)
-            fig.savefig(path)
+    # save figures
+    save_figures_per_param_set(agg_result, param_sets, folder_name)
 
     # save yaml configuration file
-    path = f'{folder_name}/config.yaml'
-    confidence.dumpf(config, prepare_output_file(path))
+    confidence.dumpf(config, f'{folder_name}/config.yaml')
 
 
 if __name__ == '__main__':
