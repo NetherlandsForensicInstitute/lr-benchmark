@@ -199,23 +199,26 @@ class ASRDataset(Dataset):
                 return measurements
             filename_a = header_measurement_data[i]
             source_id_a, recording_id_a, duration = self.get_ids_and_duration_from_filename(filename_a)
-            filename_in_recording_data = filename_a.replace('_' + str(duration) + 's', '') if duration else filename_a
+            filename_in_recording_data = filename_a.replace('_' + duration + 's', '') if duration else filename_a
             info_a = recording_data.get(filename_in_recording_data)
             if not duration and info_a:
                 duration = info_a['net_duration']
             extra = {'filename': filename_a, 'actual_duration': duration}
-            if info_a and complies_with_filter_requirements(self.source_filter, info_a, {'actual_duration': duration}):
+            if not info_a:
+                LOG.warning(f"No measurement information found for file {filename_in_recording_data}, therefore "
+                            f"skipping this instance.")
+            elif complies_with_filter_requirements(self.source_filter, info_a, {'actual_duration': duration}):
                 measurements.append(Measurement(
                     Source(id=source_id_a, extra={key: info_a.get(key) for key in self.source_filter.keys()}),
-                    sample=Sample(recording_id_a),
-                    id=filename_a, extra={**info_a, **extra}))
+                    sample=Sample(recording_id_a), id=filename_a, extra={**info_a, **extra}))
             elif source_id_a.lower() in ['case', 'zaken', 'zaak']:
-                measurements.append(Measurement(Source(id='Case', extra={}), sample=Sample(recording_id_a),
-                                                id=filename_a, extra=extra))
+                measurements.append(Measurement(
+                    Source(id='Case', extra={key: info_a.get(key) for key in self.source_filter.keys()}),
+                    sample=Sample(recording_id_a), id=filename_a, extra={**info_a, **extra}))
         return measurements
 
     @staticmethod
-    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, Optional[int]]:
+    def get_ids_and_duration_from_filename(filename: str) -> Tuple[str, str, Optional[str]]:
         """
         Retrieve the source id, recording id and actual duration (if possible) of the recording from the filename.
         """
@@ -228,7 +231,7 @@ class ASRDataset(Dataset):
             duration = None
         else:
             raise ValueError(f"Invalid filename found: {filename}")
-        return source_id, recording_id, duration
+        return source_id, recording_id, str(duration)
 
     def load_recording_annotations(self) -> Dict[str, Dict[str, str]]:
         """
