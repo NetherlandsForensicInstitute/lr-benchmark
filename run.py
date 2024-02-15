@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import csv
 import logging
 from datetime import datetime
 from typing import Dict, Any, Mapping, Tuple
@@ -14,9 +13,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from lrbenchmark.load import get_parser, load_data_config, get_filter_combination_values
-\from lrbenchmark.load import get_parser, load_data_config
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer

@@ -1,6 +1,3 @@
-from typing import Dict, Any, Optional, Iterable
-
-from pathlib import Path
 from typing import Dict, Any, Optional, Mapping, Tuple
 from lrbenchmark.data.models import MeasurementPair
 
