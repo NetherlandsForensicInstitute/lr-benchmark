@@ -101,7 +101,7 @@ def fit_and_evaluate(dataset: Dataset,
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
                                               pairing_properties=pairing_properties)
-        pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
+        pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
         if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
