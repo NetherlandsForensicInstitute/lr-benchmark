@@ -63,7 +63,7 @@ class Measurement:
         return self.source.id
 
     def __str__(self):
-        return f'source_id: {self.source.id}, {self.extra}'
+        return f'id: {self.id}, source_id: {self.source.id}'
 
     def __eq__(self, other):
         return self.id == other.id and self.sample == other.sample and self.source == other.source
