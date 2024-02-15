@@ -18,11 +18,5 @@ def test_get_filter_combination_values():
                       filtering_properties=['property1', 'property2'])
 
     actual_properties = get_filter_combination_values(dataset)
-    expected_properties = [({'property1': 'yes', 'property2': 'no'}, {'property1': 'yes', 'property2': 'no'}),
-                           ({'property1': 'yes', 'property2': 'no'}, {'property1': 'no', 'property2': 'yes'}),
-                           ({'property1': 'no', 'property2': 'yes'}, {'property1': 'no', 'property2': 'yes'})]
-
-    assert len(expected_properties) == len(actual_properties)
-    for p1, p2 in actual_properties:
-        # check both since ordering of 'actual_properties' may differ
-        assert (p1, p2) in expected_properties or (p2, p1) in expected_properties
+    expected_properties = [({'property1': 'no', 'property2': 'yes'}, {'property1': 'yes', 'property2': 'no'})]
+    assert expected_properties == actual_properties
