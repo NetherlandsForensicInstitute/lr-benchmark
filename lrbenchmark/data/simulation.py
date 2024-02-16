@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.data.models import Measurement, Source
+from lrbenchmark.data.models import Measurement, Source, Sample
 
 
 class MeasurementPairsSimulator(ABC):
@@ -37,9 +37,9 @@ class NormalPairsSimulator(MeasurementPairsSimulator):
         for i, mean in enumerate(source_means):
             source = Source(id=i, extra={})
             measurement_errors = self.generator.normal(0, self.source_std, (n_measurements, n_dimensions))
-            for j, value in enumerate(measurement_errors):
-                measurements.append(Measurement(source=source,
-                                                value=value + mean, extra={}, id=f'{i}_{j}'))
+            for j, error in enumerate(measurement_errors):
+                measurements.append(Measurement(source=source, sample=Sample(id=j),
+                                                value=mean+error, extra={}, id=1))
         return measurements
 
     def __repr__(self):

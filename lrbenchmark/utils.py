@@ -1,5 +1,4 @@
-from typing import Dict, Any, Optional, Iterable
-
+from typing import Dict, Any, Optional, Mapping, Tuple
 from lrbenchmark.data.models import MeasurementPair
 
 
@@ -25,23 +24,24 @@ def get_experiment_description(selected_params: Optional[Dict[str, Any]]) -> str
         return "defaults"
 
 
-def apply_filter_on_trace_reference_properties(measurement_pairs: Iterable[MeasurementPair]) \
-        -> Iterable[MeasurementPair]:
+def pair_complies_with_properties(measurement_pair: MeasurementPair,
+                                  properties: Tuple[Mapping[str, str], Mapping[str, str]]) -> bool:
     """
-    Filter measurement pairs on two conditions:
-    - the pair must consist of one 'trace_like' measurement and one 'reference_like' measurement
-    - the source ids of the two measurements must differ or the id's of the measurements must differ. The two
-    measurements in the pair cannot just be different variants of the same measurement. We check this by requiring
-    either the source id or measurement id to be different.
+    Check a measurement pair on two conditions:
+    - one of the measurements of the pair must have properties equal to the first properties and the other measurement
+    must have properties equal to the second properties
+    - the sample id or the source id of the measurements must differ
     """
-    return [mp for mp in measurement_pairs if
-            ((mp.measurement_a.is_like_reference and mp.measurement_b.is_like_trace) or
-             (mp.measurement_a.is_like_trace and mp.measurement_b.is_like_reference)) and
-            (mp.measurement_a.id != mp.measurement_b.id or not mp.is_same_source)]
+    m_a, m_b = measurement_pair.measurements
+    return ((complies_with_filter_requirements(properties[0], m_a.extra) and
+             complies_with_filter_requirements(properties[1], m_b.extra)) or
+            (complies_with_filter_requirements(properties[1], m_a.extra) and
+            complies_with_filter_requirements(properties[0], m_b.extra))) and \
+           (m_a.source.id != m_b.source.id or m_a.sample.id != m_b.sample.id)
 
 
-def complies_with_filter_requirements(requirements: Dict[str, Any], info: Optional[Dict[str, str]],
-                                      extra: Optional[Dict[str, Any]]) -> bool:
+def complies_with_filter_requirements(requirements: Mapping[str, Any], info: Optional[Mapping[str, str]] = None,
+                                      extra: Optional[Mapping[str, Any]] = None) -> bool:
     """
     Check whether the values in `info` and `extra` match the values in the `requirements`. The values in `requirements`
     and `extra`, can be any type (a list of strings, an integer, a boolean), while the values in `info` should be
@@ -61,12 +61,12 @@ def complies_with_filter_requirements(requirements: Dict[str, Any], info: Option
     return True
 
 
-def parse_dict_values_to_str(dict: Dict[str, Any]) -> Dict[str, str]:
+def parse_dict_values_to_str(mapping_to_parse: Mapping[str, Any]) -> Mapping[str, str]:
     """
-    Parse the values in the dictionary to strings or list of strings.
+    Parse the values in the mapping to strings or list of strings.
     """
     result = {}
-    for key, val in dict.items():
+    for key, val in mapping_to_parse.items():
         if isinstance(val, list):
             result.update({key: list(map(str, val))})
         else:

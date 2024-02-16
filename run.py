@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-import csv
 import logging
 from datetime import datetime
-from typing import Dict, Any, Mapping
+from typing import Dict, Any, Mapping, Tuple
 
 import confidence
 import numpy as np
@@ -14,7 +13,7 @@ from tqdm import tqdm
 
 from lrbenchmark import evaluation
 from lrbenchmark.data.dataset import Dataset
-\from lrbenchmark.load import get_parser, load_data_config
+from lrbenchmark.load import get_parser, load_data_config, get_filter_combination_values
 from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPairing
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
@@ -33,6 +32,7 @@ def fit_and_evaluate(dataset: Dataset,
                      calibrator: BaseEstimator,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
+                     pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                      selected_params: Dict[str, Any] = None,
                      repeats: int = 1) -> Result:
     """
@@ -51,11 +51,10 @@ def fit_and_evaluate(dataset: Dataset,
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
     dataset_refnorm = None
+    # split off the sources that should only be evaluated
     holdout_set, dataset = dataset.split_off_holdout_set()
     refnorm_source_ids = {}
     for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
-        # split off the sources that should only be evaluated
-
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
                                                                seed=idx))
@@ -67,14 +66,17 @@ def fit_and_evaluate(dataset: Dataset,
 
             # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type'] == 'leave_one_out':
-                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx)
+                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
+                                                            pairing_properties=pairing_properties)
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validate_pairs:
                     continue
             else:
-                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx)
+                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                            pairing_properties=pairing_properties)
 
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx)
+            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                  pairing_properties=pairing_properties)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validate_pairs)
@@ -98,8 +100,8 @@ def fit_and_evaluate(dataset: Dataset,
     calibration_results = None
     if holdout_set:
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              filter_on_trace_reference_properties=False)
-        pairs = dataset.get_pairs(pairing_function=pairing_function, seed=idx)
+                                              pairing_properties=pairing_properties)
+        pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
         scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
         if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
@@ -151,7 +153,8 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],
                   'scorer': exp_config['scorer'],
-                  'calibrator': exp_config['calibrator']}
+                  'calibrator': exp_config['calibrator'],
+                  'pairing_properties': get_filter_combination_values(config_resolved['dataset'])}
 
     if [] in parameters.values():
         raise ValueError('Every parameter should have at least one value, '

@@ -1,9 +1,14 @@
 import argparse
+import json
 import os
 from pathlib import Path
 
 from confidence import Configuration, loadf
-from typing import Optional
+from typing import Optional, Mapping, Tuple, List
+
+import itertools
+
+from lrbenchmark.data.dataset import Dataset
 from lrbenchmark.typing import PathLike
 
 
@@ -44,3 +49,22 @@ def get_data_config_path(path: PathLike, root: Optional[PathLike] = ".") -> Path
             elements.append('data')
     elements.append(path)
     return Path(os.path.join(*elements))
+
+
+def get_filter_combination_values(dataset: Dataset) -> List[Tuple[Mapping[str, str], Mapping[str, str]]]:
+    """
+    For the 'filtering_properties' provided in the Dataset, find the values of the hold out measurements belonging
+    to those properties. Then return all combinations of two-sided properties to be used in pairing.
+    """
+    if not dataset.holdout_source_ids or not dataset.filtering_properties:
+        return [({}, {})]
+    # retrieve all info of the measurements whose source id is a holdout source id
+    all_holdout_properties = [m.extra for m in dataset.measurements if m.source.id in dataset.holdout_source_ids]
+    # find all unique values corresponding to the filtering properties
+    filtering_values = [{filter_prop: prop.get(filter_prop) for filter_prop in dataset.filtering_properties} for prop in
+                        all_holdout_properties]
+    # make combinations of all properties
+    combinations = list(itertools.combinations(filtering_values, 2))
+    # take the unique combinations, the json.dumps is needed to create a set
+    combinations = set([json.dumps(sorted(comb, key=lambda x: list(x.values()))) for comb in combinations])
+    return [tuple(json.loads(comb)) for comb in combinations]

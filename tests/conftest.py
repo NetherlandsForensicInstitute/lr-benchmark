@@ -7,15 +7,15 @@ import numpy as np
 import pytest
 
 from lrbenchmark.data.dataset import Dataset
-from lrbenchmark.data.models import Measurement, Source, MeasurementPair
-
+from lrbenchmark.data.models import Measurement, Source, MeasurementPair, Sample
 
 ROOT_DIR = Path(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 TEST_DIR = ROOT_DIR / 'tests'
 
 @pytest.fixture
 def test_measurement() -> Measurement:
-    return Measurement(source=Source(id=1, extra={}), extra={}, value=np.array([1, 1, 1, 1]), id='id_test')
+    return Measurement(source=Source(id=1, extra={}), extra={}, value=np.array([1, 1, 1, 1]), sample=Sample(id='A1'),
+                       id='test')
 
 
 @pytest.fixture
@@ -23,7 +23,8 @@ def test_measurement_pair(test_measurement) -> MeasurementPair:
     return MeasurementPair(measurement_a=test_measurement,
                            measurement_b=Measurement(source=Source(id=2, extra={}),
                                                      extra={},
-                                                     value=np.array([0, 0, 0, 0]), id='id_b'),
+                                                     value=np.array([0, 0, 0, 0]), sample=Sample(id='B1'),
+                                                     id='test'),
                            extra={'score': 0.8})
 
 
@@ -32,18 +33,16 @@ def measurements() -> List[Measurement]:
     values = np.reshape(np.array(list(range(50))), (10, 5))
     items = np.array(list(range(10, 20)))
     return [Measurement(source=Source(id=item, extra={}),
-                        id = i,
-                        is_like_reference=True, is_like_trace=False,
-                        extra={}, value=value) for i, (value, item) in enumerate(zip(values, items))]
+                        sample=Sample(id=i), id=1,
+                        extra={'property': 'trace'}, value=value) for i, (value, item) in enumerate(zip(values, items))]
 
 
 @pytest.fixture
 def measurements_set2() -> List[Measurement]:
     values = np.reshape(np.array(list(range(250, 300))), (10, 5))
     items = np.array(list(range(10, 15))+list(range(21, 26)))
-    return [Measurement(source=Source(id=item, extra={}), extra={},
-                        is_like_reference=False, is_like_trace=True,
-                        value=value, id = i+9999) for i, (value, item) in enumerate(zip(values, items))]
+    return [Measurement(source=Source(id=item, extra={}), extra={'property': 'reference'}, id=1,
+                        value=value, sample=Sample(id=i+9999)) for i, (value, item) in enumerate(zip(values, items))]
 
 
 @pytest.fixture

@@ -1,5 +1,8 @@
 import numpy as np
 
+from lrbenchmark.data.models import Source, Sample, Measurement
+
+
 def test_get_x_measurement(test_measurement):
     assert np.array_equal(test_measurement.get_x(), np.array([1, 1, 1, 1]))
 
@@ -18,3 +21,12 @@ def test_get_x_measurement_pair(test_measurement_pair):
 
 def test_get_y_measurement_pair(test_measurement_pair):
     assert not test_measurement_pair.get_y()
+
+
+def test_measurements_equal(test_measurement):
+    other_measurement = Measurement(source=Source(id=1, extra={'test': True}), extra={'test': True},
+                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A1'), id='test')
+    assert test_measurement == other_measurement
+    other_measurement = Measurement(source=Source(id=1, extra={'test': True}), extra={'test': True},
+                                    value=np.array([2, 2, 2, 2]), sample=Sample(id='A2'), id='test')
+    assert not test_measurement == other_measurement

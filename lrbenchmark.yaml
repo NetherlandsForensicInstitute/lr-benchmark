@@ -20,5 +20,5 @@ experiment:
       split_type: simple # leave_one_out or simple.
       validate_size: 0.2 # size is only used for 'simple'. Can be fraction or number
     refnorm:
-      split_type: leave_one_out # none, leave_one_out or simple
+      split_type: # none, leave_one_out or simple
       size: # size is only used for 'simple'
