@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import logging
 from datetime import datetime
-from typing import Dict, Any, Mapping, Tuple
+from typing import Mapping, Tuple
 
 import confidence
 import numpy as np
+import yaml
 from confidence import Configuration
 from lir import calculate_lr_statistics, Xy_to_Xn
 from sklearn.base import BaseEstimator
@@ -19,9 +20,8 @@ from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
 from lrbenchmark.io import write_metrics, write_lrs, write_refnorm_stats, \
-    write_calibration_results, save_figures_per_param_set
+    write_calibration_results, save_figures, prepare_output_file
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
-from lrbenchmark.utils import get_experiment_description
 from params import parse_config, config_option_dicts
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +33,6 @@ def fit_and_evaluate(dataset: Dataset,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
                      pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
-                     selected_params: Dict[str, Any] = None,
                      repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
@@ -54,7 +53,7 @@ def fit_and_evaluate(dataset: Dataset,
     # split off the sources that should only be evaluated
     holdout_set, dataset = dataset.split_off_holdout_set()
     refnorm_source_ids = {}
-    for idx in tqdm(range(repeats), desc=', '.join(map(str, selected_params.values())) if selected_params else ''):
+    for idx in tqdm(range(repeats), desc='Experiment repeats'):
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
                                                                seed=idx))
@@ -124,8 +123,7 @@ def fit_and_evaluate(dataset: Dataset,
     # compute lr statistics
     lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
-    metrics = {'desc': get_experiment_description(selected_params),
-               'cllr': lr_metrics.cllr,
+    metrics = {'cllr': lr_metrics.cllr,
                'cllr_min': lr_metrics.cllr_min,
                'cllr_cal': lr_metrics.cllr_cal,
                'auc': roc_auc_score(validate_labels, validate_scores),
@@ -160,16 +158,17 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
         raise ValueError('Every parameter should have at least one value, '
                          'see README.')
 
-    agg_result, param_sets = [], []
+    agg_result, param_sets, agg_param_values = [], [], []
     for param_set, param_values, result in exp.run_full_grid(parameters):
         agg_result.append(result)
         param_sets.append(param_set)
+        agg_param_values.append(param_values)
 
     # create folder name for this run
     folder_name = f'output/{str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))}'
 
     # write metrics to file
-    write_metrics(agg_result, folder_name)
+    write_metrics(agg_result, param_sets, folder_name)
 
     # write calibration pairs to file
     if agg_result[0].calibration_results:
@@ -183,8 +182,14 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     if agg_result[0].refnorm_stats:
         write_refnorm_stats(agg_result, folder_name)
 
-    # save figures
-    save_figures_per_param_set(agg_result, param_sets, folder_name)
+    for i, (result, param_set, param_values) in enumerate(zip(agg_result, param_sets, agg_param_values)):
+        short_description = ' - '.join([val.__class__.__name__[:5] for val in param_set.values()])
+        path = f'{folder_name}/{i}_{short_description}'
+        # write config
+        with open(prepare_output_file(f"{path}/run_config.yaml"), "w") as fp:
+            yaml.dump({k: str(o) for k, o in param_values.items()}, fp)
+        # save figures
+        save_figures(result, path)
 
     # save yaml configuration file
     confidence.dumpf(config, f'{folder_name}/config.yaml')
