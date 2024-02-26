@@ -12,7 +12,7 @@ def prepare_output_file(path: str) -> str:
 
 def write_metrics(agg_result: List[Result], param_sets: List[Mapping], folder_name: str):
     with open(prepare_output_file(f'{folder_name}/all_metrics.csv'), 'w') as file:
-        fieldnames = ['run'] + sorted(list(param_sets[0].keys())) + sorted(set(list(agg_result[0].metrics.keys())))
+        fieldnames = ['run'] + sorted(param_sets[0].keys()) + sorted(agg_result[0].metrics.keys())
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for i, (result_row, param_set) in enumerate(zip(agg_result, param_sets)):
