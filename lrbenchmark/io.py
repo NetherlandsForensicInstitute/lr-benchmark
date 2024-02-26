@@ -42,10 +42,10 @@ def write_lrs(agg_result: List[Result], folder_name: str):
 def write_refnorm_stats(agg_result: List[Result], folder_name: str):
     with open(prepare_output_file(f'{folder_name}/refnorm_source_ids.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['run', 'source_ids'])
-        for result_row in agg_result:
-            for run, sources in result_row.refnorm_stats.items():
-                writer.writerow([f'run_{run}', *sources])
+        writer.writerow(['run', 'repeat', 'source_ids'])
+        for i, result_row in enumerate(agg_result):
+            for repeat, sources in result_row.refnorm_stats.items():
+                writer.writerow([i, repeat, *sources])
 
 
 def save_figures(result: Result, folder_name: str):
