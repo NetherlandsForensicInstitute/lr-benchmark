@@ -30,14 +30,10 @@ dataset:
   limit_n_measurements: <int that limits how many measurements to use (typically to reduce computation times during development)>
   scores_path: <optionally provide the location of a file with pre-computed scores>
   meta_info_path: <optionally provide the location of a file with additional information on the measurements>
-  filter_on_trace_reference_properties: <Boolean, indicating whether there are two types of measurements A and B, such
-  that all pairs of measurements should be A-B. Typically a trace and a reference.>
   source_filter:
     <optional list of properties on which to filter sources. Typically used to select a relevant population.>
-  trace_properties:
-    <optional list of properties that defines `trace` measurements>
-  reference_properties:
-    <optional list of properties that defines `reference` measurements>
+  filtering_properties:
+    <optional list of properties that defines which metadata to use to subselect relevant measurements/measurementpairs>
   holdout_source_ids: 
     <optional list of ids of source that should be set apart, to have LRs calculated at the end>
 ```
@@ -152,10 +148,6 @@ dataset:
   limit_n_measurements:
   scores_path: resources/asr/scorematrix.csv
   meta_info_path: resources/asr/recordings_anon.txt
-  filter_on_trace_reference_properties: True
-  holdout_source_ids:
-    109051
-    114844
   source_filter:
     sex: M
     beller_fluistert:
@@ -164,12 +156,13 @@ dataset:
     languageID:
       - 7
       - 9
-  trace_properties:
-    auto: ja
-    duration: 30
-  reference_properties:
-    auto: nee
-    duration: 30
+  filtering_properties:
+    - auto
+    - duration
+holdout_source_ids:
+    109051
+    114844
+  
 ```
 
 Datasets
