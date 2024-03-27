@@ -20,7 +20,7 @@ dependencies = (
 
 setup(
     name='lrbenchmark',
-    version='0.1.2',
+    version='0.2',
     author='Netherlands Forensics Institute',
     description='Benchmarking Likelihood Ratio systems',
     long_description=long_description,
