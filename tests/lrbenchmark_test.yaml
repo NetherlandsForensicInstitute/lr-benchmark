@@ -1,0 +1,13 @@
+dataset_test:
+  asr:
+    scores_path: resources/asr/scorematrix.csv
+    meta_info_path: resources/asr/recordings_anon.txt
+  normal:
+    population_mean: 1
+    population_std: 0.5
+    source_std: 0.1
+    n_sources: 10
+    n_measurements_per_source: 3
+    seed: 42
+  xtc:
+    measurements_path: resources/drugs_xtc/xtc_data.csv

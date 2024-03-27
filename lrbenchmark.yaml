@@ -1,22 +1,24 @@
 experiment:
   repeats: 1
+  pairing:
+    - name: cartesian
   scorer:
-    - logit
+    - name: precalculated_asr
+      scores_path: ${dataset.scores_path}
+#    - name: logit
+#      preprocessors:
+#          - name: abs_diff
+#          - name: rank_transformer
+#    - name: lda
+#      preprocessors:
+#          - name: abs_diff
+#          - name: rank_transformer
   calibrator:
-    - logit
-  dataset:
-    synthesized_normal:
-      mean: 180
-      sigma: 10
-      trace_measurement_stdev: 3
-      n_train_instances: 1000
-      n_test_instances: 1000
-#    drugs_xtc:
-#      n_splits: 2
-#    glass:
-#      n_splits: 2
-  preprocessor:
-    abs_diff:
-    pipeline:
-      rank_transformer: rank_transformer
-      abs_diff: abs_diff
+    - name: elub_logit
+  splitting_strategy:
+    validation:
+      split_type: simple # leave_one_out or simple.
+      validate_size: 0.2 # size is only used for 'simple'. Can be fraction or number
+    refnorm:
+      split_type: # none, leave_one_out or simple
+      size: # size is only used for 'simple'

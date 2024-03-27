@@ -1,7 +1,6 @@
-from typing import Tuple
+from collections import namedtuple
+from pathlib import Path
+from typing import Union
 
-import numpy as np
-
-
-XYType = Tuple[np.ndarray, np.ndarray]
-TrainTestPair = Tuple[XYType, XYType]
+PathLike = Union[str, Path]
+Result = namedtuple('Result', 'metrics figures holdout_lrs calibration_results refnorm_stats')

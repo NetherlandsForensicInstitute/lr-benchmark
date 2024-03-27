@@ -1,0 +1,8 @@
+dataset:
+  name: synthesized_normal
+  population_mean: 180
+  population_std: 10
+  source_std: 1
+  n_measurements_per_source: 3
+  n_sources: 5
+  seed: 42
