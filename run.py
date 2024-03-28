@@ -19,7 +19,7 @@ from lrbenchmark.pairing import BasePairing, CartesianPairing, LeaveOneTwoOutPai
 from lrbenchmark.refnorm import perform_refnorm
 from lrbenchmark.transformers import BaseScorer
 from lrbenchmark.typing import Result
-from lrbenchmark.io import write_metrics, write_lrs, write_refnorm_stats, \
+from lrbenchmark.io import write_metrics, save_lr_results, write_refnorm_stats, \
     write_calibration_results, save_figures, prepare_output_file
 from lrbenchmark.evaluation import compute_descriptive_statistics, create_figures
 from params import parse_config, config_option_dicts
@@ -176,7 +176,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
 
     # write LRs to file
     if agg_result[0].holdout_lrs:
-        write_lrs(agg_result, folder_name)
+        save_lr_results(agg_result, folder_name)
 
     # write refnorm source ids to file
     if agg_result[0].refnorm_stats:
