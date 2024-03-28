@@ -2,7 +2,12 @@ import csv
 from pathlib import Path
 from typing import List, Mapping
 
+import numpy as np
+from matplotlib import pyplot as plt
+
 from lrbenchmark.typing import Result
+
+LOG_LR = 'log$_{10}$(LR)'
 
 
 def prepare_output_file(path: str) -> str:
@@ -30,13 +35,27 @@ def write_calibration_results(agg_result: List[Result], folder_name: str):
             writer.writerows([[i] + r for r in result_row.calibration_results])
 
 
-def write_lrs(agg_result: List[Result], folder_name: str):
+def save_holdout_results(agg_result: List[Result], folder_name: str):
     with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['run', 'pair', 'LR'])
+        Path(f'{folder_name}/holdout_figs/').mkdir(parents=True, exist_ok=True)
         for i, result_row in enumerate(agg_result):
+            fig = result_row.figures['lr_distribution']
             for pair_desc, lr in result_row.holdout_lrs.items():
                 writer.writerow([i, pair_desc, lr])
+                path = f'{folder_name}/holdout_figs/{i}_{pair_desc}.png'
+                plot_lr_on_distribution(fig, np.log10(lr), path)
+
+
+def plot_lr_on_distribution(fig: plt.Figure, log_lr: float, path: str):
+    """
+    Plot the LR distribution histograms with the actual logLR as vertical line and save the figure.
+    """
+    vline = fig.axes[0].axvline(log_lr, 0, 0.95)
+    fig.axes[0].set_title(f'{LOG_LR}: {log_lr}')
+    fig.savefig(path, bbox_inches='tight')
+    vline.remove()
 
 
 def write_refnorm_stats(agg_result: List[Result], folder_name: str):
