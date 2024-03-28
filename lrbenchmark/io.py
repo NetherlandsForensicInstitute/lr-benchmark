@@ -39,6 +39,7 @@ def save_holdout_results(agg_result: List[Result], folder_name: str):
     with open(prepare_output_file(f'{folder_name}/holdout_lrs.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['run', 'pair', 'LR'])
+        Path(f'{folder_name}/holdout_figs/').mkdir(parents=True, exist_ok=True)
         for i, result_row in enumerate(agg_result):
             fig = result_row.figures['lr_distribution']
             for pair_desc, lr in result_row.holdout_lrs.items():
@@ -51,7 +52,6 @@ def plot_lr_on_distribution(fig: plt.Figure, log_lr: float, path: str):
     """
     Plot the LR distribution histograms with the actual logLR as vertical line and save the figure.
     """
-    prepare_output_file(path)
     vline = fig.axes[0].axvline(log_lr, 0, 0.95)
     fig.axes[0].set_title(f'{LOG_LR}: {log_lr}')
     fig.savefig(path, bbox_inches='tight')
