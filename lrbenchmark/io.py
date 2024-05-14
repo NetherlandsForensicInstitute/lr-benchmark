@@ -25,7 +25,7 @@ def write_metrics(agg_result: List[Result], param_sets: List[Mapping], folder_na
 def write_calibration_results(agg_result: List[Result], folder_name: str):
     with open(prepare_output_file(f'{folder_name}/calibration_results.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['run', 'pair', 'normalized_score', 'is_same_source'])
+        writer.writerow(['run', 'pair', 'normalized_score', 'lr', 'is_same_source'])
         for i, result_row in enumerate(agg_result):
             writer.writerows([[i] + r for r in result_row.calibration_results])
 

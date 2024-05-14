@@ -95,27 +95,29 @@ def fit_and_evaluate(dataset: Dataset,
                 # for training, this is the entire set, so count once
                 all_train_pairs = train_pairs
 
-    # retrain with everything, and apply to the holdout (after the repeat loop)
-    calibration_results = None
-    if holdout_set:
-        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
-                                              pairing_properties=pairing_properties)
-        pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
-        scores = scorer.fit_predict(pairs)
-        holdout_scores = scorer.predict(holdout_pairs)
-        if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-            scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
-            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
-        calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
-        holdout_lrs = calibrator.transform(holdout_scores)
-        calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(pairs, scores)]
-
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
     validate_scores = np.concatenate(validate_scores)
 
-    # plotting results for a single experiment
-    figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
+    # retrain with everything, and apply to the holdout (after the repeat loop)
+    if holdout_set:
+        all_pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
+        all_scores = scorer.fit_predict(all_pairs)
+        all_labels = np.array([mp.is_same_source for mp in all_pairs])
+        holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(), pairing_properties=pairing_properties)
+        holdout_scores = scorer.predict(holdout_pairs)
+        if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
+            all_scores = perform_refnorm(all_scores, all_pairs, dataset_refnorm or dataset, scorer)
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
+        calibrator.fit(all_scores, all_labels)
+        all_lrs = calibrator.transform(all_scores)
+        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(all_pairs, all_scores, all_lrs)]
+        figs = create_figures(calibrator, all_labels, validate_lrs, all_scores)
+        holdout_lrs = calibrator.transform(holdout_scores)
+    else:
+        # plotting results for a single experiment
+        figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
+        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(all_validate_pairs, validate_scores, validate_lrs)]
 
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
