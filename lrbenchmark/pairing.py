@@ -46,6 +46,9 @@ class CartesianPairing(BasePairing):
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         return all_pairs
 
+    def __repr__(self):
+        return 'CartesianPairing'
+
 
 class LeaveOneTwoOutPairing(BasePairing):
     """
@@ -77,6 +80,9 @@ class LeaveOneTwoOutPairing(BasePairing):
         raise ValueError(f'When pairing and leave one out, there should be 1 or 2'
                          f'sources. Found {num_sources}.')
 
+    def __repr__(self):
+        return 'LeaveOneTwoOutPairing'
+
 
 class BalancedPairing(BasePairing):
     """
@@ -101,3 +107,6 @@ class BalancedPairing(BasePairing):
         selected_pairs = same_source_pairs + different_source_pairs
         random.shuffle(selected_pairs)
         return selected_pairs
+
+    def __repr__(self):
+        return 'BalancedPairing'

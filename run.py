@@ -37,6 +37,8 @@ def fit_and_evaluate(dataset: Dataset,
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
+    print(f"\nStarting new experiment: {dataset} - {pairing_function} - {calibrator} - {scorer} - {splitting_strategy}"
+          f" - {pairing_properties} - {repeats} repeat(s)")
     validate_lrs, validate_labels, validate_scores, validate_pairs = [], [], [], []
     train_pairs_statistics, validate_pairs_statistics = [], []  # for descriptive statistics
 
@@ -44,13 +46,12 @@ def fit_and_evaluate(dataset: Dataset,
                                                                                             CartesianPairing):
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
-
     # split off the sources that should only be evaluated
     holdout_set, dataset = dataset.split_off_holdout_set()
 
     dataset_refnorm = None
     refnorm_source_ids = {}
-    for idx in tqdm(range(repeats), desc='Experiment repeats'):
+    for idx in tqdm(range(repeats), desc='Experiment repeats', leave=False):
         # if simple refnorm, split off refnorm dataset
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
@@ -79,9 +80,10 @@ def fit_and_evaluate(dataset: Dataset,
             validation_scores = scorer.predict(validation_pairs)
 
             if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-                train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
+                train_scores = perform_refnorm(train_scores, train_pairs,
+                                               dataset_refnorm or dataset_train, scorer, desc=' on training set')
                 validation_scores = perform_refnorm(validation_scores, validation_pairs,
-                                                    dataset_refnorm or dataset_train, scorer)
+                                                    dataset_refnorm or dataset_train, scorer, desc=' on validation set')
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
             validate_lrs.append(calibrator.transform(validation_scores))
@@ -106,8 +108,10 @@ def fit_and_evaluate(dataset: Dataset,
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(), pairing_properties=pairing_properties)
         holdout_scores = scorer.predict(holdout_pairs)
         if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-            all_scores = perform_refnorm(all_scores, all_pairs, dataset_refnorm or dataset, scorer)
-            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
+            all_scores = perform_refnorm(all_scores, all_pairs, dataset_refnorm or dataset, scorer,
+                                         desc=' on complete dataset')
+            holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer,
+                                             desc=' on holdout set')
         calibrator.fit(all_scores, all_labels)
         all_lrs = calibrator.transform(all_scores)
         calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(all_pairs, all_scores, all_lrs)]
@@ -155,8 +159,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
                   'pairing_properties': get_filter_combination_values(config_resolved['dataset'])}
 
     if [] in parameters.values():
-        raise ValueError('Every parameter should have at least one value, '
-                         'see README.')
+        raise ValueError('Every parameter should have at least one value, see README.')
 
     agg_result, param_sets, agg_param_values = [], [], []
     for param_set, param_values, result in exp.run_full_grid(parameters):

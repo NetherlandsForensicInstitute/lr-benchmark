@@ -20,7 +20,7 @@ def refnorm(score: float, scores_m_a: np.ndarray, scores_m_b: np.ndarray) -> flo
 
 
 def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair], refnorm_dataset: Dataset,
-                    scorer: BaseScorer) -> np.ndarray:
+                    scorer: BaseScorer, desc="") -> np.ndarray:
     """
     Transform the scores of the measurement pairs with reference normalization. For each measurement in the
     measurement pair, the appropriate refnorm measurement pairs are selected (i.e. all pairs of which one of the
@@ -44,7 +44,7 @@ def perform_refnorm(train_scores: np.ndarray, train_pairs: List[MeasurementPair]
         indices_to_keep = set(
             itertools.chain.from_iterable([scorer.source_indices[key] for key in refnorm_dataset.source_ids]))
 
-        for (score, mp) in tqdm(zip(train_scores, train_pairs), desc='applying refnorm', total=len(train_scores),
+        for (score, mp) in tqdm(zip(train_scores, train_pairs), desc='applying refnorm' + desc, total=len(train_scores),
                                 position=0):
             # Remove indices from sources in pair
             indices_to_keep_pair = indices_to_keep.copy()
