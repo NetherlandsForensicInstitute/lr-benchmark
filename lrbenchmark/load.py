@@ -55,15 +55,18 @@ def get_filter_combination_values(dataset: Dataset) -> List[Tuple[Mapping[str, s
     """
     For the 'filtering_properties' provided in the Dataset, find the values of the hold-out measurements
     belonging to those properties if there are hold-out measurements provided. Otherwise retrieve all
-    possible values of the properties. Then return all combinations of two-sided properties to be used in pairing.
+    possible values of the properties that are present in the entire dataset. Then return all
+    combinations of two-sided properties to be used in pairing.
     """
     if not dataset.filtering_properties:
         return [({}, {})]
-    # retrieve all info of the measurements whose source id is a holdout source id
-    all_holdout_properties = [m.extra for m in dataset.measurements if m.source.id in (dataset.holdout_source_ids or dataset.source_ids)]
+    # retrieve all info of the relevant measurements (e.g. whose source id is a holdout source id if
+    # the holdout set is present, otherwise take all measurements)
+    all_properties = [m.extra for m in dataset.measurements if m.source.id in
+                      (dataset.holdout_source_ids or dataset.source_ids)]
     # find all unique values corresponding to the filtering properties
-    filtering_values = [{filter_prop: prop.get(filter_prop) for filter_prop in dataset.filtering_properties} for prop in
-                        all_holdout_properties]
+    filtering_values = [{filter_prop: prop.get(filter_prop) for filter_prop in dataset.filtering_properties}
+                        for prop in all_properties]
     # make combinations of all properties
     combinations = list(itertools.combinations(filtering_values, 2))
     # take the unique combinations, the json.dumps is needed to create a set
