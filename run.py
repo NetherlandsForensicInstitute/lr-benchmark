@@ -44,7 +44,6 @@ def fit_and_evaluate(dataset: Dataset,
                                                                                             CartesianPairing):
         LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
 
-
     # split off the sources that should only be evaluated
     holdout_set, dataset = dataset.split_off_holdout_set()
 
@@ -87,6 +86,7 @@ def fit_and_evaluate(dataset: Dataset,
             validate_lrs.append(calibrator.transform(validation_scores))
             validate_labels.append([mp.is_same_source for mp in validation_pairs])
             validate_scores.append(validation_scores)
+            validate_pairs += validation_pairs
             if idx == 0:
                 # in the first repeat loop, save information on descriptive statistics
                 validate_pairs_statistics += validation_pairs
@@ -96,7 +96,6 @@ def fit_and_evaluate(dataset: Dataset,
     validate_lrs = np.concatenate(validate_lrs)
     validate_labels = np.concatenate(validate_labels)
     validate_scores = np.concatenate(validate_scores)
-    validate_pairs += validation_pairs
 
     if holdout_set:
         # retrain with everything, and apply to the holdout (after the repeat loop)
