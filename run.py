@@ -113,6 +113,7 @@ def fit_and_evaluate(dataset: Dataset,
         figs = create_figures(calibrator, all_labels, all_lrs, all_scores)
         holdout_lrs = calibrator.transform(holdout_scores)
     else:
+        # otherwise retrieve results for the validation set
         figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
         calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(validate_pairs, validate_scores, validate_lrs)]
 
@@ -120,7 +121,7 @@ def fit_and_evaluate(dataset: Dataset,
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, train_pairs_statistics, validate_pairs_statistics)
 
     # compute lr statistics
-    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))  # TODO: if holdout dan statistics over validatie set bepalen of over hele dataset?
+    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
 
     metrics = {'cllr': lr_metrics.cllr,
                'cllr_min': lr_metrics.cllr_min,
@@ -158,6 +159,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
                          'see README.')
 
     agg_result, param_sets, agg_param_values = [], [], []
+    parameters['pairing_properties'] = [parameters['pairing_properties'][0]]
     for param_set, param_values, result in exp.run_full_grid(parameters):
         agg_result.append(result)
         param_sets.append(param_set)
