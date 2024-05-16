@@ -54,7 +54,7 @@ downsampled_results = downsample(calibration_results)
 
 st.write('Select groups to compare:')
 for group in groups:
-    st.checkbox(f"{group}: {labels[group]}", key=group)
+    st.checkbox(f"{group}: {labels[group]}", key=group, value=True)
 
 selected_groups = [key for key in st.session_state.keys() if st.session_state[key]]
 
