@@ -24,6 +24,26 @@ def get_pairing_properties(experiment_folder: Path, group: str):
 
 
 @st.cache_data
+def get_all_metrics(experiment_folder: Path):
+    file_path = experiment_folder / 'all_metrics.csv'
+    if file_path.exists():
+        data = pd.read_csv(file_path)
+        data['run'] = data['run'].astype(str)
+        return data
+    else:
+        return None
+
+
+def get_counts_per_pairing_properties(experiment_folder: Path, group: str):
+    data = get_all_metrics(experiment_folder)
+    if type(data) is DataFrame:
+        train_counts, val_counts = data[data['run'] == group][['no of sources train', 'no of sources validate']].values[0]
+        return f"n_train: {train_counts}, n_val: {val_counts}, n_total: {train_counts + val_counts}"
+    else:
+        return f"Warning: file 'all_metrics.csv' not found"
+
+
+@st.cache_data
 def get_calibration_results(path: Path):
     data = pd.read_csv(path)
     if 'lr' in data.columns:
@@ -31,7 +51,8 @@ def get_calibration_results(path: Path):
         data['llrs'] = data['lr'].apply(lambda x: np.log10(x))
         distinct_groups = data['run'].unique()
         groups_with_labels = {
-            group: get_pairing_properties(experiment_folder, group) for group in
+            group: {"pairing properties": get_pairing_properties(experiment_folder, group),
+                    "counts": get_counts_per_pairing_properties(experiment_folder, group)} for group in
             distinct_groups}
         return data, distinct_groups, groups_with_labels
     else:
