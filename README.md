@@ -226,3 +226,21 @@ these data structures have an `extra` (Mapping) variable to flexibly register an
 consist of a `MeasurementPairScorer`, which assigns a scalar to each pair, and a `Calibrator` that maps
 such scores to LRs. The `MeasurementPairScorer` can for example take any sklearn `Predictor`, or for computational reasons
 read scores from a pre-computed input file (`PrecalculatedScorer`).
+
+
+Streamlit dashboard
+-------------------
+There is a Streamlit dashboard available to compare scores-to-lr plots within a run output. In this dashboard you can
+select the desired output folder. In there the files `calibration_results.csv` and `all_metrics.csv` are automatically
+found. The different 'runs' with different pairing properties are detected. You can select or de-select the desired
+pairs to create plots of the scores-to-lr functions. The descriptions of the pairs also contain the counts in the underlying
+data. `n_train` refers to the number of speakers in the train set, `n_val` to the number of speakers in the validation set, 
+`n_total` is the sum of `n_train` and `n_val`. Depending on whether the data was generated with a holdout set, `n_val` 
+(no holdout) or `n_total` (with holdout) is the number of speakers in the data.
+To limit the amount of data processed and plotted, a downsampling 
+functionality is added. The downsampling specificity can be selected in the dashboard, with a higher number leading
+to more datapoints in the figure. By selecting 'None' all data is plotted, which may slow down the dashboard significantly
+depending on the amount of data in `calibration_results.csv`.
+
+run:  
+`streamlit run validation_visualization.py `
