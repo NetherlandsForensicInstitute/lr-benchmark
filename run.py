@@ -159,7 +159,6 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
                          'see README.')
 
     agg_result, param_sets, agg_param_values = [], [], []
-    parameters['pairing_properties'] = [parameters['pairing_properties'][0]]
     for param_set, param_values, result in exp.run_full_grid(parameters):
         agg_result.append(result)
         param_sets.append(param_set)
