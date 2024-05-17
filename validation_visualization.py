@@ -73,7 +73,7 @@ experiment_folder = Path(f'./output/{experiment}')
 calibration_results_file = experiment_folder / 'calibration_results.csv'
 
 n_decimals = st.selectbox("Downsample specificity ('None' for no downsampling, might be slow to process)",
-                          [0, 1, 2, 3, None], value=1)
+                          [0, 1, 2, 3, None], index=1)
 
 if calibration_results_file.exists():
     calibration_results, groups, labels = get_calibration_results(calibration_results_file)

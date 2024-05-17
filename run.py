@@ -37,7 +37,7 @@ def fit_and_evaluate(dataset: Dataset,
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
     """
-    validate_lrs, validate_labels, validate_scores, validate_pairs = [], [], [], []
+    all_validation_lrs, all_validation_labels, all_validation_scores, all_validation_pairs = [], [], [], []
     train_pairs_statistics, validate_pairs_statistics = [], []  # for descriptive statistics
 
     if splitting_strategy['validation']['split_type'] == 'leave_one_out' and not isinstance(pairing_function,
@@ -83,19 +83,19 @@ def fit_and_evaluate(dataset: Dataset,
                                                     dataset_refnorm or dataset_train, scorer)
 
             calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
-            validate_lrs.append(calibrator.transform(validation_scores))
-            validate_labels.append([mp.is_same_source for mp in validation_pairs])
-            validate_scores.append(validation_scores)
-            validate_pairs += validation_pairs
+            all_validation_lrs.append(calibrator.transform(validation_scores))
+            all_validation_labels.append([mp.is_same_source for mp in validation_pairs])
+            all_validation_scores.append(validation_scores)
+            all_validation_pairs += validation_pairs
             if idx == 0:
                 # in the first repeat loop, save information on descriptive statistics
                 validate_pairs_statistics += validation_pairs
                 # for training, this is the entire set, so count once
                 train_pairs_statistics = train_pairs
 
-    validate_lrs = np.concatenate(validate_lrs)
-    validate_labels = np.concatenate(validate_labels)
-    validate_scores = np.concatenate(validate_scores)
+    all_validation_lrs = np.concatenate(all_validation_lrs)
+    all_validation_labels = np.concatenate(all_validation_labels)
+    all_validation_scores = np.concatenate(all_validation_scores)
 
     if holdout_set:
         # retrain with everything, and apply to the holdout (after the repeat loop)
@@ -114,19 +114,19 @@ def fit_and_evaluate(dataset: Dataset,
         holdout_lrs = calibrator.transform(holdout_scores)
     else:
         # otherwise retrieve results for the validation set
-        figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
-        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(validate_pairs, validate_scores, validate_lrs)]
+        figs = create_figures(calibrator, all_validation_labels, all_validation_lrs, all_validation_scores)
+        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in zip(all_validation_pairs, all_validation_scores, all_validation_lrs)]
 
     # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
     descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, train_pairs_statistics, validate_pairs_statistics)
 
     # compute lr statistics
-    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
+    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(all_validation_lrs, all_validation_labels))
 
     metrics = {'cllr': lr_metrics.cllr,
                'cllr_min': lr_metrics.cllr_min,
                'cllr_cal': lr_metrics.cllr_cal,
-               'auc': roc_auc_score(validate_labels, validate_scores),
+               'auc': roc_auc_score(all_validation_labels, all_validation_scores),
                **descriptive_statistics}
 
     holdout_results = None
