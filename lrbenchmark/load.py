@@ -62,8 +62,8 @@ def get_filter_combination_values(dataset: Dataset) -> List[Tuple[Mapping[str, s
         return [({}, {})]
     # retrieve all info of the relevant measurements (e.g. whose source id is a holdout source id if
     # the holdout set is present, otherwise take all measurements)
-    all_properties = [m.extra for m in dataset.measurements if m.source.id in
-                      (dataset.holdout_source_ids or dataset.source_ids)]
+    relevant_source_ids = dataset.holdout_source_ids if dataset.holdout_source_ids else dataset.source_ids
+    all_properties = [m.extra for m in dataset.measurements if m.source.id in relevant_source_ids]
     # find all unique values corresponding to the filtering properties
     filtering_values = [{filter_prop: prop.get(filter_prop) for filter_prop in dataset.filtering_properties}
                         for prop in all_properties]
