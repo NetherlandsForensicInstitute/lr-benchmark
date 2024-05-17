@@ -5,7 +5,6 @@ import pandas as pd
 import yaml
 
 import streamlit as st
-from pandas import DataFrame
 
 
 def get_pairing_properties(experiment_folder: Path, group: str):
@@ -36,7 +35,7 @@ def get_all_metrics(experiment_folder: Path):
 
 def get_counts_per_pairing_properties(experiment_folder: Path, group: str):
     data = get_all_metrics(experiment_folder)
-    if type(data) is DataFrame:
+    if type(data) is pd.DataFrame:
         train_counts, val_counts = data[data['run'] == group][['no of sources train', 'no of sources validate']].values[0]
         return f"n_train: {train_counts}, n_val: {val_counts}, n_total: {train_counts + val_counts}"
     else:
@@ -60,7 +59,7 @@ def get_calibration_results(path: Path):
 
 
 @st.cache_data
-def downsample(data: DataFrame, n_decimals: int = 2):
+def downsample(data: pd.DataFrame, n_decimals: int = 2):
     data['round_score'] = data['normalized_score'].apply(lambda x: round(x, n_decimals))
     downsampled = calibration_results.groupby(['run', 'round_score']).first()
     return downsampled.reset_index()
@@ -73,12 +72,13 @@ experiment = st.selectbox('Select experiment', experiment_folders)
 experiment_folder = Path(f'./output/{experiment}')
 calibration_results_file = experiment_folder / 'calibration_results.csv'
 
-n_decimals = st.selectbox("Downsample specificity ('None' for no downsampling, might be slow to process)", [0, 1, 2, 3, None])
+n_decimals = st.selectbox("Downsample specificity ('None' for no downsampling, might be slow to process)",
+                          [0, 1, 2, 3, None], value=1)
 
 if calibration_results_file.exists():
     calibration_results, groups, labels = get_calibration_results(calibration_results_file)
 
-    if type(calibration_results) is DataFrame:
+    if type(calibration_results) is pd.DataFrame:
         if n_decimals is not None:
             downsampled_results = downsample(calibration_results, n_decimals)
         else:
