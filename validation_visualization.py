@@ -1,9 +1,11 @@
 import ast
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.figure_factory as ff
 import yaml
 
 import streamlit as st
@@ -50,7 +52,7 @@ def get_counts_per_pairing_properties(experiment_folder: Path, group: str):
 
 
 @st.cache_data
-def get_calibration_results(path: Path):
+def get_calibration_results(path: Path, experiment_folder: Path):
     data = pd.read_csv(path)
     if 'lr' in data.columns:
         data['run'] = data['run'].astype(str)
@@ -79,10 +81,18 @@ def downsample(data: pd.DataFrame, n_decimals: int = 2):
     return downsampled.reset_index()
 
 
+@st.cache_data
+def get_groupdata_as_lists(data: pd.DataFrame, groups: List, target_column: str):
+    data_list = []
+    for group in groups:
+        data_list.append(data[data['run'] == group][target_column].tolist())
+    return data_list
+
+
 experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
                             reverse=True)
 
-experiment = st.selectbox('Select experiment', experiment_folders)
+experiment = st.selectbox('Select experiment folder', experiment_folders)
 
 experiment_folder = Path(f'./output/{experiment}')
 calibration_results_file = experiment_folder / 'calibration_results.csv'
@@ -93,27 +103,24 @@ n_decimals = st.selectbox(
 
 if calibration_results_file.exists():
     calibration_results, groups, labels = get_calibration_results(
-        calibration_results_file)
+        calibration_results_file, experiment_folder)
 
     if type(calibration_results) is pd.DataFrame:
         if n_decimals is not None:
-            downsampled_results = downsample(calibration_results, n_decimals)
+            selected_data = downsample(calibration_results, n_decimals)
         else:
-            downsampled_results = calibration_results
+            selected_data = calibration_results
 
-        st.write('Select groups to compare:')
+        st.write('**Counts per pairing category:**')
         for group in groups:
-            st.checkbox(f"{group}: {labels[group]}", key=group, value=True)
+            f"{labels[group]['pairing properties']}: {labels[group]['counts']}"
 
-        selected_groups = [key for key in st.session_state.keys() if
-                           st.session_state[key]]
-
-        selected_data = downsampled_results[
-            downsampled_results['run'].isin(selected_groups)]
+        st.header('Figures')
+        st.info('Legends of the figures are clickable to show or hide data')
 
         fig = px.scatter(selected_data, x='normalized_score', y='llrs',
                          color=selected_data['pairing_property'],
-                         title='Scores to log10 LR per property pairing',
+                         title='Normalized scores to log10 LR per property pairing',
                          labels={
                              'normalized_score': 'Normalized score',
                              'llrs': 'llr',
@@ -121,6 +128,16 @@ if calibration_results_file.exists():
                          })
 
         st.plotly_chart(fig)
+
+        scores_data = get_groupdata_as_lists(selected_data, groups, 'normalized_score')
+        kde_score = ff.create_distplot(scores_data, group_labels=selected_data['pairing_property'].unique())
+        kde_score.update_layout(title_text='Distplot of normalized scores per pairing category')
+        st.plotly_chart(kde_score)
+
+        scores_data = get_groupdata_as_lists(selected_data, groups, 'llrs')
+        kde_llr = ff.create_distplot(scores_data, group_labels=selected_data['pairing_property'].unique())
+        kde_llr.update_layout(title_text='Distplot of llrs per pairing category')
+        st.plotly_chart(kde_llr)
 
     else:
         st.warning(
