@@ -1,13 +1,12 @@
 import itertools
 import random
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from typing import List, Iterable, Optional, Mapping, Tuple
 
 import sklearn.base
 
 from lrbenchmark.data.models import Measurement, MeasurementPair
-from lrbenchmark.utils import pair_complies_with_properties, measurement_complies_with_properties
+from lrbenchmark.utils import pair_complies_with_properties, select_max_measurements_per_source
 
 
 class BasePairing(sklearn.base.TransformerMixin, ABC):
@@ -35,6 +34,7 @@ class CartesianPairing(BasePairing):
     It is possible to consider 'pairing_properties', meaning only measurement pairs will be
     created of which one measurement is similar to the first part of the `pairing_properties` and the other measurement
     is similar to the other part.
+    It is also possible to select a maximum amount of measurements per source via the 'max_m_per_source' parameter.
     """
 
     def fit(self, measurements: Iterable[Measurement]):
@@ -50,25 +50,6 @@ class CartesianPairing(BasePairing):
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         return all_pairs
-
-
-def select_max_measurements_per_source(max_m_per_source: int,
-                                       measurements: Iterable[Measurement],
-                                       pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {})) \
-        -> List[Measurement]:
-    """
-    Select at most `max_m_per_source` measurements per source that comply with the any of the two`pairing_properties`
-    and return the list of remaining measurements. If there are more than `max_m_per_source` measurements for a source,
-    we randomly sample `max_m_per_source` measurements.
-    """
-    m_per_source = defaultdict(list)
-    for m in measurements:
-        if measurement_complies_with_properties(m, pairing_properties):
-            m_per_source[m.source.id].append(m)
-    m_per_source = {source: random.sample(ms, max_m_per_source) if len(ms) > max_m_per_source else ms
-                    for source, ms in m_per_source.items()}
-    measurements = list(itertools.chain(*m_per_source.values()))
-    return measurements
 
 
 class LeaveOneTwoOutPairing(BasePairing):
