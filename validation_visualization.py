@@ -274,7 +274,7 @@ with multi_output_tab:
 
     if calibration_results_all.empty:
         st.warning('Unable to merge experiment data. Are you sure the '
-                   'experiments use the same dataset?')
+                   'experiments use the same dataset and filters?')
 
     fig = px.scatter(calibration_results_all, x='llrs_lhs', y='llrs_rhs',
                      color='pairing_property',
