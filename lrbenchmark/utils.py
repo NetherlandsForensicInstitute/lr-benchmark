@@ -1,5 +1,5 @@
 from typing import Any, Optional, Mapping, Tuple
-from lrbenchmark.data.models import MeasurementPair
+from lrbenchmark.data.models import Measurement, MeasurementPair
 
 
 def pair_complies_with_properties(measurement_pair: MeasurementPair,
@@ -16,6 +16,15 @@ def pair_complies_with_properties(measurement_pair: MeasurementPair,
             (complies_with_filter_requirements(properties[1], m_a.extra) and
             complies_with_filter_requirements(properties[0], m_b.extra))) and \
            (m_a.source.id != m_b.source.id or m_a.sample.id != m_b.sample.id)
+
+
+def measurement_complies_with_properties(measurement: Measurement,
+                                         properties: Tuple[Mapping[str, str], Mapping[str, str]]) -> bool:
+    """
+    Check whether a measurement has properties equal to any of the two `properties` provided.
+    """
+    return complies_with_filter_requirements(properties[0], measurement.extra) or \
+        complies_with_filter_requirements(properties[1], measurement.extra)
 
 
 def complies_with_filter_requirements(requirements: Mapping[str, Any], info: Optional[Mapping[str, str]] = None,

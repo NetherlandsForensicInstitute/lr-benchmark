@@ -109,7 +109,8 @@ class Dataset(ABC):
     def get_pairs(self,
                   seed: Optional[int] = None,
                   pairing_function: BasePairing = CartesianPairing(),
-                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {})) \
+                  pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
+                  max_m_per_source: Optional[int] = None) \
             -> List[MeasurementPair]:
         """
         Transforms a dataset into same source and different source pairs and
@@ -119,7 +120,8 @@ class Dataset(ABC):
         Note that this method is different from sklearn TransformerMixin
         because it also transforms y.
         """
-        return pairing_function.transform(self.measurements, seed=seed, pairing_properties=pairing_properties)
+        return pairing_function.transform(self.measurements, seed=seed, pairing_properties=pairing_properties,
+                                          max_m_per_source=max_m_per_source)
 
 
 class XTCDataset(Dataset):

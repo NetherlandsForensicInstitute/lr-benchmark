@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import logging
 from datetime import datetime
-from typing import Mapping, Tuple
+from typing import Mapping, Tuple, Optional
 
 import confidence
 import numpy as np
@@ -33,6 +33,7 @@ def fit_and_evaluate(dataset: Dataset,
                      scorer: BaseScorer,
                      splitting_strategy: Mapping,
                      pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
+                     max_m_per_source: Optional[int],
                      repeats: int = 1) -> Result:
     """
     Fits an LR system on part of the data, and evaluates its performance on the remainder
@@ -61,18 +62,21 @@ def fit_and_evaluate(dataset: Dataset,
             splits = tqdm(list(splits), 'train - validate splits', position=0)
         for dataset_train, dataset_validate in splits:
             train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  pairing_properties=pairing_properties)
+                                                  pairing_properties=pairing_properties,
+                                                  max_m_per_source=max_m_per_source)
 
             # if leave one out validation, take all diff source pairs for 2 sources and all same source pairs for 1 source
             if splitting_strategy['validation']['split_type'] == 'leave_one_out':
                 validation_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
-                                                            pairing_properties=pairing_properties)
+                                                              pairing_properties=pairing_properties,
+                                                              max_m_per_source=max_m_per_source)
                 # there may be no viable pairs for these sources. If so, go to the next
                 if not validation_pairs:
                     continue
             else:
                 validation_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                            pairing_properties=pairing_properties)
+                                                              pairing_properties=pairing_properties,
+                                                              max_m_per_source=max_m_per_source)
 
             train_scores = scorer.fit_predict(train_pairs)
             validation_scores = scorer.predict(validation_pairs)
@@ -99,7 +103,8 @@ def fit_and_evaluate(dataset: Dataset,
 
     if holdout_set:
         # retrain with everything, and apply to the holdout (after the repeat loop)
-        all_pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
+        all_pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx,
+                                      max_m_per_source=max_m_per_source)
         all_scores = scorer.fit_predict(all_pairs)
         all_labels = np.array([mp.is_same_source for mp in all_pairs])
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(), pairing_properties=pairing_properties)
@@ -147,6 +152,7 @@ def run(exp: evaluation.Setup, config: Configuration) -> None:
     config_resolved = parse_config(config, config_option_dicts)
     exp_config = config_resolved['experiment']
     exp.parameter('repeats', exp_config['repeats'])
+    exp.parameter('max_m_per_source', exp_config['max_m_per_source'])
     exp.parameter('splitting_strategy', exp_config['splitting_strategy'])
     exp.parameter('dataset', config_resolved['dataset'])
     parameters = {'pairing_function': exp_config['pairing'],

@@ -1,12 +1,13 @@
 import itertools
 import random
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import List, Iterable, Optional, Mapping, Tuple
 
 import sklearn.base
 
 from lrbenchmark.data.models import Measurement, MeasurementPair
-from lrbenchmark.utils import pair_complies_with_properties
+from lrbenchmark.utils import pair_complies_with_properties, measurement_complies_with_properties
 
 
 class BasePairing(sklearn.base.TransformerMixin, ABC):
@@ -18,6 +19,7 @@ class BasePairing(sklearn.base.TransformerMixin, ABC):
     def transform(self,
                   measurements: Iterable[Measurement],
                   pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
+                  max_m_per_source: Optional[int] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         raise NotImplementedError
 
@@ -41,10 +43,32 @@ class CartesianPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
+                  max_m_per_source: Optional[int] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
+        if max_m_per_source:
+            measurements = select_max_measurements_per_source(max_m_per_source, measurements, pairing_properties)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         return all_pairs
+
+
+def select_max_measurements_per_source(max_m_per_source: int,
+                                       measurements: Iterable[Measurement],
+                                       pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {})) \
+        -> List[Measurement]:
+    """
+    Select at most `max_m_per_source` measurements per source that comply with the any of the two`pairing_properties`
+    and return the list of remaining measurements. If there are more than `max_m_per_source` measurements for a source,
+    we randomly sample `max_m_per_source` measurements.
+    """
+    m_per_source = defaultdict(list)
+    for m in measurements:
+        if measurement_complies_with_properties(m, pairing_properties):
+            m_per_source[m.source.id].append(m)
+    m_per_source = {source: random.sample(ms, max_m_per_source) if len(ms) > max_m_per_source else ms
+                    for source, ms in m_per_source.items()}
+    measurements = list(itertools.chain(*m_per_source.values()))
+    return measurements
 
 
 class LeaveOneTwoOutPairing(BasePairing):
@@ -60,6 +84,7 @@ class LeaveOneTwoOutPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
+                  max_m_per_source: Optional[int] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         # all same source pairs for one source, different source pairs for two sources
         num_sources = len(set(m.source.id for m in measurements))
@@ -89,8 +114,11 @@ class BalancedPairing(BasePairing):
     def transform(self,
                   measurements: Iterable[Measurement],
                   pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {}),
+                  max_m_per_source: Optional[int] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         random.seed(seed)
+        if max_m_per_source:
+            measurements = select_max_measurements_per_source(max_m_per_source, measurements, pairing_properties)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         same_source_pairs = [a for a in all_pairs if a.is_same_source]
