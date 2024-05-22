@@ -1,6 +1,6 @@
 import ast
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -9,6 +9,9 @@ import plotly.figure_factory as ff
 import yaml
 
 import streamlit as st
+
+single_output_tab, multi_output_tab = st.tabs(
+    ['Single output', 'Multi output'])
 
 
 def get_pairing_properties(experiment_folder: Path, group: str):
@@ -39,6 +42,19 @@ def get_pairing_properties(experiment_folder: Path, group: str):
         prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
         return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
                           prop_l.keys()])
+
+
+@st.cache_data
+def get_experiment_configs(experiment_folder: Path):
+    """
+    Get content of experiment configs.yaml if it exists
+    """
+    config_path = experiment_folder / 'config.yaml'
+    if config_path.exists():
+        return yaml.safe_load(config_path.read_text())
+    else:
+        st.warning(f"file '{config_path}' not found")
+        return {}
 
 
 @st.cache_data
@@ -114,7 +130,7 @@ def downsample(data: pd.DataFrame, n_decimals: int = 2):
     """
     data['round_score'] = data['normalized_score'].apply(
         lambda x: round(x, n_decimals))
-    downsampled = calibration_results.groupby(['run', 'round_score']).first()
+    downsampled = data.groupby(['run', 'round_score']).first()
     return downsampled.reset_index()
 
 
@@ -130,67 +146,142 @@ def get_groupdata_as_lists(data: pd.DataFrame, groups: List,
     return data_list
 
 
-# List all experiment outputfolder names in reversed order (i.e. latest results
-# are selected by default)
-experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
-                            reverse=True)
+@st.cache_data
+def merge_dataframes(lhs_df: pd.DataFrame, rhs_df: pd.DataFrame,
+                     on: str or List, suffixes: Tuple):
+    """
+    Merge two dataframes on one or multiple columns. Add suffixes to
+    overlapping columns.
+    Put in a function to be able to cache the data.
+    """
+    if on is None:
+        on = ['pairing_category', 'pair']
+    return pd.merge(lhs_df, rhs_df, on=on, suffixes=suffixes)
 
-experiment = st.selectbox('Select experiment output folder', experiment_folders)
 
-experiment_folder = Path(f'./output/{experiment}')
-calibration_results_file = experiment_folder / 'calibration_results.csv'
+with single_output_tab:
+    st.header('Analyse single experiment data')
+    # List all experiment outputfolder names in reversed order (i.e. latest
+    # results are selected by default)
+    experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
+                                reverse=True)
 
-if calibration_results_file.exists():
-    calibration_results, groups, labels = get_calibration_results(
-        calibration_results_file, experiment_folder)
+    experiment = st.selectbox('Select experiment output folder',
+                              experiment_folders)
 
-    if type(calibration_results) is pd.DataFrame:
-        n_decimals = st.selectbox(
-            "Downsample specificity: Higher number leads to more data points, "
-            "'None' for all data points/no downsampling (might be slow to "
-            "process)",
-            [0, 1, 2, 3, None], index=1)
+    experiment_folder = Path(f'./output/{experiment}')
+    calibration_results_file = experiment_folder / 'calibration_results.csv'
 
-        if n_decimals is not None:
-            selected_data = downsample(calibration_results, n_decimals)
+    if calibration_results_file.exists():
+        calibration_results, groups, labels = get_calibration_results(
+            calibration_results_file, experiment_folder)
+
+        if type(calibration_results) is pd.DataFrame:
+            n_decimals = st.selectbox(
+                "Downsample specificity: Higher number leads to more data points, "
+                "'None' for all data points/no downsampling (might be slow to "
+                "process)",
+                [0, 1, 2, 3, None], index=1)
+
+            if n_decimals is not None:
+                selected_data = downsample(calibration_results, n_decimals)
+            else:
+                selected_data = calibration_results
+
+            st.write('**Counts per pairing category:**')
+            for group in groups:
+                st.write(
+                    f"{labels[group]['pairing properties']}: {labels[group]['counts']}")
+
+            st.header('Figures')
+            st.info(
+                'Legends of the figures are clickable to show or hide data')
+
+            # Scatterplot
+            fig = px.scatter(selected_data, x='normalized_score', y='llrs',
+                             color=selected_data['pairing_property'],
+                             title='Normalized scores to log10 LR per property pairing',
+                             labels={
+                                 'normalized_score': 'Normalized score',
+                                 'llrs': 'llr',
+                                 'pairing_property': 'Pairing property'
+                             })
+
+            st.plotly_chart(fig)
+
+            # KDE plot normalized scores
+            scores_data = get_groupdata_as_lists(selected_data, groups,
+                                                 'normalized_score')
+            kde_score = ff.create_distplot(scores_data,
+                                           group_labels=selected_data[
+                                               'pairing_property'].unique())
+            kde_score.update_layout(
+                title_text='Distplot of normalized scores per pairing category')
+            st.plotly_chart(kde_score)
+
+            # KDE plot llrs. For lrs, change target_column on line 140 to 'lr'
+            llrs_data = get_groupdata_as_lists(selected_data, groups, 'llrs')
+            kde_llr = ff.create_distplot(llrs_data, group_labels=selected_data[
+                'pairing_property'].unique())
+            kde_llr.update_layout(
+                title_text='Distplot of llrs per pairing category')
+            st.plotly_chart(kde_llr)
+
         else:
-            selected_data = calibration_results
-
-        st.write('**Counts per pairing category:**')
-        for group in groups:
-            st.write(f"{labels[group]['pairing properties']}: {labels[group]['counts']}")
-
-        st.header('Figures')
-        st.info('Legends of the figures are clickable to show or hide data')
-
-        # Scatterplot
-        fig = px.scatter(selected_data, x='normalized_score', y='llrs',
-                         color=selected_data['pairing_property'],
-                         title='Normalized scores to log10 LR per property pairing',
-                         labels={
-                             'normalized_score': 'Normalized score',
-                             'llrs': 'llr',
-                             'pairing_property': 'Pairing property'
-                         })
-
-        st.plotly_chart(fig)
-
-        # KDE plot normalized scores
-        scores_data = get_groupdata_as_lists(selected_data, groups, 'normalized_score')
-        kde_score = ff.create_distplot(scores_data, group_labels=selected_data['pairing_property'].unique())
-        kde_score.update_layout(title_text='Distplot of normalized scores per pairing category')
-        st.plotly_chart(kde_score)
-
-        # KDE plot llrs. For lrs, change target_column on line 140 to 'lr'
-        llrs_data = get_groupdata_as_lists(selected_data, groups, 'llrs')
-        kde_llr = ff.create_distplot(llrs_data, group_labels=selected_data['pairing_property'].unique())
-        kde_llr.update_layout(title_text='Distplot of llrs per pairing category')
-        st.plotly_chart(kde_llr)
+            st.warning(
+                f"File '{calibration_results_file}' does not contain the 'lr' column. "
+                f"Run the latest version of run.py to include this column in the results.")
 
     else:
-        st.warning(
-            f"File '{calibration_results_file}' does not contain the 'lr' column. "
-            f"Run the latest version of run.py to include this column in the results.")
+        st.warning(f"File '{calibration_results_file}' not found")
 
-else:
-    st.warning(f"File '{calibration_results_file}' not found")
+with multi_output_tab:
+    st.header('Analyse over multiple experiments')
+    experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
+                                reverse=True)
+
+    # Left hand side
+    experiment_lhs = st.selectbox('Select left hand side experiment output folder',
+                                  experiment_folders)
+    experiment_folder_lhs = Path('.') / 'output' / experiment_lhs
+    calibration_results_file_lhs = experiment_folder_lhs / 'calibration_results.csv'
+    calibration_results_lhs, _, _ = get_calibration_results(
+        calibration_results_file_lhs, Path(f'./output/{experiment_lhs}'))
+    st.write(get_experiment_configs(experiment_folder_lhs))
+
+    # Right hand side
+    experiment_rhs = st.selectbox('Select right hand side experiment output folder',
+                                  experiment_folders)
+    experiment_folder_rhs = Path('.') / 'output' / experiment_rhs
+    calibration_results_file_rhs = Path(
+        f'./output/{experiment_rhs}') / 'calibration_results.csv'
+    calibration_results_rhs, _, _ = get_calibration_results(
+        calibration_results_file_rhs, Path(f'./output/{experiment_rhs}'))
+    st.write(get_experiment_configs(experiment_folder_rhs))
+
+    if experiment_lhs == experiment_rhs:
+        st.warning('Same experiment folder selected for left hand side and '
+                   'right hand side')
+    calibration_results_all = merge_dataframes(
+        calibration_results_lhs[['llrs', 'pair', 'pairing_property']],
+        calibration_results_rhs[['llrs', 'pair', 'pairing_property']],
+        on=['pairing_property', 'pair'], suffixes=("_lhs", "_rhs"))
+
+    lhs_label = st.text_input('Label for lhs axis in figure:', 'llr_lhs')
+    lhs_label = lhs_label if lhs_label else 'llr_lhs'
+    rhs_label = st.text_input('Label for rhs axis in figure:', 'llr_rhs')
+    rhs_label = rhs_label if rhs_label else 'llr_rhs'
+
+    if calibration_results_all.empty:
+        st.warning('Unable to merge experiment data. Are you sure the '
+                   'experiments use the same dataset?')
+
+    fig = px.scatter(calibration_results_all, x='llrs_lhs', y='llrs_rhs',
+                     color='pairing_property',
+                     title='llr per pair for different run conditions',
+                     labels={
+                         'llrs_lhs': lhs_label,
+                         'llrs_rhs': rhs_label,
+                         'pairing_property': 'Pairing property'
+                     })
+    st.plotly_chart(fig)
