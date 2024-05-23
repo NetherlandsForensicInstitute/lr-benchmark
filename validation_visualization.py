@@ -150,14 +150,12 @@ def get_groupdata_as_lists(data: pd.DataFrame, groups: List,
 
 @st.cache_data
 def merge_dataframes(lhs_df: pd.DataFrame, rhs_df: pd.DataFrame,
-                     on: str or List, suffixes: Tuple):
+                     on: str, suffixes: Tuple):
     """
     Merge two dataframes on one or multiple columns. Add suffixes to
     overlapping columns.
     Put in a function to be able to cache the data.
     """
-    if on is None:
-        on = ['pairing_category', 'pair']
     return pd.merge(lhs_df, rhs_df, on=on, suffixes=suffixes)
 
 
@@ -302,7 +300,14 @@ with multi_output_tab:
         calibration_results_all = merge_dataframes(
             calibration_results_one[['llrs', 'pair', 'pairing_property']],
             calibration_results_two[['llrs', 'pair', 'pairing_property']],
-            on=['pairing_property', 'pair'], suffixes=("_one", "_two"))
+            on='pair', suffixes=("_one", "_two"))
+
+
+        def concatenate_pair_categories(row):
+            return f"exp1: {row['pairing_property_one']}, exp2: {row['pairing_property_two']}"
+
+
+        calibration_results_all['pairing_property'] = calibration_results_all.apply(lambda x: concatenate_pair_categories(x), axis=1)
 
         label_exp_one = st.text_input('Label for experiment one\'s axis in figure:', 'llr_exp_one')
         label_exp_one = label_exp_one if label_exp_one else 'llr_exp_one'
@@ -311,7 +316,7 @@ with multi_output_tab:
 
         if calibration_results_all.empty:
             st.warning('Unable to merge experiment data. Are you sure the '
-                       'experiments use the same dataset and filters?')
+                       'experiments use the same dataset?')
 
         fig = px.scatter(calibration_results_all, x='llrs_one', y='llrs_two',
                          color='pairing_property',
