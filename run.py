@@ -35,103 +35,105 @@ def fit_and_evaluate(dataset: Dataset,
                      pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                      repeats: int = 1) -> Result:
     """
-    Fits an LR system on part of the data, and evaluates its performance on the remainder
+    Fits an LR system on part of the data, and evaluates its performance on the remainder when no hold-out source ids
+    are provided. If there are source ids provided, e.g. a hold out set is available, directly train an LR system on the
+    dataset and apply that on the hold out set.
     """
-    validate_lrs = []
-    validate_labels = []
-    validate_scores = []
-
-    # for descriptive statistics. Set as we want unique pairs
-    all_validate_pairs = []
-    all_train_pairs = []
-
-    if splitting_strategy['validation']['split_type'] == 'leave_one_out' and not isinstance(pairing_function,
-                                                                                            CartesianPairing):
-        LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}")
-
+    holdout_set, dataset = dataset.split_off_holdout_set()  # split off the sources that should only be evaluated
     dataset_refnorm = None
-    # split off the sources that should only be evaluated
-    holdout_set, dataset = dataset.split_off_holdout_set()
     refnorm_source_ids = {}
-    for idx in tqdm(range(repeats), desc='Experiment repeats'):
+    if not holdout_set:
+        all_validation_labels, all_validation_lrs, all_validation_scores = np.array([]), np.array([]), np.array([])
+        all_validation_pairs, train_pairs_for_statistics, validate_pairs_for_statistics = [], [], []
+        if splitting_strategy['validation']['split_type'] == 'leave_one_out' and not isinstance(pairing_function,
+                                                                                                CartesianPairing):
+            LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}.")
+
+        for idx in tqdm(range(repeats), desc='Experiment repeats'):
+            # if simple refnorm, split off refnorm dataset
+            if splitting_strategy['refnorm']['split_type'] == 'simple':
+                dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
+                                                                   seed=idx))
+                refnorm_source_ids.update({idx: dataset_refnorm.source_ids})
+
+            splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
+            if repeats == 1:
+                splits = tqdm(list(splits), 'train - validate splits', position=0)
+            for dataset_train, dataset_validate in splits:
+                train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                      pairing_properties=pairing_properties)
+
+                # if leave one out validation, take all diff source pairs for 2 sources and all same source pairs for 1 source
+                if splitting_strategy['validation']['split_type'] == 'leave_one_out':
+                    validation_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
+                                                                  pairing_properties=pairing_properties)
+                    # there may be no viable pairs for these sources. If so, go to the next
+                    if not validation_pairs:
+                        continue
+                else:
+                    # apply a simple validation split
+                    validation_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
+                                                                  pairing_properties=pairing_properties)
+
+                train_scores = scorer.fit_predict(train_pairs)
+                validation_scores = scorer.predict(validation_pairs)
+
+                if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
+                    train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
+                    validation_scores = perform_refnorm(validation_scores, validation_pairs,
+                                                        dataset_refnorm or dataset_train, scorer)
+
+                calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
+                all_validation_lrs = np.concatenate([all_validation_lrs, calibrator.transform(validation_scores)])
+                all_validation_labels = np.concatenate([all_validation_labels, [mp.is_same_source for mp in validation_pairs]])
+                all_validation_scores = np.concatenate([all_validation_scores, validation_scores])
+                all_validation_pairs += validation_pairs
+                if idx == 0:
+                    # in the first repeat loop, save information on descriptive statistics
+                    validate_pairs_for_statistics += validation_pairs
+                    # for training, this is the entire set, so count once
+                    train_pairs_for_statistics = train_pairs
+
+        # gather system results, compute statistics and metrics, and create validation figures
+        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in
+                               zip(all_validation_pairs, all_validation_scores, all_validation_lrs)]
+        figs = create_figures(calibrator, all_validation_labels, all_validation_lrs, all_validation_scores)
+        descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, train_pairs_for_statistics,
+                                                                validate_pairs_for_statistics)
+        lr_metrics = calculate_lr_statistics(*Xy_to_Xn(all_validation_lrs, all_validation_labels))
+        metrics = {'cllr': lr_metrics.cllr,
+                   'cllr_min': lr_metrics.cllr_min,
+                   'cllr_cal': lr_metrics.cllr_cal,
+                   'auc': roc_auc_score(all_validation_labels, all_validation_scores),
+                   **descriptive_statistics}
+        holdout_results = None
+    else:  # execute hold-out run
+        # if simple refnorm, split off refnorm dataset
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
-                                                               seed=idx))
-            refnorm_source_ids.update({idx: dataset_refnorm.source_ids})
-        splits = dataset.get_splits(seed=idx, **splitting_strategy['validation'])
-        if repeats == 1:
-            splits = tqdm(list(splits), 'train - validate splits', position=0)
-        for dataset_train, dataset_validate in splits:
+                                                               seed=0))
+            refnorm_source_ids.update({0: dataset_refnorm.source_ids})
 
-            # if leave one out, take all diff source pairs for 2 sources and all same source pairs for 1 source
-            if splitting_strategy['validation']['split_type'] == 'leave_one_out':
-                validate_pairs = dataset_validate.get_pairs(pairing_function=LeaveOneTwoOutPairing(), seed=idx,
-                                                            pairing_properties=pairing_properties)
-                # there may be no viable pairs for these sources. If so, go to the next
-                if not validate_pairs:
-                    continue
-            else:
-                validate_pairs = dataset_validate.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                            pairing_properties=pairing_properties)
-
-            train_pairs = dataset_train.get_pairs(pairing_function=pairing_function, seed=idx,
-                                                  pairing_properties=pairing_properties)
-
-            train_scores = scorer.fit_predict(train_pairs)
-            validation_scores = scorer.predict(validate_pairs)
-
-            if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-                train_scores = perform_refnorm(train_scores, train_pairs, dataset_refnorm or dataset_train, scorer)
-                validation_scores = perform_refnorm(validation_scores, validate_pairs,
-                                                    dataset_refnorm or dataset_train, scorer)
-
-            calibrator.fit(train_scores, np.array([mp.is_same_source for mp in train_pairs]))
-            validate_lrs.append(calibrator.transform(validation_scores))
-            validate_labels.append([mp.is_same_source for mp in validate_pairs])
-            validate_scores.append(validation_scores)
-            if idx == 0:
-                # in the first repeat loop, save information on descriptive statistics
-                all_validate_pairs += validate_pairs
-                # for training, this is the entire set, so count once
-                all_train_pairs = train_pairs
-
-    # retrain with everything, and apply to the holdout (after the repeat loop)
-    calibration_results = None
-    if holdout_set:
+        # train with everything, and apply to the holdout
+        all_pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=0)
+        all_scores = scorer.fit_predict(all_pairs)
+        all_labels = np.array([mp.is_same_source for mp in all_pairs])
         holdout_pairs = holdout_set.get_pairs(pairing_function=CartesianPairing(),
                                               pairing_properties=pairing_properties)
-        pairs = dataset.get_pairs(pairing_function=pairing_function, pairing_properties=pairing_properties, seed=idx)
-        scores = scorer.fit_predict(pairs)
         holdout_scores = scorer.predict(holdout_pairs)
         if splitting_strategy['refnorm']['split_type'] in ('simple', 'leave_one_out'):
-            scores = perform_refnorm(scores, pairs, dataset_refnorm or dataset, scorer)
+            all_scores = perform_refnorm(all_scores, all_pairs, dataset_refnorm or dataset, scorer)
             holdout_scores = perform_refnorm(holdout_scores, holdout_pairs, dataset_refnorm or dataset, scorer)
-        calibrator.fit(scores, np.array([mp.is_same_source for mp in pairs]))
+        calibrator.fit(all_scores, all_labels)
+        all_lrs = calibrator.transform(all_scores)
+
+        # gather system and holdout results, compute statistics and metrics, and create validation figures
+        calibration_results = [[str(pair), score, lr, pair.is_same_source] for pair, score, lr in
+                               zip(all_pairs, all_scores, all_lrs)]
+        figs = create_figures(calibrator, all_labels, all_lrs, all_scores)
+        descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_pairs, holdout_pairs)
+        metrics = {**descriptive_statistics}
         holdout_lrs = calibrator.transform(holdout_scores)
-        calibration_results = [[str(pair), score, pair.is_same_source] for pair, score in zip(pairs, scores)]
-
-    validate_lrs = np.concatenate(validate_lrs)
-    validate_labels = np.concatenate(validate_labels)
-    validate_scores = np.concatenate(validate_scores)
-
-    # plotting results for a single experiment
-    figs = create_figures(calibrator, validate_labels, validate_lrs, validate_scores)
-
-    # compute descriptive statistics. These are taken over the initial train/validation loop, not holdout
-    descriptive_statistics = compute_descriptive_statistics(dataset, holdout_set, all_train_pairs, all_validate_pairs)
-
-    # compute lr statistics
-    lr_metrics = calculate_lr_statistics(*Xy_to_Xn(validate_lrs, validate_labels))
-
-    metrics = {'cllr': lr_metrics.cllr,
-               'cllr_min': lr_metrics.cllr_min,
-               'cllr_cal': lr_metrics.cllr_cal,
-               'auc': roc_auc_score(validate_labels, validate_scores),
-               **descriptive_statistics}
-
-    holdout_results = None
-    if holdout_set:
-        # holdout set was specified, record LRs. Only takes those from the last repeat.
         holdout_results = {str(pair): lr for pair, lr in zip(holdout_pairs, holdout_lrs)}
 
     return Result(metrics, figs, holdout_results, calibration_results, refnorm_source_ids)

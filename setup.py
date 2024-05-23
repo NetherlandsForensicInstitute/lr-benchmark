@@ -14,7 +14,9 @@ dependencies = (
     'lir',
     'pandas',
     'xgboost',
-    'more-itertools'
+    'more-itertools',
+    'streamlit',
+    'plotly'
 )
 
 
