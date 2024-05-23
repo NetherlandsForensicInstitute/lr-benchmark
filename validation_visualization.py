@@ -257,52 +257,68 @@ with single_output_tab:
         st.warning(f"File '{calibration_results_file}' not found")
 
 with multi_output_tab:
-    st.header('Analyse over multiple experiments')
+    st.header('Analyse multiple experiments')
+    st.write('This dashboard can be used to compare the effects of '
+             'different settings when creating '
+             'an lr-system. '
+             'For example, what happens to the lr-system for comparing speakers '
+             '(same speaker/different speaker) when using reference '
+             'normalization vs. not using reference normalization.\n\n'
+             'The dashboard is build with ASR use cases in mind, but may be '
+             'relevant for other use cases as well.')
     experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
                                 reverse=True)
 
-    # Left hand side
-    experiment_lhs = st.selectbox('Select left hand side experiment output folder',
+    # Experiment one
+    experiment_one = st.selectbox('Select first experiment output folder',
                                   experiment_folders)
-    experiment_folder_lhs = Path('.') / 'output' / experiment_lhs
-    calibration_results_file_lhs = experiment_folder_lhs / 'calibration_results.csv'
-    calibration_results_lhs, _, _ = get_calibration_results(
-        calibration_results_file_lhs, Path(f'./output/{experiment_lhs}'))
-    st.write(get_experiment_configs(experiment_folder_lhs))
+    experiment_folder_one = Path('.') / 'output' / experiment_one
+    calibration_results_file_one = experiment_folder_one / 'calibration_results.csv'
+    if not calibration_results_file_one.exists():
+        st.warning(f"File '{calibration_results_file_one}' not found")
+    if (experiment_folder_one / 'config.yaml').exists():
+        st.write(get_experiment_configs(experiment_folder_one))
 
-    # Right hand side
-    experiment_rhs = st.selectbox('Select right hand side experiment output folder',
+    # Experiment two
+    experiment_two = st.selectbox('Select second experiment output folder',
                                   experiment_folders)
-    experiment_folder_rhs = Path('.') / 'output' / experiment_rhs
-    calibration_results_file_rhs = Path(
-        f'./output/{experiment_rhs}') / 'calibration_results.csv'
-    calibration_results_rhs, _, _ = get_calibration_results(
-        calibration_results_file_rhs, Path(f'./output/{experiment_rhs}'))
-    st.write(get_experiment_configs(experiment_folder_rhs))
+    experiment_folder_two = Path('.') / 'output' / experiment_two
+    calibration_results_file_two = experiment_folder_two / 'calibration_results.csv'
+    if not calibration_results_file_two.exists():
+        st.warning(f"File '{calibration_results_file_two}' not found")
+    if (experiment_folder_two / 'config.yaml').exists():
+        st.write(get_experiment_configs(experiment_folder_two))
 
-    if experiment_lhs == experiment_rhs:
-        st.warning('Same experiment folder selected for left hand side and '
-                   'right hand side')
-    calibration_results_all = merge_dataframes(
-        calibration_results_lhs[['llrs', 'pair', 'pairing_property']],
-        calibration_results_rhs[['llrs', 'pair', 'pairing_property']],
-        on=['pairing_property', 'pair'], suffixes=("_lhs", "_rhs"))
+    if calibration_results_file_one.exists() and calibration_results_file_two.exists():
+        calibration_results_one, _, _ = get_calibration_results(
+            calibration_results_file_one, Path(f'./output/{experiment_one}'))
 
-    lhs_label = st.text_input('Label for lhs axis in figure:', 'llr_lhs')
-    lhs_label = lhs_label if lhs_label else 'llr_lhs'
-    rhs_label = st.text_input('Label for rhs axis in figure:', 'llr_rhs')
-    rhs_label = rhs_label if rhs_label else 'llr_rhs'
+        calibration_results_two, _, _ = get_calibration_results(
+            calibration_results_file_two, Path(f'./output/{experiment_two}'))
 
-    if calibration_results_all.empty:
-        st.warning('Unable to merge experiment data. Are you sure the '
-                   'experiments use the same dataset and filters?')
+        if experiment_one == experiment_two:
+            st.warning('Same experiment folder selected for first and '
+                       'second experiment')
+        calibration_results_all = merge_dataframes(
+            calibration_results_one[['llrs', 'pair', 'pairing_property']],
+            calibration_results_two[['llrs', 'pair', 'pairing_property']],
+            on=['pairing_property', 'pair'], suffixes=("_one", "_two"))
 
-    fig = px.scatter(calibration_results_all, x='llrs_lhs', y='llrs_rhs',
-                     color='pairing_property',
-                     title='llr per pair for different run conditions',
-                     labels={
-                         'llrs_lhs': lhs_label,
-                         'llrs_rhs': rhs_label,
-                         'pairing_property': 'Pairing property'
-                     })
-    st.plotly_chart(fig)
+        label_exp_one = st.text_input('Label for experiment one\'s axis in figure:', 'llr_exp_one')
+        label_exp_one = label_exp_one if label_exp_one else 'llr_exp_one'
+        label_exp_two = st.text_input('Label for experiment two\'s axis in figure:', 'llr_exp_two')
+        label_exp_two = label_exp_two if label_exp_two else 'llr_exp_two'
+
+        if calibration_results_all.empty:
+            st.warning('Unable to merge experiment data. Are you sure the '
+                       'experiments use the same dataset and filters?')
+
+        fig = px.scatter(calibration_results_all, x='llrs_one', y='llrs_two',
+                         color='pairing_property',
+                         title='llr per pair for different run conditions',
+                         labels={
+                             'llrs_one': label_exp_one,
+                             'llrs_two': label_exp_two,
+                             'pairing_property': 'Pairing property'
+                         })
+        st.plotly_chart(fig)
