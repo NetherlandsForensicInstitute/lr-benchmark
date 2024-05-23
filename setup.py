@@ -16,6 +16,7 @@ dependencies = (
     'xgboost',
     'more-itertools',
     'streamlit',
+    'plotly'
 )
 
 

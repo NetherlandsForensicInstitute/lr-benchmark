@@ -230,11 +230,18 @@ read scores from a pre-computed input file (`PrecalculatedScorer`).
 
 Streamlit dashboard
 -------------------
-There is a Streamlit dashboard available to compare scores-to-lr plots within a run output. In this dashboard you can
-select the desired output folder. In there the files `calibration_results.csv` and `all_metrics.csv` are automatically
-found. The different 'runs' with different pairing properties are detected. You can select or de-select the desired
-pairs to create plots of the scores-to-lr functions. The descriptions of the pairs also contain the counts in the underlying
-data. `n_train` refers to the number of speakers in the train set, `n_val` to the number of speakers in the validation set, 
+There is a Streamlit dashboard available to compare the effects of different property pairings when selecting the 
+reference set for an lr-system. For example, what happens to the lr-system for comparing speakers 
+(same speaker/different speaker) when comparing speaker audio recorded while driving with speaker 
+audio not recorded while driving? The dashboard is build with ASR use cases in mind, but may be 
+relevant for other use cases as well.  
+
+In this dashboard you can
+select the desired output folder. From there the files `calibration_results.csv` and `all_metrics.csv` are loaded. 
+The different 'runs' with different property pairings are retrieved from `run_config.yaml` files. 
+You can select or de-select the desired
+pairs to create several `plotly` plots related to the lr-system. The counts in the underlying
+data are shown: `n_train` refers to the number of speakers in the train set, `n_val` to the number of speakers in the validation set, 
 `n_total` is the sum of `n_train` and `n_val`. Depending on whether the data was generated with a holdout set, `n_val` 
 (no holdout) or `n_total` (with holdout) is the number of speakers in the data.
 To limit the amount of data processed and plotted, a downsampling 
@@ -242,5 +249,5 @@ functionality is added. The downsampling specificity can be selected in the dash
 to more datapoints in the figure. By selecting 'None' all data is plotted, which may slow down the dashboard significantly
 depending on the amount of data in `calibration_results.csv`.
 
-run:  
+To run the dashboard, run:  
 `streamlit run validation_visualization.py `
