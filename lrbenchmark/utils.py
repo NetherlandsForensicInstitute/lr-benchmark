@@ -9,6 +9,7 @@ from lrbenchmark.data.models import Measurement, MeasurementPair
 
 def select_max_measurements_per_source(max_m_per_source: int,
                                        measurements: Iterable[Measurement],
+                                       seed: Optional[int] = None,
                                        pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]] = ({}, {})) \
         -> List[Measurement]:
     """
@@ -16,6 +17,7 @@ def select_max_measurements_per_source(max_m_per_source: int,
     and return the list of remaining measurements. If there are more than `max_m_per_source` measurements for a source,
     we randomly sample `max_m_per_source` measurements.
     """
+    random.seed(seed)
     m_per_source = defaultdict(list)
     # gather all measurements that comply with the properties per source
     for m in measurements:
