@@ -35,9 +35,12 @@ def get_pairing_properties(experiment_folder: Path, group: str):
     else:
         f = run_folder[0] / 'run_config.yaml'
         props = yaml.safe_load(f.read_text())
-        prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
-        return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
-                          prop_l.keys()])
+        if props.get('pairing_properties', None) is not None:
+            prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
+            return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
+                              prop_l.keys()])
+        else:
+            return 'No pairing properties'
 
 
 @st.cache_data
