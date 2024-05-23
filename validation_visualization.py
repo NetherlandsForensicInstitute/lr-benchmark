@@ -6,9 +6,8 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
-import yaml
-
 import streamlit as st
+import yaml
 
 single_output_tab, multi_output_tab = st.tabs(
     ['Single output', 'Multi output'])
@@ -20,7 +19,7 @@ def get_pairing_properties(experiment_folder: Path, group: str):
     the run folder. If multiple runs for the same group are found or
     if no folder is found, warnings are printed to the dashboard and returned.
     The property categories are simplified by concatenating them into:
-    '{category 1}: {value 1}/{value 2}, {category 2}: {value 1}/{value 2}'
+    '{property 1}: {value 1}/{value 2}, {property 2}: {value 1}/{value 2}'
     e.g.:
     'auto: ja/nee, sprekers: nee/nee'
     """
@@ -39,9 +38,12 @@ def get_pairing_properties(experiment_folder: Path, group: str):
     else:
         f = run_folder[0] / 'run_config.yaml'
         props = yaml.safe_load(f.read_text())
-        prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
-        return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
-                          prop_l.keys()])
+        if props.get('pairing_properties', None) is not None:
+            prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
+            return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
+                              prop_l.keys()])
+        else:
+            return 'No pairing properties'
 
 
 @st.cache_data
@@ -86,7 +88,7 @@ def get_counts_per_run(experiment_folder: Path, group: str):
         return (f"n_train: {train_counts}, n_val: {val_counts}, "
                 f"n_total: {train_counts + val_counts}")
     else:
-        return f"Warning: file 'all_metrics.csv' not found"
+        return "Warning: file 'all_metrics.csv' not found"
 
 
 @st.cache_data
@@ -161,6 +163,18 @@ def merge_dataframes(lhs_df: pd.DataFrame, rhs_df: pd.DataFrame,
 
 with single_output_tab:
     st.header('Analyse single experiment data')
+    st.write('This dashboard can be used to compare the effects of '
+             'different property pairings when selecting the reference set '
+             'for an lr-system. '
+             'For example, what happens to the lr-system for comparing speakers '
+             '(same speaker/different speaker) when comparing speaker audio '
+             'recorded while driving with speaker audio not recorded '
+             'while driving?\n\n'
+             'The dashboard is build with ASR use cases in mind, but may be '
+             'relevant for other use cases as well.')
+
+    st.header('data')
+
     # List all experiment outputfolder names in reversed order (i.e. latest
     # results are selected by default)
     experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
@@ -188,7 +202,7 @@ with single_output_tab:
             else:
                 selected_data = calibration_results
 
-            st.write('**Counts per pairing category:**')
+            st.write('**Counts per pairing property:**')
             for group in groups:
                 st.write(
                     f"{labels[group]['pairing properties']}: {labels[group]['counts']}")
@@ -204,27 +218,34 @@ with single_output_tab:
                              labels={
                                  'normalized_score': 'Normalized score',
                                  'llrs': 'llr',
-                                 'pairing_property': 'Pairing property'
+                                 'pairing_property': ''
                              })
 
             st.plotly_chart(fig)
 
+            scores_hist = st.checkbox('Show scores histogram', False)
             # KDE plot normalized scores
             scores_data = get_groupdata_as_lists(selected_data, groups,
                                                  'normalized_score')
-            kde_score = ff.create_distplot(scores_data,
-                                           group_labels=selected_data[
-                                               'pairing_property'].unique())
+            kde_score = ff.create_distplot(
+                scores_data,
+                group_labels=selected_data['pairing_property'].unique(),
+                show_hist=scores_hist,
+                show_rug=False)
             kde_score.update_layout(
-                title_text='Distplot of normalized scores per pairing category')
+                title_text='KDE plot of normalized scores per property pairing')
             st.plotly_chart(kde_score)
 
-            # KDE plot llrs. For lrs, change target_column on line 140 to 'lr'
+            lr_hist = st.checkbox('Show llr histogram', False)
+            # KDE plot llrs. For lrs, change target_column 'llrs' on the next line to 'lr'
             llrs_data = get_groupdata_as_lists(selected_data, groups, 'llrs')
-            kde_llr = ff.create_distplot(llrs_data, group_labels=selected_data[
-                'pairing_property'].unique())
+            kde_llr = ff.create_distplot(
+                llrs_data,
+                group_labels=selected_data['pairing_property'].unique(),
+                show_hist=lr_hist,
+                show_rug=False)
             kde_llr.update_layout(
-                title_text='Distplot of llrs per pairing category')
+                title_text='KDE plot of llrs per property pairing')
             st.plotly_chart(kde_llr)
 
         else:
