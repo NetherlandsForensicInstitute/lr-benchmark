@@ -35,11 +35,13 @@ def fit_and_evaluate(dataset: Dataset,
                      pairing_properties: Tuple[Mapping[str, str], Mapping[str, str]],
                      repeats: int = 1) -> Result:
     """
-    Fits an LR system on part of the data, and evaluates its performance on the remainder when no hold out set is
-    available within the dataset. If a hold out set is available, directly train an LR system on the dataset,
-    and apply that on the hold out set.
+    Fits an LR system on part of the data, and evaluates its performance on the remainder when no hold-out source ids
+    are provided. If there are source ids provided, e.g. a hold out set is available, directly train an LR system on the
+    dataset and apply that on the hold out set.
     """
     holdout_set, dataset = dataset.split_off_holdout_set()  # split off the sources that should only be evaluated
+    dataset_refnorm = None
+    refnorm_source_ids = {}
     if not holdout_set:
         all_validation_labels, all_validation_lrs, all_validation_scores = np.array([]), np.array([]), np.array([])
         all_validation_pairs, train_pairs_for_statistics, validate_pairs_for_statistics = [], [], []
@@ -47,8 +49,6 @@ def fit_and_evaluate(dataset: Dataset,
                                                                                                 CartesianPairing):
             LOG.warning(f"Leave one out validation will give you cartesian pairing, not {pairing_function}.")
 
-        dataset_refnorm = None
-        refnorm_source_ids = {}
         for idx in tqdm(range(repeats), desc='Experiment repeats'):
             # if simple refnorm, split off refnorm dataset
             if splitting_strategy['refnorm']['split_type'] == 'simple':
@@ -107,10 +107,8 @@ def fit_and_evaluate(dataset: Dataset,
                    'auc': roc_auc_score(all_validation_labels, all_validation_scores),
                    **descriptive_statistics}
         holdout_results = None
-    else:  # do hold-out run
+    else:  # execute hold-out run
         # if simple refnorm, split off refnorm dataset
-        dataset_refnorm = None
-        refnorm_source_ids = {}
         if splitting_strategy['refnorm']['split_type'] == 'simple':
             dataset, dataset_refnorm = next(dataset.get_splits(validate_size=splitting_strategy['refnorm']['size'],
                                                                seed=0))

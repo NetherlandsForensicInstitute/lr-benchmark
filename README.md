@@ -19,7 +19,7 @@ Add new dependencies to the setup.py and always update the requirements by runni
 Usage
 -----------
 Running the benchmark can be done as follows:
-1. Specify the properties of the data to be used in `config/data/<datasetname>.yaml`
+1. Specify the properties of the data to be used in `config/data/<dataset_name>.yaml`
 2. Specify the parameters for the experiments to be run in the `lrbenchmark.yaml`
 3. Run `python run.py -d <dataset_name>`.
 
@@ -41,9 +41,9 @@ dataset:
 The parameters for the benchmark must be provided in the following structure: 
 ```
 experiment:
-  repeats: 10
+  repeats: <nr of times to run the experiment>
   pairing:
-    - name: cartesian
+    - name: <pairer>
   scorer:
     - name: <first scorer>
       preprocessors:
@@ -53,19 +53,18 @@ experiment:
       preprocessors:
         - name: <first preprocessor>
   calibrator: 
-    - name: 'calibrator 1'
+    - name: <first calibrator>
   splitting_strategy:
     validation:
       split_type: [leave_one_out simple]
-      train_size: <int for a specific number of sources in the training set, float for a fraction, None to be complementary to the validate_size>
-      validate_size: <int for a specific number of sources in the validation set, float for a fraction, None to be complementary to the train_size>
+      validate_size: <int for a specific number of sources in the validation set or float for a fraction>
     refnorm:
       split_type: [leave_one_out simple None]
       size: <int for a specific number of sources in the refnorm set, float for a fraction, None to use the Leave-One-Out method>    
         
     
 ```
-At least 1 setting needs to be provided for each parameter, but more settings per parameter can be provided. The pipeline will
+At least one setting needs to be provided for each parameter, but more settings per parameter can be provided. The pipeline will
 create the cartesian product over all parameter settings (except `repeats`) and will execute the experiments accordingly.
 
 All possible settings can be found in `params.py`. The parameters that need to be set are:
@@ -111,16 +110,18 @@ The results for each experiment (metrics + plots) will be stored in separate fol
 ### Doing casework: Calibration, validation and case LR computation for ASR
 A typical case may involve selecting relevant training/validation data matching the conditions of the case, performing
 training/validation and, if results are good enough, applying the system to obtain the LRs for reporting.
+The calibration and validation part are split from doing the case run, based on whether `holdout_source_ids` are 
+provided in the data configuration file (`config/asr.yaml`).
+When sources from the case are provided, this will train and validate a model as specified in the yaml on the other sources, 
+and apply it to the specified case/hold-out sources. All LRs for the measurement pairs for these sources will be provided in a text file.
+
+When no `hold_out_source_ids` are provided, training/validation experiments are performed. 
 
 Selecting the relevant data from a larger set is supported by providing the `source_filter` options in the dataset yaml,
 and/or the `trace_properties` and `reference_properties`. The former filters source, the latter filters measurements. It
 also allows for different filters on the two parts of the measurement pairs ('trace' and 'reference'). 
 
-In the same datafile you can provide the information on the sources from the case, whose ids should be specified in 
-`holdout_source_ids`. This will train and validate a model as specified in the yaml on the other sources, and apply it 
-to the specified sources. All LRs for the measurement pairs for these sources will be provided in a text file. 
-
-Below are two yaml files that together achieve this for ASR data
+Below are two yaml files that together achieve this for ASR data.
 
 ```
 experiment:
@@ -174,9 +175,9 @@ There are currently a number of datasets implemented for this project:
   as well as some speaker and recording metadata are provided.
 
 Simulations
+----------
 It is straightforward to simulate data for experimentation. Currently a very simple simulation 'synthesized-normal' of the two-level model
 is provided, with sources and measurements drawn from normal distributions.
-
 
 
 Reference Normalization
@@ -202,13 +203,13 @@ the standard deviation of the sets of scores would become too high, resulting in
 
 If `refnorm` is specified in the `lrbenchmark.yaml` file, the scores of the measurement pairs will be transformed using
 reference normalization. This reference normalization will be either performed using a separate refnorm dataset (when 
-`refnorm.size` is defined). This dataset has a set of unique sources that do not occur in the training or validation 
+`refnorm.split_type` is `simple`). This dataset has a set of unique sources that do not occur in the training or validation 
 sets. An example: the dataset contains source ids `a`, `b` and `z`, the refnorm source ids are `c` and `d`, and the 
 selected measurement pair has a measurement 1 with source `a` and a measurement 2 with source `b`. When 
 performing reference normalization all measurements with source id `c` or `d` will be compared with both measurements in
 the measurement pair. 
 
-If the `refnorm.refnorm_size` is not defined, the normalization will be done with the Leave-One-Out method. This means
+If the `refnorm.split_type` is `leave_one_out`, the normalization will be done with the Leave-One-Out method. This means
 that for each measurement pair in the dataset, the rest of the dataset will be acting as refnorm set. 
 For each measurement in the selected measurement pair, only the measurements in the left-over dataset will be used 
 which have source ids that are not in the selected measurement pair. 
