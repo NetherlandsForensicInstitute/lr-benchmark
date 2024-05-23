@@ -1,6 +1,6 @@
 import ast
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ import streamlit as st
 import yaml
 
 
-def get_pairing_properties(experiment_folder: Path, group: str):
+def get_pairing_properties(experiment_folder: Path, group: str) -> str:
     """
     Looks for the pairing properties in the 'run_config.yaml' file in
     the run folder. If multiple runs for the same group are found or
@@ -44,10 +44,9 @@ def get_pairing_properties(experiment_folder: Path, group: str):
 
 
 @st.cache_data
-def get_all_metrics(experiment_folder: Path):
+def get_all_metrics(experiment_folder: Path) -> Optional[pd.DataFrame]:
     """
-    Loads the 'all_metrics.csv' file into a dataframe if the file exists.
-    Column 'run' is set to string
+    Loads the 'all_metrics.csv' file into a dataframe if the file exists. Column 'run' is set to string.
     """
     file_path = experiment_folder / 'all_metrics.csv'
     if file_path.exists():
@@ -58,7 +57,7 @@ def get_all_metrics(experiment_folder: Path):
         return None
 
 
-def get_counts_per_run(experiment_folder: Path, group: str):
+def get_counts_per_run(experiment_folder: Path, group: str) -> str:
     """
     Looks up the train, validation and total counts per run in the
     all_metrics.csv file in the output folder.
@@ -69,8 +68,8 @@ def get_counts_per_run(experiment_folder: Path, group: str):
     if type(data) is pd.DataFrame:
         train_counts, val_counts = data[data['run'] == group][
             ['no of sources train', 'no of sources validate']].values[0]
-        return (f"n_train: {train_counts}, n_val: {val_counts}, "
-                f"n_total: {train_counts + val_counts}")
+        return f"n_train: {train_counts}, n_val: {val_counts}, " \
+               f"n_total: {train_counts + val_counts}"
     else:
         return "Warning: file 'all_metrics.csv' not found"
 
@@ -109,7 +108,7 @@ def get_calibration_results(file_path: Path, experiment_folder: Path):
 
 
 @st.cache_data
-def downsample(data: pd.DataFrame, n_decimals: int = 2):
+def downsample(data: pd.DataFrame, n_decimals: int = 2) -> pd.DataFrame:
     """
     Downsample the data by rounding the normalized_score to n_decimals and
     selecting the first row per rounded score
@@ -162,8 +161,7 @@ if calibration_results_file.exists():
         n_decimals = st.selectbox(
             "Downsample specificity: Higher number leads to more data points, "
             "'None' for all data points/no downsampling (might be slow to "
-            "process)",
-            [0, 1, 2, 3, None], index=1)
+            "process)", [0, 1, 2, 3, None], index=1)
 
         if n_decimals is not None:
             selected_data = downsample(calibration_results, n_decimals)
@@ -186,7 +184,6 @@ if calibration_results_file.exists():
                              'llrs': 'llr',
                              'pairing_property': ''
                          })
-
         st.plotly_chart(fig)
 
         scores_hist = st.checkbox('Show scores histogram', False)
