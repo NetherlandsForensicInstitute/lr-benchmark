@@ -38,12 +38,12 @@ def get_pairing_properties(experiment_folder: Path, group: str):
     else:
         f = run_folder[0] / 'run_config.yaml'
         props = yaml.safe_load(f.read_text())
-        if props.get('pairing_properties', None) is not None:
+        if props.get('pairing_properties', '({}, {})') != '({}, {})':
             prop_l, prop_r = ast.literal_eval(props['pairing_properties'])
             return ', '.join([f"{key}: {prop_l[key]}/{prop_r[key]}" for key in
                               prop_l.keys()])
         else:
-            return 'No pairing properties'
+            return 'No pairing properties applied'
 
 
 @st.cache_data
@@ -163,17 +163,17 @@ with single_output_tab:
     st.header('Analyse single experiment data')
     st.write('This dashboard can be used to compare the effects of '
              'different property pairings when selecting the reference set '
-             'for an lr-system. '
-             'For example, what happens to the lr-system for comparing speakers '
+             'for an LR-system. '
+             'For example, what happens to the LR-system for comparing speakers '
              '(same speaker/different speaker) when comparing speaker audio '
              'recorded while driving with speaker audio not recorded '
              'while driving?\n\n'
              'The dashboard is build with ASR use cases in mind, but may be '
              'relevant for other use cases as well.')
 
-    st.header('data')
+    st.header('Data')
 
-    # List all experiment outputfolder names in reversed order (i.e. latest
+    # List all experiment output folder names in reversed order (i.e. latest
     # results are selected by default)
     experiment_folders = sorted([p.name for p in Path('./output').glob('*')],
                                 reverse=True)
@@ -212,7 +212,7 @@ with single_output_tab:
             # Scatterplot
             fig = px.scatter(selected_data, x='normalized_score', y='llrs',
                              color=selected_data['pairing_property'],
-                             title='Normalized scores to log10 LR per property pairing',
+                             title='Normalized scores to log10(LR) per property pairing',
                              labels={
                                  'normalized_score': 'Normalized score',
                                  'llrs': 'llr',
@@ -220,6 +220,7 @@ with single_output_tab:
                              })
 
             st.plotly_chart(fig)
+            st.divider()
 
             scores_hist = st.checkbox('Show scores histogram', False)
             # KDE plot normalized scores
@@ -231,8 +232,11 @@ with single_output_tab:
                 show_hist=scores_hist,
                 show_rug=False)
             kde_score.update_layout(
-                title_text='KDE plot of normalized scores per property pairing')
+                title_text='KDE plot of normalized scores per property pairing',
+                xaxis_title='Normalized score',
+                yaxis_title='Density')
             st.plotly_chart(kde_score)
+            st.divider()
 
             lr_hist = st.checkbox('Show llr histogram', False)
             # KDE plot llrs. For lrs, change target_column 'llrs' on the next line to 'lr'
@@ -243,7 +247,10 @@ with single_output_tab:
                 show_hist=lr_hist,
                 show_rug=False)
             kde_llr.update_layout(
-                title_text='KDE plot of llrs per property pairing')
+                title_text='KDE plot of llrs per property pairing',
+                xaxis_title='llr',
+                yaxis_title='Density'
+            )
             st.plotly_chart(kde_llr)
 
         else:
@@ -258,8 +265,8 @@ with multi_output_tab:
     st.header('Analyse multiple experiments')
     st.write('This dashboard can be used to compare the effects of '
              'different settings when creating '
-             'an lr-system. '
-             'For example, what happens to the lr-system for comparing speakers '
+             'an LR-system. '
+             'For example, what happens to the LR-system for comparing speakers '
              '(same speaker/different speaker) when using reference '
              'normalization vs. not using reference normalization.\n\n'
              'The dashboard is build with ASR use cases in mind, but may be '
@@ -307,7 +314,8 @@ with multi_output_tab:
             return f"exp1: {row['pairing_property_one']}, exp2: {row['pairing_property_two']}"
 
 
-        calibration_results_all['pairing_property'] = calibration_results_all.apply(lambda x: concatenate_pair_categories(x), axis=1)
+        calibration_results_all['pairing_property'] = \
+            calibration_results_all.apply(lambda x: concatenate_pair_categories(x), axis=1)
 
         label_exp_one = st.text_input('Label for experiment one\'s axis in figure:', 'llr_exp_one')
         label_exp_one = label_exp_one if label_exp_one else 'llr_exp_one'
@@ -315,8 +323,7 @@ with multi_output_tab:
         label_exp_two = label_exp_two if label_exp_two else 'llr_exp_two'
 
         if calibration_results_all.empty:
-            st.warning('Unable to merge experiment data. Are you sure the '
-                       'experiments use the same dataset?')
+            st.warning('Unable to merge experiment data. Please check the experiment configs.')
 
         fig = px.scatter(calibration_results_all, x='llrs_one', y='llrs_two',
                          color='pairing_property',
