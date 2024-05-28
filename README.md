@@ -236,9 +236,15 @@ reference set for an lr-system. For example, what happens to the lr-system for c
 audio not recorded while driving? The dashboard is build with ASR use cases in mind, but may be 
 relevant for other use cases as well.  
 
+To run the dashboard, run:  
+`streamlit run validation_visualization.py `
+
+There are two tabs available: a single output tab and a multi output tab.
+
+### Single output tab
 In this dashboard you can
 select the desired output folder. From there the files `calibration_results.csv` and `all_metrics.csv` are loaded. 
-The different 'runs' with different property pairings are retrieved from `run_config.yaml` files. 
+The different 'runs' with different property pairings are retrieved from `config.yaml` files. 
 You can select or de-select the desired
 pairs to create several `plotly` plots related to the lr-system. The counts in the underlying
 data are shown: `n_train` refers to the number of speakers in the train set, `n_val` to the number of speakers in the validation set, 
@@ -249,5 +255,9 @@ functionality is added. The downsampling specificity can be selected in the dash
 to more datapoints in the figure. By selecting 'None' all data is plotted, which may slow down the dashboard significantly
 depending on the amount of data in `calibration_results.csv`.
 
-To run the dashboard, run:  
-`streamlit run validation_visualization.py `
+### Multi output tab
+In this dashboard you can select two experiment output folders. From there, the files `calibration_results.csv` and
+`config.yaml` are loaded. The `config.yaml` is printed so the user can view the experiment settings that were applied. 
+From the `calibration_results.csv` the pairs, pairing properties and LRs are retrieved. The two resulting
+dataframes are merged on pairs, so the logLRs are plotted against each other for every pairing property combination.
+The axis labels may be adjusted by the user.

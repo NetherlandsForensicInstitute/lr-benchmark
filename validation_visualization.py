@@ -9,6 +9,8 @@ import plotly.figure_factory as ff
 import streamlit as st
 import yaml
 
+COLORS = px.colors.qualitative.Dark24
+
 single_output_tab, multi_output_tab = st.tabs(
     ['Single output', 'Multi output'])
 
@@ -140,17 +142,18 @@ def downsample(data: pd.DataFrame, n_decimals: int = 2):
 def get_groupdata_as_lists(data: pd.DataFrame, groups: List,
                            target_column: str) -> List[List]:
     """
-    Return a list containing the lists of the target_column per group
+    Return a list containing the lists of the target_column per group and split by same and different source.
     """
     data_list = []
     for group in groups:
-        data_list.append(data[data['run'] == group][target_column].tolist())
+        data_list.append(data[(data['run'] == group) & (data['is_same_source'] == True)][target_column].tolist())
+        data_list.append(data[(data['run'] == group) & (data['is_same_source'] == False)][target_column].tolist())
     return data_list
 
 
 @st.cache_data
 def merge_dataframes(lhs_df: pd.DataFrame, rhs_df: pd.DataFrame,
-                     on: str, suffixes: Tuple):
+                     on: str, suffixes: Tuple) -> pd.DataFrame:
     """
     Merge two dataframes on one or multiple columns. Add suffixes to
     overlapping columns.
@@ -204,6 +207,8 @@ with single_output_tab:
             for group in groups:
                 st.write(
                     f"{labels[group]['pairing properties']}: {labels[group]['counts']}")
+            group_labels = [f"{pp} ({source})" for pp in
+                            selected_data['pairing_property'].unique() for source in ['SS', 'DS']]
 
             st.header('Figures')
             st.info(
@@ -218,7 +223,6 @@ with single_output_tab:
                                  'llrs': 'llr',
                                  'pairing_property': ''
                              })
-
             st.plotly_chart(fig)
             st.divider()
 
@@ -228,13 +232,19 @@ with single_output_tab:
                                                  'normalized_score')
             kde_score = ff.create_distplot(
                 scores_data,
-                group_labels=selected_data['pairing_property'].unique(),
+                colors=list(np.repeat(COLORS[:len(groups)], 2)),
+                group_labels=group_labels,
                 show_hist=scores_hist,
                 show_rug=False)
             kde_score.update_layout(
                 title_text='KDE plot of normalized scores per property pairing',
                 xaxis_title='Normalized score',
                 yaxis_title='Density')
+            if not scores_hist:
+                # distinguish SS/DS by making SS a dashed line
+                for i in range(len(groups)):
+                    kde_score.update_traces(selector={'name': group_labels[i*2]},
+                                            line={'dash': 'dash'})
             st.plotly_chart(kde_score)
             st.divider()
 
@@ -243,7 +253,8 @@ with single_output_tab:
             llrs_data = get_groupdata_as_lists(selected_data, groups, 'llrs')
             kde_llr = ff.create_distplot(
                 llrs_data,
-                group_labels=selected_data['pairing_property'].unique(),
+                colors=list(np.repeat(COLORS[:len(groups)], 2)),
+                group_labels=group_labels,
                 show_hist=lr_hist,
                 show_rug=False)
             kde_llr.update_layout(
@@ -251,6 +262,11 @@ with single_output_tab:
                 xaxis_title='llr',
                 yaxis_title='Density'
             )
+            if not lr_hist:
+                # distinguish SS/DS by making SS a dashed line
+                for i in range(len(groups)):
+                    kde_llr.update_traces(selector={'name': group_labels[i*2]},
+                                          line={'dash': 'dash'})
             st.plotly_chart(kde_llr)
 
         else:
