@@ -134,7 +134,7 @@ class Setup:
 
 
 def compute_descriptive_statistics(dataset: Dataset,
-                                   holdout_set: Dataset,
+                                   holdout_set: Optional[Dataset],
                                    all_train_pairs: List[MeasurementPair],
                                    all_validate_pairs: List[MeasurementPair], ) -> Dict[str, int]:
     """
