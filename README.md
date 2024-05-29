@@ -41,7 +41,7 @@ dataset:
 The parameters for the benchmark must be provided in the following structure: 
 ```
 experiment:
-  repeats: <nr of times to run the experiment>
+  repeats: <int: nr of times to run the experiment>
   pairing:
     - name: <pairer>
   scorer:
@@ -54,18 +54,19 @@ experiment:
         - name: <first preprocessor>
   calibrator: 
     - name: <first calibrator>
+  max_m_per_source: <int>  # if empty, no maximum is considered
   splitting_strategy:
     validation:
-      split_type: [leave_one_out simple]
+      split_type: [leave_one_out or simple]
       validate_size: <int for a specific number of sources in the validation set or float for a fraction>
     refnorm:
-      split_type: [leave_one_out simple None]
+      split_type: [leave_one_out or simple or empty]
       size: <int for a specific number of sources in the refnorm set, float for a fraction, None to use the Leave-One-Out method>    
         
     
 ```
 At least one setting needs to be provided for each parameter, but more settings per parameter can be provided. The pipeline will
-create the cartesian product over all parameter settings (except `repeats`) and will execute the experiments accordingly.
+create the cartesian product over all parameter settings (except `repeats` and `max_m_per_source`) and will execute the experiments accordingly.
 
 All possible settings can be found in `params.py`. The parameters that need to be set are:
 - `repeats`: Number of repeats for each experiment.
@@ -78,6 +79,8 @@ All possible settings can be found in `params.py`. The parameters that need to b
   e.g. by a `simple` split or using a `leave_one_out` scheme. Application of reference normalisation is optional, and
   possible through a `simple` split or using a `leave_one_out` scheme. Note that using `leave_one_out` twice will lead
   to long computation times.
+- `max_m_per_source`: the maximum number of measurements per source to be used for pairing. If no number is provided, 
+  this parameter is not considered and all measurements of the sources are used. 
 
 
 
@@ -133,6 +136,7 @@ experiment:
       scores_path: ${dataset.scores_path}
   calibrator:
     - name: elub_logit
+  max_m_per_source: 5  # if empty, no maximum is considered
   splitting_strategy:
     validation:
       split_type: leave_one_out # leave_one_out or simple.

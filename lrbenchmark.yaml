@@ -15,6 +15,7 @@ experiment:
 #          - name: rank_transformer
   calibrator:
     - name: elub_logit
+  max_m_per_source: 5  # if empty, no maximum is considered
   splitting_strategy:
     validation:
       split_type: simple # leave_one_out or simple.
