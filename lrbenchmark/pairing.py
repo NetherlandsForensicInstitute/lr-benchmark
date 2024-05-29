@@ -46,7 +46,7 @@ class CartesianPairing(BasePairing):
                   max_m_per_source: Optional[int] = None,
                   seed: Optional[int] = None) -> List[MeasurementPair]:
         if max_m_per_source:
-            measurements = select_max_measurements_per_source(max_m_per_source, measurements, pairing_properties, seed)
+            measurements = select_max_measurements_per_source(max_m_per_source, measurements, seed, pairing_properties)
         all_pairs = [MeasurementPair(*mp) for mp in itertools.combinations(measurements, 2)]
         all_pairs = [mp for mp in all_pairs if pair_complies_with_properties(mp, pairing_properties)]
         return all_pairs
